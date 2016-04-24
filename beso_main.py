@@ -180,7 +180,7 @@ while True:
         if save_iteration_meshes and not np.mod(float(i-1), save_iteration_meshes) > 0:
             beso_lib.export_frd(file_nameW, nodes, elm_C3D4, elm_C3D10, elm_S3, elm_S6, switch_elm)
     i += 1 # iteration number
-    print("new iteration number %d" %i)
+    print("----------- new iteration number %d ----------" %i)
 
     # fixing volume_goal
     dn = -1
