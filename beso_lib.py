@@ -140,17 +140,16 @@ def import_inp(file_name, domain_elset, domain_optimized, f_log):
 
 # function for computing a volume of all elements in opt_domains as full elements (non-penalized)
 # approximate for 2nd order elements!
-def volume_full(nodes, elm_C3D4, elm_C3D10, elm_S3, elm_S6, domain_thickness, domains, opt_domains, f_log):
+def volume_full(nodes, elm_C3D4, elm_C3D10, elm_S3, elm_S6, domain_thickness, domains, f_log):
     u = [0.0, 0.0, 0.0]
     v = [0.0, 0.0, 0.0]
     w = [0.0, 0.0, 0.0]
     volume_elm = {}
-    volume_sum = 0 # volume of the optimization domain
 
     elm_C3D4andC3D10 = elm_C3D4.copy()
     elm_C3D4andC3D10.update(elm_C3D10)
     if elm_C3D10:
-        msg = "WARNING: volumes of C3D10 elements ignore mid-node's positions"
+        msg = "WARNING: volumes of C3D10 elements ignore mid-nodes' positions"
         print(msg)
         f_log.write(msg + "\n")
     for en, nod in elm_C3D4andC3D10.iteritems():
@@ -165,7 +164,7 @@ def volume_full(nodes, elm_C3D4, elm_C3D10, elm_S3, elm_S6, domain_thickness, do
     elm_S3andS6 = elm_S3.copy()
     elm_S3andS6.update(elm_S6)
     if elm_S6:
-        msg = "WARNING: areas of S6 elements ignore mid-node's positions"
+        msg = "WARNING: areas of S6 elements ignore mid-nodes' positions"
         print(msg)
         f_log.write(msg + "\n")
     for en, nod in elm_S3andS6.iteritems():
@@ -182,9 +181,7 @@ def volume_full(nodes, elm_C3D4, elm_C3D10, elm_S3, elm_S6, domain_thickness, do
                     u[i] = nodes[nod[2]][i] - nodes[nod[1]][i]
                     v[i] = nodes[nod[0]][i] - nodes[nod[1]][i]
                 volume_elm[en] = np.linalg.linalg.norm(np.cross(u, v)) / 2.0 * thickness
-    for en in opt_domains:
-        volume_sum += volume_elm[en]
-    return volume_elm, volume_sum
+    return volume_elm
 
 # function for computing a centre of gravity of each element
 # approximate for 2nd order elements!
@@ -207,7 +204,7 @@ def elm_cg(nodes, elm_C3D4, elm_C3D10, elm_S3, elm_S6, opt_domains, f_log):
             cg_max = [- min(- x_cg, -1 * cg_max[0]), - min(- y_cg, -1 * cg_max[1]), - min(- z_cg, -1 * cg_max[2])] # -1 because max(5, []) doesn't work properly, but min function ignore []   
 
     if elm_C3D10:
-        msg = "WARNING: centres of gravity of C3D10 elements ignore mid-node's positions"
+        msg = "WARNING: centres of gravity of C3D10 elements ignore mid-nodes' positions"
         print(msg)
         f_log.write(msg + "\n")
     for en in elm_C3D10.keys():
@@ -237,7 +234,7 @@ def elm_cg(nodes, elm_C3D4, elm_C3D10, elm_S3, elm_S6, opt_domains, f_log):
             cg_max = [- min(- x_cg, -1 * cg_max[0]), - min(- y_cg, -1 * cg_max[1]), - min(- z_cg, -1 * cg_max[2])] # -1 because max(5, []) doesn't work properly, but min function ignore []   
 
     if elm_S6:
-        msg =  "WARNING: centres of gravity of S6 elements ignore mid-node's positions"
+        msg =  "WARNING: centres of gravity of S6 elements ignore mid-nodes' positions"
         print(msg)
         f_log.write(msg + "\n")
     for en in elm_S6.keys():
@@ -825,3 +822,19 @@ def export_frd(file_name, nodes, elm_C3D4, elm_C3D10, elm_S3, elm_S6, switch_elm
     f.write(" -3\n")
     f.close()
     print("%s file with resulting mesh has been created" %new_name)
+
+# function for importing full elements from .frd file which was previously created as resulting elements
+# it is done via element numbers only; in case of the wrong mesh, no error is recognised
+def frd_as_full(continue_from, switch_elm):
+    f = open(continue_from, "r")
+    read_elm = False
+
+    for line in f:
+        if line[4:6] == "3C": # start reading element numbers
+            read_elm = True
+        elif read_elm == True and line[1:3] == "-1":
+            en = int(line[3:13])
+            switch_elm[en] = 1
+        elif read_elm == True and line[1:3] == "-3": # finish reading element numbers
+            break
+    return switch_elm

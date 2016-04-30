@@ -34,6 +34,8 @@ def inputs(domain_elset, domain_optimized, domain_E, domain_poisson, domain_dens
 
     r_min = 2.0 # the radius for applying a filter, perhaps good is double time mesh size
 
+    continue_from = "" # if not "", optimization will load full elements from the given .frd file, e.g. "file051_res_mesh.frd"
+
 
 # advanced inputs:
 
@@ -53,4 +55,4 @@ def inputs(domain_elset, domain_optimized, domain_E, domain_poisson, domain_dens
 
     save_iteration_meshes = 10 # every i-th iteration export a resulting mesh, 0 - do not save
 
-    return path, path_calculix, file_name, domain_elset, domain_optimized, domain_E, domain_poisson, domain_density, domain_thickness, domain_offset, domain_stress_allowable, volume_goal, r_min, sigma_allowable_tolerance, use_filter, evolutionary_volume_ratio, volume_additional_ratio_max, iterations_limit, tolerance, void_coefficient, save_iteration_meshes
+    return path, path_calculix, file_name, domain_elset, domain_optimized, domain_E, domain_poisson, domain_density, domain_thickness, domain_offset, domain_stress_allowable, volume_goal, r_min, continue_from, sigma_allowable_tolerance, use_filter, evolutionary_volume_ratio, volume_additional_ratio_max, iterations_limit, tolerance, void_coefficient, save_iteration_meshes

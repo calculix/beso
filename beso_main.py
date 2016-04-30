@@ -23,7 +23,7 @@ domain_offset = []
 domain_stress_allowable = []
 try: reload(beso_conf) # user inputs
 except NameError: import beso_conf
-[path, path_calculix, file_name, domain_elset, domain_optimized, domain_E, domain_poisson, domain_density, domain_thickness, domain_offset, domain_stress_allowable, volume_goal, r_min, sigma_allowable_tolerance, use_filter, evolutionary_volume_ratio, volume_additional_ratio_max, iterations_limit, tolerance, void_coefficient, save_iteration_meshes
+[path, path_calculix, file_name, domain_elset, domain_optimized, domain_E, domain_poisson, domain_density, domain_thickness, domain_offset, domain_stress_allowable, volume_goal, r_min, continue_from, sigma_allowable_tolerance, use_filter, evolutionary_volume_ratio, volume_additional_ratio_max, iterations_limit, tolerance, void_coefficient, save_iteration_meshes
     ] = beso_conf.inputs(
     domain_elset, domain_optimized, domain_E, domain_poisson, domain_density, domain_thickness, domain_offset, domain_stress_allowable)
 
@@ -62,10 +62,27 @@ f_log.write("\n")
 [nodes, elm_C3D4, elm_C3D10, elm_S3, elm_S6, domains, opt_domains, en_all] = beso_lib.import_inp(file_name, domain_elset, domain_optimized, f_log)
 f_log.write("%.f nodes, %.f C3D4, %.f C3D10, %.f S3, %.f S6 have been imported\n" %(len(nodes), len(elm_C3D4), len(elm_C3D10), len(elm_S3), len(elm_S6)))
 
-# computing a volume of each element in opt_domains
-[volume_elm, volume_sum] = beso_lib.volume_full(nodes, elm_C3D4, elm_C3D10, elm_S3, elm_S6, domain_thickness, domains, opt_domains, f_log)
-volume = [volume_sum] # in the first iteration (for the optimization domain only)
-print("optimization domain volume %s" %volume_sum)
+switch_elm = {} # initial full/void elements
+new_switch_elm = {}
+if continue_from:
+    for en in en_all:
+        switch_elm[en] = 0
+    switch_elm = beso_lib.frd_as_full(continue_from, switch_elm)
+    new_switch_elm = switch_elm.copy()
+else:
+    for en in en_all:
+        switch_elm[en] = 1
+    new_switch_elm = switch_elm.copy()
+
+# computing a volume of each element
+volume_elm = beso_lib.volume_full(nodes, elm_C3D4, elm_C3D10, elm_S3, elm_S6, domain_thickness, domains, f_log)
+volume = [0.0]
+volume_sum = 0
+for en in opt_domains: # in the first iteration (for the optimization domain only)
+    if switch_elm[en] == 1:
+        volume[0] += volume_elm[en]
+    volume_sum += volume_elm[en]
+print("initial optimization domain volume %s" %volume[0])
 
 # computing centres of gravity of each element and elements associated to each node
 [cg, cg_min, cg_max] = beso_lib.elm_cg(nodes, elm_C3D4, elm_C3D10, elm_S3, elm_S6, opt_domains, f_log)
@@ -75,12 +92,6 @@ if use_filter == 1:
     [weight_factor_node, M, weight_factor_distance, near_nodes] = beso_lib.filter_prepare1s(elm_C3D4, elm_C3D10, elm_S3, elm_S6, nodes, cg, r_min, opt_domains)
 elif use_filter == 2:
     [weight_factor2, near_elm] = beso_lib.filter_prepare2s(cg, cg_min, cg_max, r_min, opt_domains)
-
-switch_elm = {} # initial full volume for all elements
-new_switch_elm = {}
-for en in en_all:
-    switch_elm[en] = 1
-    new_switch_elm[en] = 1
 
 # writing log table header
 f_log.write("\n")
