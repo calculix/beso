@@ -33,7 +33,7 @@ if iterations_limit == 0: # automatic setting
 
 # writing log file with settings
 f_log = open(file_name[:-4] + ".log", "a")
-f_log.write("------------------------------------\n")
+f_log.write("\n------------------------------------\n")
 f_log.write("Start at: " + time.ctime() + "\n")
 f_log.write("\n")
 for dn in range(len(domain_elset)):
@@ -59,16 +59,16 @@ f_log.write("save_iteration_meshes = %s\n" %save_iteration_meshes)
 f_log.write("\n")
 
 # mesh and domains importing
-[nodes, elm_C3D4, elm_C3D10, elm_S3, elm_S6, domains, opt_domains, en_all] = beso_lib.import_inp(file_name, domain_elset, domain_optimized)
+[nodes, elm_C3D4, elm_C3D10, elm_S3, elm_S6, domains, opt_domains, en_all] = beso_lib.import_inp(file_name, domain_elset, domain_optimized, f_log)
 f_log.write("%.f nodes, %.f C3D4, %.f C3D10, %.f S3, %.f S6 have been imported\n" %(len(nodes), len(elm_C3D4), len(elm_C3D10), len(elm_S3), len(elm_S6)))
 
 # computing a volume of each element in opt_domains
-[volume_elm, volume_sum] = beso_lib.volume_full(nodes, elm_C3D4, elm_C3D10, elm_S3, elm_S6, domain_thickness, domains, opt_domains)
+[volume_elm, volume_sum] = beso_lib.volume_full(nodes, elm_C3D4, elm_C3D10, elm_S3, elm_S6, domain_thickness, domains, opt_domains, f_log)
 volume = [volume_sum] # in the first iteration (for the optimization domain only)
 print("optimization domain volume %s" %volume_sum)
 
 # computing centres of gravity of each element and elements associated to each node
-[cg, cg_min, cg_max] = beso_lib.elm_cg(nodes, elm_C3D4, elm_C3D10, elm_S3, elm_S6, opt_domains)
+[cg, cg_min, cg_max] = beso_lib.elm_cg(nodes, elm_C3D4, elm_C3D10, elm_S3, elm_S6, opt_domains, f_log)
 
 # preparing parameters for filtering sensitivity numbers
 if use_filter == 1:
@@ -133,9 +133,9 @@ while True:
 
     # filtering sensitivity number
     if use_filter == 1:
-        sensitivity_number = beso_lib.filter_run1(sensitivity_number, weight_factor_node, M, weight_factor_distance, near_nodes, nodes, opt_domains)
+        sensitivity_number = beso_lib.filter_run1(sensitivity_number, weight_factor_node, M, weight_factor_distance, near_nodes, nodes, opt_domains, f_log)
     elif use_filter == 2:
-        sensitivity_number = beso_lib.filter_run2(sensitivity_number, weight_factor2, near_elm, opt_domains)
+        sensitivity_number = beso_lib.filter_run2(sensitivity_number, weight_factor2, near_elm, opt_domains, f_log)
     elif use_filter == 0:
         pass
 

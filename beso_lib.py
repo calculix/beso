@@ -18,7 +18,7 @@ def sround(x, s):
 # and importing *ELSET,ELSET=OptimizationDomain
 # all elements of OptimizationDomain must be listed, divided by newline or comma
 # possible problems: *Card lines of .inp file must be of exact format (as printed by FreeCAD)
-def import_inp(file_name, domain_elset, domain_optimized):
+def import_inp(file_name, domain_elset, domain_optimized, f_log):
     f = open(file_name, "r")
 
     nodes = {} # dict with a nodes position
@@ -129,14 +129,18 @@ def import_inp(file_name, domain_elset, domain_optimized):
         if domain_optimized[dn] == True:
             opt_domains.extend(domains[dn])
     print ("%.f domains have been imported" %len(domains))
-    assert opt_domains <> [], "None optimized domain has been found"
+    if opt_domains == []:
+        msg = "None optimized domain has been found"
+        f_log.write("Error: " + msg + "\n")
+        f_log.close()
+        assert False, msg
 
     f.close()
     return nodes, elm_C3D4, elm_C3D10, elm_S3, elm_S6, domains, opt_domains, en_all
 
 # function for computing a volume of all elements in opt_domains as full elements (non-penalized)
 # approximate for 2nd order elements!
-def volume_full(nodes, elm_C3D4, elm_C3D10, elm_S3, elm_S6, domain_thickness, domains, opt_domains):
+def volume_full(nodes, elm_C3D4, elm_C3D10, elm_S3, elm_S6, domain_thickness, domains, opt_domains, f_log):
     u = [0.0, 0.0, 0.0]
     v = [0.0, 0.0, 0.0]
     w = [0.0, 0.0, 0.0]
@@ -145,7 +149,10 @@ def volume_full(nodes, elm_C3D4, elm_C3D10, elm_S3, elm_S6, domain_thickness, do
 
     elm_C3D4andC3D10 = elm_C3D4.copy()
     elm_C3D4andC3D10.update(elm_C3D10)
-    if elm_C3D10: print ("WARNING: volumes of C3D10 elements ignore midnodes positions")
+    if elm_C3D10:
+        msg = "WARNING: volumes of C3D10 elements ignore mid-node's positions"
+        print(msg)
+        f_log.write(msg + "\n")
     for en, nod in elm_C3D4andC3D10.iteritems():
         for thickness in domain_thickness:
             if thickness == 0:
@@ -157,13 +164,18 @@ def volume_full(nodes, elm_C3D4, elm_C3D10, elm_S3, elm_S6, domain_thickness, do
 
     elm_S3andS6 = elm_S3.copy()
     elm_S3andS6.update(elm_S6)
-    if elm_S6: print ("WARNING: areas of S6 elements ignore mid-node's positions")
+    if elm_S6:
+        msg = "WARNING: areas of S6 elements ignore mid-node's positions"
+        print(msg)
+        f_log.write(msg + "\n")
     for en, nod in elm_S3andS6.iteritems():
         dn = -1
         for thickness in domain_thickness: # searching for element thickness
             dn += 1
             if thickness == 0:
-                print ("WARNING: a volume evaluation of elements in domains with 0 thickness are skipped")
+                msg = "WARNING: a volume evaluation of elements in domains with 0 thickness are skipped"
+                print(msg)
+                f_log.write(msg + "\n")
                 continue
             elif en in domains[dn]:
                 for i in [0, 1, 2]: # denote x, y, z directions
@@ -176,7 +188,7 @@ def volume_full(nodes, elm_C3D4, elm_C3D10, elm_S3, elm_S6, domain_thickness, do
 
 # function for computing a centre of gravity of each element
 # approximate for 2nd order elements!
-def elm_cg(nodes, elm_C3D4, elm_C3D10, elm_S3, elm_S6, opt_domains):
+def elm_cg(nodes, elm_C3D4, elm_C3D10, elm_S3, elm_S6, opt_domains, f_log):
     cg = {}
     cg_min = [[],[],[]]
     cg_max = [[],[],[]]
@@ -194,7 +206,10 @@ def elm_cg(nodes, elm_C3D4, elm_C3D10, elm_S3, elm_S6, opt_domains):
             cg_min = [min(x_cg, cg_min[0]), min(y_cg, cg_min[1]), min(z_cg, cg_min[2])]
             cg_max = [- min(- x_cg, -1 * cg_max[0]), - min(- y_cg, -1 * cg_max[1]), - min(- z_cg, -1 * cg_max[2])] # -1 because max(5, []) doesn't work properly, but min function ignore []   
 
-    if elm_C3D10: print ("WARNING: centres of gravity of C3D10 elements ignore mid-nodes positions")
+    if elm_C3D10:
+        msg = "WARNING: centres of gravity of C3D10 elements ignore mid-node's positions"
+        print(msg)
+        f_log.write(msg + "\n")
     for en in elm_C3D10.keys():
         #if en in opt_domains:
             x_cg = 0
@@ -221,7 +236,10 @@ def elm_cg(nodes, elm_C3D4, elm_C3D10, elm_S3, elm_S6, opt_domains):
             cg_min = [min(x_cg, cg_min[0]), min(y_cg, cg_min[1]), min(z_cg, cg_min[2])]
             cg_max = [- min(- x_cg, -1 * cg_max[0]), - min(- y_cg, -1 * cg_max[1]), - min(- z_cg, -1 * cg_max[2])] # -1 because max(5, []) doesn't work properly, but min function ignore []   
 
-    if elm_S6: print ("WARNING: centres of gravity of S6 elements ignore midnodes positions")
+    if elm_S6:
+        msg =  "WARNING: centres of gravity of S6 elements ignore mid-node's positions"
+        print(msg)
+        f_log.write(msg + "\n")
     for en in elm_S6.keys():
         #if en in opt_domains:
             x_cg = 0
@@ -417,7 +435,7 @@ def filter_prepare1s(elm_C3D4, elm_C3D10, elm_S3, elm_S6, nodes, cg, r_min, opt_
     return weight_factor_node, M, weight_factor_distance, near_nodes
 
 # function to filter sensitivity number to suppress checkerboard
-def filter_run1(sensitivity_number, weight_factor_node, M, weight_factor_distance, near_nodes, nodes, opt_domains):
+def filter_run1(sensitivity_number, weight_factor_node, M, weight_factor_distance, near_nodes, nodes, opt_domains, f_log):
     sensitivity_number_node = {} # hypothetical sensitivity number of each node
     for nn in nodes:
         if nn in M: 
@@ -434,7 +452,9 @@ def filter_run1(sensitivity_number, weight_factor_node, M, weight_factor_distanc
         if denominator <> 0:
             sensitivity_number_filtered[en] = numerator / denominator
         else:
-            print ("WARNING: filter1 failed due to division by 0. Some element CG has not a node in distance <= r_min.")
+            msg = "WARNING: filter1 failed due to division by 0. Some element CG has not a node in distance <= r_min."
+            print(msg)
+            f_log.write(msg + "\n")
             use_filter = 0
             return sensitivity_number
     return sensitivity_number_filtered
@@ -539,7 +559,7 @@ def filter_prepare2s(cg, cg_min, cg_max, r_min, opt_domains):
 
 # function to filter sensitivity number to suppress checkerboard
 # simplified version: makes weighted average of sensitivity numbers from near elements
-def filter_run2(sensitivity_number, weight_factor2, near_elm, opt_domains):
+def filter_run2(sensitivity_number, weight_factor2, near_elm, opt_domains, f_log):
     sensitivity_number_filtered = {} # sensitivity number of each element after filtering
     for en in opt_domains:
         numerator = 0
@@ -552,7 +572,9 @@ def filter_run2(sensitivity_number, weight_factor2, near_elm, opt_domains):
         if denominator <> 0:
             sensitivity_number_filtered[en] = numerator / denominator
         else:
-            print ("WARNING: filter2 failed due to division by 0. Some element has not a near element in distance <= r_min.")
+            msg = "WARNING: filter2 failed due to division by 0. Some element has not a near element in distance <= r_min."
+            print(msg)
+            f_log.write(msg + "\n")
             use_filter = 0
             return sensitivity_number
     return sensitivity_number_filtered    
