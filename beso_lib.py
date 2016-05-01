@@ -35,6 +35,16 @@ def import_inp(file_name, domain_elset, domain_optimized, f_log):
     read_tria3 = False
     read_tria6 = False
     domains = {}
+    
+    def read_elm_nodes(elm_category, number_of_nodes):
+        try:
+            line_list = string.split(line,',')
+            number = int(line_list[0])
+            elm_category[number] = []
+            for en in range(1, number_of_nodes + 1):
+                enode = int(line_list[en])
+                elm_category[number].append(enode)
+        except ValueError: pass
 
     for line in f:
         if line[0] == '*': # start/end of a reading set
@@ -59,53 +69,30 @@ def import_inp(file_name, domain_elset, domain_optimized, f_log):
             except ValueError: pass
 
         # reading elements
-        elif line[:20].upper() == "*ELEMENT, TYPE=C3D10":
-            read_tetra10 = True
+        elif line[:8].upper() == "*ELEMENT":
+            line_list = line[8:].upper().split(',')
+            for line_part in line_list:
+                if line_part.lstrip()[:4] == "TYPE":
+                    type = line_part.split('=')[1].strip()
+                #elif line_part.lstrip()[:5] == "ELSET":
+                    #add_element_number_to_elset = line_part.split('=')[1].strip()
+            if type == "C3D10":
+                read_tetra10 = True
+            elif type == "C3D4":
+                read_tetra4 = True
+            elif type == "S3" or "CPS3" or "CPE3" or "CAX3":
+                read_tria3 = True
+            elif type == "S6" or "CPS6" or "CPE6" or "CAX6":
+                read_tria6 = True
+
         elif read_tetra10 == True:
-            try:
-                line_list = string.split(line,',')
-                number = int(line_list[0])
-                elements.tetra10[number] = []
-                for en in range(1,11):
-                    enode = int(line_list[en])
-                    elements.tetra10[number].append(enode)
-            except ValueError: pass
-
-        elif line[:19].upper() == "*ELEMENT, TYPE=C3D4":
-            read_tetra4 = True
+            read_elm_nodes(elements.tetra10, 10)
         elif read_tetra4 == True:
-            try:
-                line_list = string.split(line,',')
-                number = int(line_list[0])
-                elements.tetra4[number] = []
-                for en in range(1,5):
-                    enode = int(line_list[en])
-                    elements.tetra4[number].append(enode)
-            except ValueError: pass
-
-        elif line[:17].upper() == "*ELEMENT, TYPE=S3":
-            read_tria3 = True
+            read_elm_nodes(elements.tetra4, 4)
         elif read_tria3 == True:
-            try:
-                line_list = string.split(line,',')
-                number = int(line_list[0])
-                elements.tria3[number] = []
-                for en in range(1,4):
-                    enode = int(line_list[en])
-                    elements.tria3[number].append(enode)
-            except ValueError: pass
-
-        elif line[:17].upper() == "*ELEMENT, TYPE=S6":
-            read_tria6 = True
+            read_elm_nodes(elements.tria3, 3)
         elif read_tria6 == True:
-            try:
-                line_list = string.split(line,',')
-                number = int(line_list[0])
-                elements.tria6[number] = []
-                for en in range(1,7):
-                    enode = int(line_list[en])
-                    elements.tria6[number].append(enode)
-            except ValueError: pass
+            read_elm_nodes(elements.tria6, 6)
 
         # reading domains from elset
         elif line[:6].upper() == "*ELSET":
