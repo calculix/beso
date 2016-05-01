@@ -24,24 +24,25 @@ def import_inp(file_name, domain_elset, domain_optimized, f_log):
     nodes = {} # dict with a nodes position
     nodes_min = {}
     nodes_max = {}
-    elm_C3D4 = {}
-    elm_C3D10 = {}
-    elm_S3 = {}
-    elm_S6 = {}
+    class elements():
+        tetra4 = {}
+        tetra10 = {}
+        tria3 = {}
+        tria6 = {}
     read_node = False
-    read_C3D4 = False
-    read_C3D10 = False
-    read_S3 = False
-    read_S6 = False
+    read_tetra4 = False
+    read_tetra10 = False
+    read_tria3 = False
+    read_tria6 = False
     domains = {}
 
     for line in f:
         if line[0] == '*': # start/end of a reading set
             read_node = False
-            read_C3D4 = False
-            read_C3D10 = False
-            read_S3 = False
-            read_S6 = False
+            read_tetra4 = False
+            read_tetra10 = False
+            read_tria3 = False
+            read_tria6 = False
             read_domain = False
 
         # reading nodes
@@ -59,51 +60,51 @@ def import_inp(file_name, domain_elset, domain_optimized, f_log):
 
         # reading elements
         elif line[:20].upper() == "*ELEMENT, TYPE=C3D10":
-            read_C3D10 = True
-        elif read_C3D10 == True:
+            read_tetra10 = True
+        elif read_tetra10 == True:
             try:
                 line_list = string.split(line,',')
                 number = int(line_list[0])
-                elm_C3D10[number] = []
+                elements.tetra10[number] = []
                 for en in range(1,11):
                     enode = int(line_list[en])
-                    elm_C3D10[number].append(enode)
+                    elements.tetra10[number].append(enode)
             except ValueError: pass
 
         elif line[:19].upper() == "*ELEMENT, TYPE=C3D4":
-            read_C3D4 = True
-        elif read_C3D4 == True:
+            read_tetra4 = True
+        elif read_tetra4 == True:
             try:
                 line_list = string.split(line,',')
                 number = int(line_list[0])
-                elm_C3D4[number] = []
+                elements.tetra4[number] = []
                 for en in range(1,5):
                     enode = int(line_list[en])
-                    elm_C3D4[number].append(enode)
+                    elements.tetra4[number].append(enode)
             except ValueError: pass
 
         elif line[:17].upper() == "*ELEMENT, TYPE=S3":
-            read_S3 = True
-        elif read_S3 == True:
+            read_tria3 = True
+        elif read_tria3 == True:
             try:
                 line_list = string.split(line,',')
                 number = int(line_list[0])
-                elm_S3[number] = []
+                elements.tria3[number] = []
                 for en in range(1,4):
                     enode = int(line_list[en])
-                    elm_S3[number].append(enode)
+                    elements.tria3[number].append(enode)
             except ValueError: pass
 
         elif line[:17].upper() == "*ELEMENT, TYPE=S6":
-            read_S6 = True
-        elif read_S6 == True:
+            read_tria6 = True
+        elif read_tria6 == True:
             try:
                 line_list = string.split(line,',')
                 number = int(line_list[0])
-                elm_S6[number] = []
+                elements.tria6[number] = []
                 for en in range(1,7):
                     enode = int(line_list[en])
-                    elm_S6[number].append(enode)
+                    elements.tria6[number].append(enode)
             except ValueError: pass
 
         # reading domains from elset
@@ -118,11 +119,13 @@ def import_inp(file_name, domain_elset, domain_optimized, f_log):
                 if en.isdigit():
                     domains[domain_number].append(int(en))
             if line.replace(" ", "").upper() == "EALL\n":
-                domains[domain_number] = elm_C3D4.keys() + elm_C3D10.keys() + elm_S3.keys() + elm_S6.keys()
+                domains[domain_number] = elements.tetra4.keys() + elements.tetra10.keys() + elements.tria3.keys() + elements.tria6.keys()
 
-    en_all = elm_C3D4.keys() + elm_C3D10.keys() + elm_S3.keys() + elm_S6.keys()
-    print ("%.f nodes, %.f C3D4, %.f C3D10, %.f S3, %.f S6 have been imported" 
-        %(len(nodes), len(elm_C3D4), len(elm_C3D10), len(elm_S3), len(elm_S6)))
+    en_all = elements.tetra4.keys() + elements.tetra10.keys() + elements.tria3.keys() + elements.tria6.keys()
+    row =  ("%.f nodes, %.f TETRA4, %.f TETRA10, %.f TRIA3, %.f TRIA6 have been imported" 
+        %(len(nodes), len(elements.tetra4), len(elements.tetra10), len(elements.tria3), len(elements.tria6)))
+    print(row)
+    f_log.write(row)
 
     opt_domains = []
     for dn in domains:
@@ -136,23 +139,23 @@ def import_inp(file_name, domain_elset, domain_optimized, f_log):
         assert False, msg
 
     f.close()
-    return nodes, elm_C3D4, elm_C3D10, elm_S3, elm_S6, domains, opt_domains, en_all
+    return nodes, elements, domains, opt_domains, en_all
 
 # function for computing a volume of all elements in opt_domains as full elements (non-penalized)
 # approximate for 2nd order elements!
-def volume_full(nodes, elm_C3D4, elm_C3D10, elm_S3, elm_S6, domain_thickness, domains, f_log):
+def volume_full(nodes, elements, domain_thickness, domains, f_log):
     u = [0.0, 0.0, 0.0]
     v = [0.0, 0.0, 0.0]
     w = [0.0, 0.0, 0.0]
     volume_elm = {}
 
-    elm_C3D4andC3D10 = elm_C3D4.copy()
-    elm_C3D4andC3D10.update(elm_C3D10)
-    if elm_C3D10:
-        msg = "WARNING: volumes of C3D10 elements ignore mid-nodes' positions"
+    tetra4andtetra10 = elements.tetra4.copy()
+    tetra4andtetra10.update(elements.tetra10)
+    if elements.tetra10:
+        msg = "WARNING: volumes of TETRA10 elements ignore mid-nodes' positions"
         print(msg)
         f_log.write(msg + "\n")
-    for en, nod in elm_C3D4andC3D10.iteritems():
+    for en, nod in tetra4andtetra10.iteritems():
         for thickness in domain_thickness:
             if thickness == 0:
                 for i in [0, 1, 2]: # denote x, y, z directions
@@ -161,18 +164,18 @@ def volume_full(nodes, elm_C3D4, elm_C3D10, elm_S3, elm_S6, domain_thickness, do
                     w[i] = nodes[nod[0]][i] - nodes[nod[1]][i]
                 volume_elm[en] = abs(np.dot(np.cross(u, v), w)) / 6.0
 
-    elm_S3andS6 = elm_S3.copy()
-    elm_S3andS6.update(elm_S6)
-    if elm_S6:
-        msg = "WARNING: areas of S6 elements ignore mid-nodes' positions"
+    tria3andtria6 = elements.tria3.copy()
+    tria3andtria6.update(elements.tria6)
+    if elements.tria6:
+        msg = "WARNING: areas of TRIA6 elements ignore mid-nodes' positions"
         print(msg)
         f_log.write(msg + "\n")
-    for en, nod in elm_S3andS6.iteritems():
+    for en, nod in tria3andtria6.iteritems():
         dn = -1
         for thickness in domain_thickness: # searching for element thickness
             dn += 1
             if thickness == 0:
-                msg = "WARNING: a volume evaluation of elements in domains with 0 thickness are skipped"
+                msg = "WARNING: a volume evaluation of shell elements in domain with 0 thickness are skipped"
                 print(msg)
                 f_log.write(msg + "\n")
                 continue
@@ -185,67 +188,67 @@ def volume_full(nodes, elm_C3D4, elm_C3D10, elm_S3, elm_S6, domain_thickness, do
 
 # function for computing a centre of gravity of each element
 # approximate for 2nd order elements!
-def elm_cg(nodes, elm_C3D4, elm_C3D10, elm_S3, elm_S6, opt_domains, f_log):
+def elm_cg(nodes, elements, opt_domains, f_log):
     cg = {}
     cg_min = [[],[],[]]
     cg_max = [[],[],[]]
 
-    for en in elm_C3D4.keys():
+    for en in elements.tetra4.keys():
         #if en in opt_domains: # commented due to need for neighbouring element cg
             x_cg = 0
             y_cg = 0
             z_cg = 0
             for k in range(4):
-                x_cg += nodes[elm_C3D4[en][k]][0] / 4.0
-                y_cg += nodes[elm_C3D4[en][k]][1] / 4.0
-                z_cg += nodes[elm_C3D4[en][k]][2] / 4.0
+                x_cg += nodes[elements.tetra4[en][k]][0] / 4.0
+                y_cg += nodes[elements.tetra4[en][k]][1] / 4.0
+                z_cg += nodes[elements.tetra4[en][k]][2] / 4.0
             cg[en] = [x_cg, y_cg, z_cg]
             cg_min = [min(x_cg, cg_min[0]), min(y_cg, cg_min[1]), min(z_cg, cg_min[2])]
             cg_max = [- min(- x_cg, -1 * cg_max[0]), - min(- y_cg, -1 * cg_max[1]), - min(- z_cg, -1 * cg_max[2])] # -1 because max(5, []) doesn't work properly, but min function ignore []   
 
-    if elm_C3D10:
-        msg = "WARNING: centres of gravity of C3D10 elements ignore mid-nodes' positions"
+    if elements.tetra10:
+        msg = "WARNING: centres of gravity of TETRA10 elements ignore mid-nodes' positions"
         print(msg)
         f_log.write(msg + "\n")
-    for en in elm_C3D10.keys():
+    for en in elements.tetra10.keys():
         #if en in opt_domains:
             x_cg = 0
             y_cg = 0
             z_cg = 0
             for k in range(4):
-                x_cg += nodes[elm_C3D10[en][k]][0] / 4.0
-                y_cg += nodes[elm_C3D10[en][k]][1] / 4.0
-                z_cg += nodes[elm_C3D10[en][k]][2] / 4.0
+                x_cg += nodes[elements.tetra10[en][k]][0] / 4.0
+                y_cg += nodes[elements.tetra10[en][k]][1] / 4.0
+                z_cg += nodes[elements.tetra10[en][k]][2] / 4.0
             cg[en] = [x_cg, y_cg, z_cg]
             cg_min = [min(x_cg, cg_min[0]), min(y_cg, cg_min[1]), min(z_cg, cg_min[2])]
             cg_max = [- min(- x_cg, -1 * cg_max[0]), - min(- y_cg, -1 * cg_max[1]), - min(- z_cg, -1 * cg_max[2])] # -1 because max(5, []) doesn't work properly, but min function ignore []   
 
-    for en in elm_S3.keys():
+    for en in elements.tria3.keys():
         #if en in opt_domains:
             x_cg = 0
             y_cg = 0
             z_cg = 0
             for k in range(3):
-                x_cg += nodes[elm_S3[en][k]][0] / 3.0
-                y_cg += nodes[elm_S3[en][k]][1] / 3.0
-                z_cg += nodes[elm_S3[en][k]][2] / 3.0
+                x_cg += nodes[elements.tria3[en][k]][0] / 3.0
+                y_cg += nodes[elements.tria3[en][k]][1] / 3.0
+                z_cg += nodes[elements.tria3[en][k]][2] / 3.0
             cg[en] = [x_cg, y_cg, z_cg]
             cg_min = [min(x_cg, cg_min[0]), min(y_cg, cg_min[1]), min(z_cg, cg_min[2])]
             cg_max = [- min(- x_cg, -1 * cg_max[0]), - min(- y_cg, -1 * cg_max[1]), - min(- z_cg, -1 * cg_max[2])] # -1 because max(5, []) doesn't work properly, but min function ignore []   
 
-    if elm_S6:
-        msg =  "WARNING: centres of gravity of S6 elements ignore mid-nodes' positions"
+    if elements.tria6:
+        msg =  "WARNING: centres of gravity of TRIA6 elements ignore mid-nodes' positions"
         print(msg)
         f_log.write(msg + "\n")
-    for en in elm_S6.keys():
+    for en in elements.tria6.keys():
         #if en in opt_domains:
             x_cg = 0
             y_cg = 0
             z_cg = 0
             for k in range(3):
-                x_cg += nodes[elm_S6[en][k]][0] / 3.0
-                y_cg += nodes[elm_S6[en][k]][1] / 3.0
-                z_cg += nodes[elm_S6[en][k]][2] / 3.0
+                x_cg += nodes[elements.tria6[en][k]][0] / 3.0
+                y_cg += nodes[elements.tria6[en][k]][1] / 3.0
+                z_cg += nodes[elements.tria6[en][k]][2] / 3.0
             cg[en] = [x_cg, y_cg, z_cg]
             cg_min = [min(x_cg, cg_min[0]), min(y_cg, cg_min[1]), min(z_cg, cg_min[2])]
             cg_max = [- min(- x_cg, -1 * cg_max[0]), - min(- y_cg, -1 * cg_max[1]), - min(- z_cg, -1 * cg_max[2])] # -1 because max(5, []) doesn't work properly, but min function ignore []   
@@ -253,7 +256,7 @@ def elm_cg(nodes, elm_C3D4, elm_C3D10, elm_S3, elm_S6, opt_domains, f_log):
     return cg, cg_min, cg_max
 
 # function preparing values for filtering element sensitivity numbers to suppress checkerboard    
-def filter_prepare1(elm_C3D4, elm_C3D10, elm_S3, elm_S6, nodes, cg, r_min, opt_domains):
+def filter_prepare1(nodes, elements, cg, r_min, opt_domains):
     # searching for elements neighbouring to every node
     node_neighbours = {}
     def fce():
@@ -261,17 +264,17 @@ def filter_prepare1(elm_C3D4, elm_C3D10, elm_S3, elm_S6, nodes, cg, r_min, opt_d
             node_neighbours[nn] = [en]
         elif en not in node_neighbours[nn]:
             node_neighbours[nn].append(en)
-    for en in elm_C3D4:
-        for nn in elm_C3D4[en]:
+    for en in elements.tetra4:
+        for nn in elements.tetra4[en]:
             fce()
-    for en in elm_C3D10:
-        for nn in elm_C3D10[en]:
+    for en in elements.tetra10:
+        for nn in elements.tetra10[en]:
             fce()
-    for en in elm_S3:
-        for nn in elm_S3[en]:
+    for en in elements.tria3:
+        for nn in elements.tria3[en]:
             fce()
-    for en in elm_S6:
-        for nn in elm_S6[en]:
+    for en in elements.tria6:
+        for nn in elements.tria6[en]:
             fce()
     # computing weight factors for sensitivity number of nodes according to distance to adjacent elements
     distance = {}
@@ -322,7 +325,7 @@ def filter_prepare1(elm_C3D4, elm_C3D10, elm_S3, elm_S6, nodes, cg, r_min, opt_d
 
 # function preparing values for filtering element sensitivity numbers to suppress checkerboard
 # uses sectoring to prevent computing distance of far points
-def filter_prepare1s(elm_C3D4, elm_C3D10, elm_S3, elm_S6, nodes, cg, r_min, opt_domains):
+def filter_prepare1s(nodes, elements, cg, r_min, opt_domains):
     # searching for elements neighbouring to every node
     node_neighbours = {}
     def fce():
@@ -330,17 +333,17 @@ def filter_prepare1s(elm_C3D4, elm_C3D10, elm_S3, elm_S6, nodes, cg, r_min, opt_
             node_neighbours[nn] = [en]
         elif en not in node_neighbours[nn]:
             node_neighbours[nn].append(en)
-    for en in elm_C3D4: # element cg computed also out of opt_domains due to this neighbours counted also there
-        for nn in elm_C3D4[en]:
+    for en in elements.tetra4: # element cg computed also out of opt_domains due to this neighbours counted also there
+        for nn in elements.tetra4[en]:
             fce()
-    for en in elm_C3D10:
-        for nn in elm_C3D10[en]:
+    for en in elements.tetra10:
+        for nn in elements.tetra10[en]:
             fce()
-    for en in elm_S3:
-        for nn in elm_S3[en]:
+    for en in elements.tria3:
+        for nn in elements.tria3[en]:
             fce()
-    for en in elm_S6:
-        for nn in elm_S6[en]:
+    for en in elements.tria6:
+        for nn in elements.tria6[en]:
             fce()
     # computing weight factors for sensitivity number of nodes according to distance to adjacent elements
     M = {} # element numbers en adjacent to each node nn
@@ -777,7 +780,7 @@ def import_sigma(file_name):
 
 # function for exporting the resulting mesh without void elements
 # only elements found by import_inp function are taken into account    
-def export_frd(file_name, nodes, elm_C3D4, elm_C3D10, elm_S3, elm_S6, switch_elm):
+def export_frd(file_name, nodes, elements, switch_elm):
     if file_name[-4:] == ".inp":
         new_name = file_name[:-4] + "_res_mesh.frd"
     else:
@@ -789,34 +792,37 @@ def export_frd(file_name, nodes, elm_C3D4, elm_C3D10, elm_S3, elm_S6, switch_elm
         f.write(" -1" + str(nn).rjust(10," ") + "% .5E% .5E% .5E\n" % (nodes[nn][0], nodes[nn][1], nodes[nn][2]))
     f.write(" -3\n")
     # print elements
-    elm_sum = len(elm_C3D4) + len(elm_C3D10) + len(elm_S3) + len(elm_S6)
+    elm_sum = 0
+    for en in switch_elm:
+        if switch_elm[en] == 1:
+            elm_sum += 1
     f.write("    3C" + str(elm_sum).rjust(30," ") + "\n")
-    for en in elm_C3D4:
+    for en in elements.tetra4:
         if switch_elm[en] == 1:
             f.write(" -1" + str(en).rjust(10," ") + "    3\n")
             line = ""
-            for nn in elm_C3D4[en]:
+            for nn in elements.tetra4[en]:
                 line += str(nn).rjust(10," ")
             f.write(" -2" + line + "\n")
-    for en in elm_C3D10:
+    for en in elements.tetra10:
         if switch_elm[en] == 1:
             f.write(" -1" + str(en).rjust(10," ") + "    6\n")
             line = ""
-            for nn in elm_C3D10[en]:
+            for nn in elements.tetra10[en]:
                 line += str(nn).rjust(10," ")
             f.write(" -2" + line + "\n")
-    for en in elm_S3:
+    for en in elements.tria3:
         if switch_elm[en] == 1:
             f.write(" -1" + str(en).rjust(10," ") + "    7\n")
             line = ""
-            for nn in elm_S3[en]:
+            for nn in elements.tria3[en]:
                 line += str(nn).rjust(10," ")
             f.write(" -2" + line + "\n")
-    for en in elm_S6:
+    for en in elements.tria6:
         if switch_elm[en] == 1:
             f.write(" -1" + str(en).rjust(10," ") + "    8\n")
             line = ""
-            for nn in elm_S6[en]:
+            for nn in elements.tria6[en]:
                 line += str(nn).rjust(10," ")
             f.write(" -2" + line + "\n")
     f.write(" -3\n")

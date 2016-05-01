@@ -59,8 +59,7 @@ f_log.write("save_iteration_meshes = %s\n" %save_iteration_meshes)
 f_log.write("\n")
 
 # mesh and domains importing
-[nodes, elm_C3D4, elm_C3D10, elm_S3, elm_S6, domains, opt_domains, en_all] = beso_lib.import_inp(file_name, domain_elset, domain_optimized, f_log)
-f_log.write("%.f nodes, %.f C3D4, %.f C3D10, %.f S3, %.f S6 have been imported\n" %(len(nodes), len(elm_C3D4), len(elm_C3D10), len(elm_S3), len(elm_S6)))
+[nodes, elements, domains, opt_domains, en_all] = beso_lib.import_inp(file_name, domain_elset, domain_optimized, f_log)
 
 switch_elm = {} # initial full/void elements
 new_switch_elm = {}
@@ -75,7 +74,7 @@ else:
     new_switch_elm = switch_elm.copy()
 
 # computing a volume of each element
-volume_elm = beso_lib.volume_full(nodes, elm_C3D4, elm_C3D10, elm_S3, elm_S6, domain_thickness, domains, f_log)
+volume_elm = beso_lib.volume_full(nodes, elements, domain_thickness, domains, f_log)
 volume = [0.0]
 volume_sum = 0
 for en in opt_domains: # in the first iteration (for the optimization domain only)
@@ -85,11 +84,11 @@ for en in opt_domains: # in the first iteration (for the optimization domain onl
 print("initial optimization domain volume %s" %volume[0])
 
 # computing centres of gravity of each element and elements associated to each node
-[cg, cg_min, cg_max] = beso_lib.elm_cg(nodes, elm_C3D4, elm_C3D10, elm_S3, elm_S6, opt_domains, f_log)
+[cg, cg_min, cg_max] = beso_lib.elm_cg(nodes, elements, opt_domains, f_log)
 
 # preparing parameters for filtering sensitivity numbers
 if use_filter == 1:
-    [weight_factor_node, M, weight_factor_distance, near_nodes] = beso_lib.filter_prepare1s(elm_C3D4, elm_C3D10, elm_S3, elm_S6, nodes, cg, r_min, opt_domains)
+    [weight_factor_node, M, weight_factor_distance, near_nodes] = beso_lib.filter_prepare1s(nodes, elements, cg, r_min, opt_domains)
 elif use_filter == 2:
     [weight_factor2, near_elm] = beso_lib.filter_prepare2s(cg, cg_min, cg_max, r_min, opt_domains)
 
@@ -189,7 +188,7 @@ while True:
     else:
         # export the present mesh
         if save_iteration_meshes and not np.mod(float(i-1), save_iteration_meshes) > 0:
-            beso_lib.export_frd(file_nameW, nodes, elm_C3D4, elm_C3D10, elm_S3, elm_S6, switch_elm)
+            beso_lib.export_frd(file_nameW, nodes, elements, switch_elm)
     i += 1 # iteration number
     print("----------- new iteration number %d ----------" %i)
 
@@ -245,7 +244,7 @@ while True:
     print("volume = %f" % volume[i])
 
 # export the resulting mesh
-beso_lib.export_frd(file_name, nodes, elm_C3D4, elm_C3D10, elm_S3, elm_S6, switch_elm)
+beso_lib.export_frd(file_name, nodes, elements, switch_elm)
 
 # plotting sigma_mean and sigma_max during iterations
 plt.figure(1)
