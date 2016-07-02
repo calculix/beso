@@ -25,17 +25,29 @@ def import_inp(file_name, domain_elset, domain_optimized, f_log):
     nodes_min = {}
     nodes_max = {}
     class elements():
-        tetra4 = {}
-        tetra10 = {}
         tria3 = {}
         tria6 = {}
+        quad4 = {}
+        quad8 = {}
+        tetra4 = {}
+        tetra10 = {}
+        hexa8 = {}
+        hexa20 = {}
+        penta6 = {}
+        penta15 = {}
     read_node = False
-    read_tetra4 = False
-    read_tetra10 = False
     read_tria3 = False
     read_tria6 = False
+    read_quad4 = False
+    read_quad8 = False
+    read_tetra4 = False
+    read_tetra10 = False
+    read_hexa8 = False
+    read_hexa20 = False
+    read_penta6 = False
+    read_penta15 = False
     domains = {}
-    
+
     def read_elm_nodes(elm_category, number_of_nodes):
         try:
             line_list = string.split(line,',')
@@ -49,10 +61,17 @@ def import_inp(file_name, domain_elset, domain_optimized, f_log):
     for line in f:
         if line[0] == '*': # start/end of a reading set
             read_node = False
-            read_tetra4 = False
-            read_tetra10 = False
             read_tria3 = False
             read_tria6 = False
+            read_quad4 = False
+            read_quad8 = False
+            read_tetra4 = False
+            read_tetra10 = False
+            read_hexa8 = False
+            read_hexa20_line1 = False
+            read_hexa20_line2 = False
+            read_penta6 = False
+            read_penta15 = False
             read_domain = False
 
         # reading nodes
@@ -73,26 +92,65 @@ def import_inp(file_name, domain_elset, domain_optimized, f_log):
             line_list = line[8:].upper().split(',')
             for line_part in line_list:
                 if line_part.lstrip()[:4] == "TYPE":
-                    type = line_part.split('=')[1].strip()
+                    elm_type = line_part.split('=')[1].strip()
                 #elif line_part.lstrip()[:5] == "ELSET":
-                    #add_element_number_to_elset = line_part.split('=')[1].strip()
-            if type == "C3D10":
-                read_tetra10 = True
-            elif type == "C3D4":
-                read_tetra4 = True
-            elif type == "S3" or "CPS3" or "CPE3" or "CAX3":
-                read_tria3 = True
-            elif type == "S6" or "CPS6" or "CPE6" or "CAX6":
-                read_tria6 = True
+                    #add_element_number_to_elset_not_implemented = line_part.split('=')[1].strip()
 
-        elif read_tetra10 == True:
-            read_elm_nodes(elements.tetra10, 10)
-        elif read_tetra4 == True:
-            read_elm_nodes(elements.tetra4, 4)
+            if elm_type in ["S3", "CPS3", "CPE3", "CAX3"]:
+                read_tria3 = True
+            elif elm_type in ["S6", "CPS6", "CPE6", "CAX6"]:
+                read_tria6 = True
+            elif elm_type in ["S4", "S4R", "CPS4", "CPS4R", "CPE4", "CPE4R", "CAX4", "CAX4R"]:
+                read_quad4 = True
+            elif elm_type in ["S8", "S8R", "CPS8", "CPS8R", "CPE8", "CPE8R", "CAX8", "CAX8R"]:
+                read_quad8 = True
+            elif elm_type == "C3D4":
+                read_tetra4 = True
+            elif elm_type == "C3D10":
+                read_tetra10 = True
+            elif elm_type in ["C3D8", "C3D8R", "C3D8I"]:
+                read_hexa8 = True
+            elif elm_type in ["C3D20", "C3D20R", "C3D20RI"]:
+                read_hexa20_line1 = True
+            elif elm_type == "C3D6":
+                read_penta6 = True
+            elif elm_type == "C3D15":
+                read_penta15 = True
+
         elif read_tria3 == True:
             read_elm_nodes(elements.tria3, 3)
         elif read_tria6 == True:
             read_elm_nodes(elements.tria6, 6)
+        elif read_quad4 == True:
+            read_elm_nodes(elements.quad4, 4)
+        elif read_quad8 == True:
+            read_elm_nodes(elements.quad8, 8)
+        elif read_tetra4 == True:
+            read_elm_nodes(elements.tetra4, 4)
+        elif read_tetra10 == True:
+            read_elm_nodes(elements.tetra10, 10)
+        elif read_hexa8 == True:
+            read_elm_nodes(elements.hexa8, 8)
+        elif read_hexa20_line2 == True:
+            line_list = string.split(line,',')
+            for en in range(0, 5):
+                enode = int(line_list[en])
+                elm_category[number].append(enode)
+            read_hexa20_line2 == False
+        elif read_hexa20_line1 == True:
+            try:
+                line_list = string.split(line,',')
+                number = int(line_list[0])
+                elm_category[number] = []
+                for en in range(1, 16):
+                    enode = int(line_list[en])
+                    elm_category[number].append(enode)
+                read_hexa20_line2 = True
+            except ValueError: pass
+        elif read_penta6 == True:
+            read_elm_nodes(elements.penta6, 6)
+        elif read_penta15 == True:
+            read_elm_nodes(elements.penta15, 15)
 
         # reading domains from elset
         elif line[:6].upper() == "*ELSET":
@@ -106,13 +164,17 @@ def import_inp(file_name, domain_elset, domain_optimized, f_log):
                 if en.isdigit():
                     domains[domain_number].append(int(en))
             if line.replace(" ", "").upper() == "EALL\n":
-                domains[domain_number] = elements.tetra4.keys() + elements.tetra10.keys() + elements.tria3.keys() + elements.tria6.keys()
+                domains[domain_number] = elements.tria3.keys() + elements.tria6.keys() + elements.quad4.keys() + elements.quad8.keys() + elements.tetra4.keys() + elements.tetra10.keys() + elements.hexa8.keys() + elements.hexa20.keys() + elements.penta6.keys() + elements.penta15.keys()
 
-    en_all = elements.tetra4.keys() + elements.tetra10.keys() + elements.tria3.keys() + elements.tria6.keys()
-    row =  ("%.f nodes, %.f TETRA4, %.f TETRA10, %.f TRIA3, %.f TRIA6 have been imported" 
-        %(len(nodes), len(elements.tetra4), len(elements.tetra10), len(elements.tria3), len(elements.tria6)))
+    en_all = elements.tria3.keys() + elements.tria6.keys() + elements.quad4.keys() + elements.quad8.keys() + elements.tetra4.keys() + elements.tetra10.keys() + elements.hexa8.keys() + elements.hexa20.keys() + elements.penta6.keys() + elements.penta15.keys()
+    row =  ("%.f nodes, %.f TRIA3, %.f TRIA6, %.f QUAD4, %.f QUAD8, %.f TETRA4, %.f TETRA10," 
+        %(len(nodes), len(elements.tria3), len(elements.tria6), len(elements.quad4), len(elements.quad8), len(elements.tetra4), len(elements.tetra10)))
     print(row)
-    f_log.write(row)
+    f_log.write(row + "\n")
+    row =  ("%.f HEXA8, %.f HEXA20, %.f PENTA6, %.f PENTA15 have been imported" 
+        %(len(elements.hexa8), len(elements.hexa20), len(elements.penta6), len(elements.penta15)))
+    print(row)
+    f_log.write(row + "\n")
 
     opt_domains = []
     for dn in domains:
@@ -157,14 +219,15 @@ def volume_full(nodes, elements, domain_thickness, domains, f_log):
         msg = "WARNING: areas of TRIA6 elements ignore mid-nodes' positions"
         print(msg)
         f_log.write(msg + "\n")
+    msg_skip = ""
     for en, nod in tria3andtria6.iteritems():
         dn = -1
         for thickness in domain_thickness: # searching for element thickness
             dn += 1
-            if thickness == 0:
-                msg = "WARNING: a volume evaluation of shell elements in domain with 0 thickness are skipped"
-                print(msg)
-                f_log.write(msg + "\n")
+            if thickness == 0 and not msg_skip:
+                msg_skip = "WARNING: volume evaluation of shell elements in domain with 0 thickness are skipped"
+                print(msg_skip)
+                f_log.write(msg_skip + "\n")
                 continue
             elif en in domains[dn]:
                 for i in [0, 1, 2]: # denote x, y, z directions
@@ -784,34 +847,32 @@ def export_frd(file_name, nodes, elements, switch_elm):
         if switch_elm[en] == 1:
             elm_sum += 1
     f.write("    3C" + str(elm_sum).rjust(30," ") + "\n")
-    for en in elements.tetra4:
-        if switch_elm[en] == 1:
-            f.write(" -1" + str(en).rjust(10," ") + "    3\n")
-            line = ""
-            for nn in elements.tetra4[en]:
-                line += str(nn).rjust(10," ")
-            f.write(" -2" + line + "\n")
-    for en in elements.tetra10:
-        if switch_elm[en] == 1:
-            f.write(" -1" + str(en).rjust(10," ") + "    6\n")
-            line = ""
-            for nn in elements.tetra10[en]:
-                line += str(nn).rjust(10," ")
-            f.write(" -2" + line + "\n")
-    for en in elements.tria3:
-        if switch_elm[en] == 1:
-            f.write(" -1" + str(en).rjust(10," ") + "    7\n")
-            line = ""
-            for nn in elements.tria3[en]:
-                line += str(nn).rjust(10," ")
-            f.write(" -2" + line + "\n")
-    for en in elements.tria6:
-        if switch_elm[en] == 1:
-            f.write(" -1" + str(en).rjust(10," ") + "    8\n")
-            line = ""
-            for nn in elements.tria6[en]:
-                line += str(nn).rjust(10," ")
-            f.write(" -2" + line + "\n")
+
+    def write_elm(elm_category, category_symbol):
+        for en in elm_category:
+            if switch_elm[en] == 1:
+                f.write(" -1" + str(en).rjust(10," ") + "    " + category_symbol +"\n")
+                line = ""
+                nodes_done = 0
+                for nn in elm_category[en]:
+                    line += str(nn).rjust(10," ")
+                    nodes_done += 1
+                    if nodes_done == 10:
+                        f.write(" -2" + line + "\n")
+                        line = ""
+                f.write(" -2" + line + "\n")
+
+    write_elm(elements.tria3, "7")        
+    write_elm(elements.tria6, "8")
+    write_elm(elements.quad4, "9")
+    write_elm(elements.quad8, "10")
+    write_elm(elements.tetra4, "3")
+    write_elm(elements.tetra10, "6")
+    write_elm(elements.penta6, "2")
+    write_elm(elements.penta15, "5")
+    write_elm(elements.hexa8, "1")
+    write_elm(elements.hexa20, "4")
+
     f.write(" -3\n")
     f.close()
     print("%s file with resulting mesh has been created" %new_name)
