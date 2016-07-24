@@ -49,17 +49,17 @@ def import_inp(file_name, domain_elset, domain_optimized, f_log):
     domains = {}
 
     def read_elm_nodes(elm_category, number_of_nodes):
-        try:
-            line_list = string.split(line,',')
-            number = int(line_list[0])
-            elm_category[number] = []
-            for en in range(1, number_of_nodes + 1):
-                enode = int(line_list[en])
-                elm_category[number].append(enode)
-        except ValueError: pass
+        line_list = string.split(line,',')
+        number = int(line_list[0])
+        elm_category[number] = []
+        for en in range(1, number_of_nodes + 1):
+            enode = int(line_list[en])
+            elm_category[number].append(enode)
 
     for line in f:
-        if line[0] == '*': # start/end of a reading set
+        if line.strip() == '':
+            continue
+        elif line[0] == '*': # start/end of a reading set
             read_node = False
             read_tria3 = False
             read_tria6 = False
@@ -75,17 +75,15 @@ def import_inp(file_name, domain_elset, domain_optimized, f_log):
             read_domain = False
 
         # reading nodes
-        if line[:16].upper() == "*NODE, NSET=NALL":
+        if line[:5].upper() == "*NODE":
             read_node = True
         elif read_node == True:
-            try:
-                line_list = string.split(line,',')
-                number = int(line_list[0])
-                x = float(line_list[1])
-                y = float(line_list[2])
-                z = float(line_list[3])
-                nodes[number] = [x, y, z]
-            except ValueError: pass
+            line_list = string.split(line,',')
+            number = int(line_list[0])
+            x = float(line_list[1])
+            y = float(line_list[2])
+            z = float(line_list[3])
+            nodes[number] = [x, y, z]
 
         # reading elements
         elif line[:8].upper() == "*ELEMENT":
@@ -135,18 +133,16 @@ def import_inp(file_name, domain_elset, domain_optimized, f_log):
             line_list = string.split(line,',')
             for en in range(0, 5):
                 enode = int(line_list[en])
-                elm_category[number].append(enode)
-            read_hexa20_line2 == False
+                elements.hexa20[number].append(enode)
+            read_hexa20_line2 = False
         elif read_hexa20_line1 == True:
-            try:
-                line_list = string.split(line,',')
-                number = int(line_list[0])
-                elm_category[number] = []
-                for en in range(1, 16):
-                    enode = int(line_list[en])
-                    elm_category[number].append(enode)
-                read_hexa20_line2 = True
-            except ValueError: pass
+            line_list = string.split(line,',')
+            number = int(line_list[0])
+            elements.hexa20[number] = []
+            for en in range(1, 16):
+                enode = int(line_list[en])
+                elements.hexa20[number].append(enode)
+            read_hexa20_line2 = True
         elif read_penta6 == True:
             read_elm_nodes(elements.penta6, 6)
         elif read_penta15 == True:
@@ -183,127 +179,170 @@ def import_inp(file_name, domain_elset, domain_optimized, f_log):
     print ("%.f domains have been imported" %len(domains))
     if opt_domains == []:
         msg = "None optimized domain has been found"
-        f_log.write("Error: " + msg + "\n")
+        f_log.write("ERROR: " + msg + "\n")
         f_log.close()
         assert False, msg
 
     f.close()
     return nodes, elements, domains, opt_domains, en_all
 
-# function for computing a volume of all elements in opt_domains as full elements (non-penalized)
+# function for computing volumes and centres of gravity of all elements (non-penalized)
 # approximate for 2nd order elements!
-def volume_full(nodes, elements, domain_thickness, domains, f_log):
+def elm_volume_cg(nodes, elements, domain_elset, domain_thickness, domains, f_log):
     u = [0.0, 0.0, 0.0]
     v = [0.0, 0.0, 0.0]
     w = [0.0, 0.0, 0.0]
+    
+    def tria_volume_cg(nod, thickness):
+        # compute volume
+        for i in [0, 1, 2]:  # denote x, y, z directions
+            u[i] = nodes[nod[2]][i] - nodes[nod[1]][i]
+            v[i] = nodes[nod[0]][i] - nodes[nod[1]][i]
+        volume_tria = np.linalg.linalg.norm(np.cross(u, v)) / 2.0 * thickness
+        # compute centre of gravity
+        x_cg = (nodes[nod[0]][0] + nodes[nod[1]][0] + nodes[nod[2]][0]) / 3.0
+        y_cg = (nodes[nod[0]][1] + nodes[nod[1]][1] + nodes[nod[2]][1]) / 3.0
+        z_cg = (nodes[nod[0]][2] + nodes[nod[1]][2] + nodes[nod[2]][2]) / 3.0
+        cg_tria = [x_cg, y_cg, z_cg]
+        return volume_tria, cg_tria
+
+    def tetra_volume_cg(nod):
+        # compute volume
+        for i in [0, 1, 2]:  # denote x, y, z directions
+            u[i] = nodes[nod[2]][i] - nodes[nod[1]][i]
+            v[i] = nodes[nod[3]][i] - nodes[nod[1]][i]
+            w[i] = nodes[nod[0]][i] - nodes[nod[1]][i]
+            volume_tetra = abs(np.dot(np.cross(u, v), w)) / 6.0
+        # compute centre of gravity
+        x_cg = (nodes[nod[0]][0] + nodes[nod[1]][0] + nodes[nod[2]][0] + nodes[nod[3]][0]) / 4.0
+        y_cg = (nodes[nod[0]][1] + nodes[nod[1]][1] + nodes[nod[2]][1] + nodes[nod[3]][1]) / 4.0
+        z_cg = (nodes[nod[0]][2] + nodes[nod[1]][2] + nodes[nod[2]][2] + nodes[nod[3]][2]) / 4.0
+        cg_tetra = [x_cg, y_cg, z_cg]
+        return volume_tetra, cg_tetra
+
+    # find thickness for each element
+    dn = 0
+    thickness = {}
+    for elset in domain_elset:
+        if domain_thickness[dn] <> 0:
+            for en in domains[dn]:
+                thickness[en] = domain_thickness[dn]
+        dn += 1
+
+    def check_thickness(en):
+        if not en in thickness:
+            msg = "Shell element found in domain with 0 thickness"
+            f_log.write("ERROR: " + msg + "\n")
+            f_log.close()
+            assert False, msg
+
+    def second_order_warning(elm_type):
+        msg = "WARNING: areas and centres of gravity of " + elm_type.upper() + " elements ignore mid-nodes' positions"
+        print(msg)
+        f_log.write(msg + "\n")
+
+    # defining volume and centre of gravity for all element types
     volume_elm = {}
-
-    tetra4andtetra10 = elements.tetra4.copy()
-    tetra4andtetra10.update(elements.tetra10)
-    if elements.tetra10:
-        msg = "WARNING: volumes of TETRA10 elements ignore mid-nodes' positions"
-        print(msg)
-        f_log.write(msg + "\n")
-    for en, nod in tetra4andtetra10.iteritems():
-        for thickness in domain_thickness:
-            if thickness == 0:
-                for i in [0, 1, 2]: # denote x, y, z directions
-                    u[i] = nodes[nod[2]][i] - nodes[nod[1]][i]
-                    v[i] = nodes[nod[3]][i] - nodes[nod[1]][i]
-                    w[i] = nodes[nod[0]][i] - nodes[nod[1]][i]
-                volume_elm[en] = abs(np.dot(np.cross(u, v), w)) / 6.0
-
-    tria3andtria6 = elements.tria3.copy()
-    tria3andtria6.update(elements.tria6)
-    if elements.tria6:
-        msg = "WARNING: areas of TRIA6 elements ignore mid-nodes' positions"
-        print(msg)
-        f_log.write(msg + "\n")
-    msg_skip = ""
-    for en, nod in tria3andtria6.iteritems():
-        dn = -1
-        for thickness in domain_thickness: # searching for element thickness
-            dn += 1
-            if thickness == 0 and not msg_skip:
-                msg_skip = "WARNING: volume evaluation of shell elements in domain with 0 thickness are skipped"
-                print(msg_skip)
-                f_log.write(msg_skip + "\n")
-                continue
-            elif en in domains[dn]:
-                for i in [0, 1, 2]: # denote x, y, z directions
-                    u[i] = nodes[nod[2]][i] - nodes[nod[1]][i]
-                    v[i] = nodes[nod[0]][i] - nodes[nod[1]][i]
-                volume_elm[en] = np.linalg.linalg.norm(np.cross(u, v)) / 2.0 * thickness
-    return volume_elm
-
-# function for computing a centre of gravity of each element
-# approximate for 2nd order elements!
-def elm_cg(nodes, elements, opt_domains, f_log):
     cg = {}
-    cg_min = [[],[],[]]
-    cg_max = [[],[],[]]
 
-    for en in elements.tetra4.keys():
-        #if en in opt_domains: # commented due to need for neighbouring element cg
-            x_cg = 0
-            y_cg = 0
-            z_cg = 0
-            for k in range(4):
-                x_cg += nodes[elements.tetra4[en][k]][0] / 4.0
-                y_cg += nodes[elements.tetra4[en][k]][1] / 4.0
-                z_cg += nodes[elements.tetra4[en][k]][2] / 4.0
-            cg[en] = [x_cg, y_cg, z_cg]
-            cg_min = [min(x_cg, cg_min[0]), min(y_cg, cg_min[1]), min(z_cg, cg_min[2])]
-            cg_max = [- min(- x_cg, -1 * cg_max[0]), - min(- y_cg, -1 * cg_max[1]), - min(- z_cg, -1 * cg_max[2])] # -1 because max(5, []) doesn't work properly, but min function ignore []   
-
-    if elements.tetra10:
-        msg = "WARNING: centres of gravity of TETRA10 elements ignore mid-nodes' positions"
-        print(msg)
-        f_log.write(msg + "\n")
-    for en in elements.tetra10.keys():
-        #if en in opt_domains:
-            x_cg = 0
-            y_cg = 0
-            z_cg = 0
-            for k in range(4):
-                x_cg += nodes[elements.tetra10[en][k]][0] / 4.0
-                y_cg += nodes[elements.tetra10[en][k]][1] / 4.0
-                z_cg += nodes[elements.tetra10[en][k]][2] / 4.0
-            cg[en] = [x_cg, y_cg, z_cg]
-            cg_min = [min(x_cg, cg_min[0]), min(y_cg, cg_min[1]), min(z_cg, cg_min[2])]
-            cg_max = [- min(- x_cg, -1 * cg_max[0]), - min(- y_cg, -1 * cg_max[1]), - min(- z_cg, -1 * cg_max[2])] # -1 because max(5, []) doesn't work properly, but min function ignore []   
-
-    for en in elements.tria3.keys():
-        #if en in opt_domains:
-            x_cg = 0
-            y_cg = 0
-            z_cg = 0
-            for k in range(3):
-                x_cg += nodes[elements.tria3[en][k]][0] / 3.0
-                y_cg += nodes[elements.tria3[en][k]][1] / 3.0
-                z_cg += nodes[elements.tria3[en][k]][2] / 3.0
-            cg[en] = [x_cg, y_cg, z_cg]
-            cg_min = [min(x_cg, cg_min[0]), min(y_cg, cg_min[1]), min(z_cg, cg_min[2])]
-            cg_max = [- min(- x_cg, -1 * cg_max[0]), - min(- y_cg, -1 * cg_max[1]), - min(- z_cg, -1 * cg_max[2])] # -1 because max(5, []) doesn't work properly, but min function ignore []   
+    for en, nod in elements.tria3.iteritems():
+        check_thickness(en)
+        [volume_elm[en], cg[en]] = tria_volume_cg(nod, thickness[en])
 
     if elements.tria6:
-        msg =  "WARNING: centres of gravity of TRIA6 elements ignore mid-nodes' positions"
-        print(msg)
-        f_log.write(msg + "\n")
-    for en in elements.tria6.keys():
-        #if en in opt_domains:
-            x_cg = 0
-            y_cg = 0
-            z_cg = 0
-            for k in range(3):
-                x_cg += nodes[elements.tria6[en][k]][0] / 3.0
-                y_cg += nodes[elements.tria6[en][k]][1] / 3.0
-                z_cg += nodes[elements.tria6[en][k]][2] / 3.0
-            cg[en] = [x_cg, y_cg, z_cg]
-            cg_min = [min(x_cg, cg_min[0]), min(y_cg, cg_min[1]), min(z_cg, cg_min[2])]
-            cg_max = [- min(- x_cg, -1 * cg_max[0]), - min(- y_cg, -1 * cg_max[1]), - min(- z_cg, -1 * cg_max[2])] # -1 because max(5, []) doesn't work properly, but min function ignore []   
-    #print ("element centres of gravity have been computed")
-    return cg, cg_min, cg_max
+        second_order_warning("tria6")
+    for en, nod in elements.tria6.iteritems():  # copy from tria3
+        check_thickness(en)
+        [volume_elm[en], cg[en]] = tria_volume_cg(nod, thickness[en])
+
+    for en, nod in elements.quad4.iteritems():
+        check_thickness(en)
+        [v1, cg1] = tria_volume_cg(nod[0:3], thickness[en])
+        [v2, cg2] = tria_volume_cg(nod[0:1] + nod[2:4], thickness[en])
+        volume_elm[en] = float(v1 + v2)
+        cg[en] = [[],[],[]]
+        for k in [0, 1, 2]:  # denote x, y, z dimensions
+            cg[en][k] = (v1*cg1[k] + v2*cg2[k]) / volume_elm[en]
+
+    if elements.quad8:
+        second_order_warning("quad8")
+    for en, nod in elements.quad8.iteritems():  # copy from quad4
+        check_thickness(en)
+        [v1, cg1] = tria_volume_cg(nod[0:3], thickness[en])
+        [v2, cg2] = tria_volume_cg(nod[0:1] + nod[2:4], thickness[en])
+        volume_elm[en] = float(v1 + v2)
+        cg[en] = [[],[],[]]
+        for k in [0, 1, 2]:  # denote x, y, z dimensions
+            cg[en][k] = (v1*cg1[k] + v2*cg2[k]) / volume_elm[en]
+
+    for en, nod in elements.tetra4.iteritems():
+        [volume_elm[en], cg[en]] = tetra_volume_cg(nod)
+
+    if elements.tetra10:
+        second_order_warning("tetra10")
+    for en, nod in elements.tetra10.iteritems():  # copy from tetra4
+        [volume_elm[en], cg[en]] = tetra_volume_cg(nod)
+
+    for en, nod in elements.hexa8.iteritems():
+        [v1, cg1] = tetra_volume_cg(nod[0:3] + nod[5:6])
+        [v2, cg2] = tetra_volume_cg(nod[0:1] + nod[2:3] + nod[4:6])
+        [v3, cg3] = tetra_volume_cg(nod[2:3] + nod[4:7])
+        [v4, cg4] = tetra_volume_cg(nod[0:1] + nod[2:5])
+        [v5, cg5] = tetra_volume_cg(nod[3:5] + nod[6:8])
+        [v6, cg6] = tetra_volume_cg(nod[2:5] + nod[6:7])
+        volume_elm[en] = float(v1 + v2 + v3 + v4 + v5 + v6)
+        cg[en] = [[],[],[]]
+        for k in [0, 1, 2]:  # denote x, y, z dimensions
+            cg[en][k] = (v1*cg1[k] + v2*cg2[k] + v3*cg3[k] + v4*cg4[k] + v5*cg5[k] + v6*cg6[k]
+                         ) / volume_elm[en]
+
+    if elements.hexa20:
+        second_order_warning("hexa20")
+    for en, nod in elements.hexa20.iteritems():  # copy from hexa8
+        [v1, cg1] = tetra_volume_cg(nod[0:3] + nod[5:6])
+        [v2, cg2] = tetra_volume_cg(nod[0:1] + nod[2:3] + nod[4:6])
+        [v3, cg3] = tetra_volume_cg(nod[2:3] + nod[4:7])
+        [v4, cg4] = tetra_volume_cg(nod[0:1] + nod[2:5])
+        [v5, cg5] = tetra_volume_cg(nod[3:5] + nod[6:8])
+        [v6, cg6] = tetra_volume_cg(nod[2:5] + nod[6:7])
+        volume_elm[en] = float(v1 + v2 + v3 + v4 + v5 + v6)
+        cg[en] = [[],[],[]]
+        for k in [0, 1, 2]:  # denote x, y, z dimensions
+            cg[en][k] = (v1*cg1[k] + v2*cg2[k] + v3*cg3[k] + v4*cg4[k] + v5*cg5[k] + v6*cg6[k]
+                  ) / volume_elm[en]
+
+    for en, nod in elements.penta6.iteritems():
+        [v1, cg1] = tetra_volume_cg(nod[0:4])
+        [v2, cg2] = tetra_volume_cg(nod[1:5])
+        [v3, cg3] = tetra_volume_cg(nod[2:6])
+        volume_elm[en] = float(v1 + v2 + v3)
+        cg[en] = [[],[],[]]
+        for k in [0, 1, 2]:  # denote x, y, z dimensions
+            cg[en][k] = (v1*cg1[k] + v2*cg2[k] + v3*cg3[k]) / volume_elm[en]
+
+    if elements.penta15:
+        second_order_warning("penta15")  # copy from penta6
+    for en, nod in elements.penta15.iteritems():
+        [v1, cg1] = tetra_volume_cg(nod[0:4])
+        [v2, cg2] = tetra_volume_cg(nod[1:5])
+        [v3, cg3] = tetra_volume_cg(nod[2:6])
+        [en] = float(v1 + v2 + v3)
+        cg[en] = [[],[],[]]
+        for k in [0, 1, 2]:  # denote x, y, z dimensions
+            cg[en][k] = (v1*cg1[k] + v2*cg2[k] + v3*cg3[k]) / volume_elm[en]
+
+    # finding the minimum and maximum cg position
+    x_cg = []
+    y_cg = []
+    z_cg = []
+    for xyz in cg.values():
+        x_cg.append(xyz[0])
+        y_cg.append(xyz[1])
+        z_cg.append(xyz[2])
+    cg_min = [min(x_cg), min(y_cg), min(z_cg)]
+    cg_max = [max(x_cg), max(y_cg), max(z_cg)]
+
+    return cg, cg_min, cg_max, volume_elm
 
 # function preparing values for filtering element sensitivity numbers to suppress checkerboard    
 def filter_prepare1(nodes, elements, cg, r_min, opt_domains):

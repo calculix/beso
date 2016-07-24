@@ -73,8 +73,8 @@ else:
         switch_elm[en] = 1
     new_switch_elm = switch_elm.copy()
 
-# computing a volume of each element
-volume_elm = beso_lib.volume_full(nodes, elements, domain_thickness, domains, f_log)
+# computing volume and centre of gravity of each element
+[cg, cg_min, cg_max, volume_elm] = beso_lib.elm_volume_cg(nodes, elements, domain_elset, domain_thickness, domains, f_log)
 volume = [0.0]
 volume_sum = 0
 for en in opt_domains: # in the first iteration (for the optimization domain only)
@@ -82,9 +82,6 @@ for en in opt_domains: # in the first iteration (for the optimization domain onl
         volume[0] += volume_elm[en]
     volume_sum += volume_elm[en]
 print("initial optimization domain volume %s" %volume[0])
-
-# computing centres of gravity of each element and elements associated to each node
-[cg, cg_min, cg_max] = beso_lib.elm_cg(nodes, elements, opt_domains, f_log)
 
 # preparing parameters for filtering sensitivity numbers
 if use_filter == 1:
