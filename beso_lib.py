@@ -19,8 +19,6 @@ def sround(x, s):
 # all elements of OptimizationDomain must be listed, divided by newline or comma
 # possible problems: *Card lines of .inp file must be of exact format (as printed by FreeCAD)
 def import_inp(file_name, domain_elset, domain_optimized, f_log):
-    f = open(file_name, "r")
-
     nodes = {} # dict with a nodes position
     nodes_min = {}
     nodes_max = {}
@@ -56,10 +54,29 @@ def import_inp(file_name, domain_elset, domain_optimized, f_log):
             enode = int(line_list[en])
             elm_category[number].append(enode)
 
-    for line in f:
+    f = open(file_name, "r")
+    line = "\n"
+    include = ""
+    while line <> "":
+        if include:
+            line = f_include.readline()
+            if line == "":
+                f_include.close()
+                include = ""
+                line = f.readline()
+        else:
+            line = f.readline()
         if line.strip() == '':
             continue
         elif line[0] == '*': # start/end of a reading set
+            if line[0:2] == '**':  # comments
+                continue
+            if line[:8].upper() == "*INCLUDE":
+                start = 1 + line.index("=")
+                include = line[start:].strip().strip('"')
+                f_include = open(include, "r")
+                continue
+
             read_node = False
             read_tria3 = False
             read_tria6 = False
@@ -161,6 +178,7 @@ def import_inp(file_name, domain_elset, domain_optimized, f_log):
                     domains[domain_number].append(int(en))
             if line.replace(" ", "").upper() == "EALL\n":
                 domains[domain_number] = elements.tria3.keys() + elements.tria6.keys() + elements.quad4.keys() + elements.quad8.keys() + elements.tetra4.keys() + elements.tetra10.keys() + elements.hexa8.keys() + elements.hexa20.keys() + elements.penta6.keys() + elements.penta15.keys()
+    f.close()
 
     en_all = elements.tria3.keys() + elements.tria6.keys() + elements.quad4.keys() + elements.quad8.keys() + elements.tetra4.keys() + elements.tetra10.keys() + elements.hexa8.keys() + elements.hexa20.keys() + elements.penta6.keys() + elements.penta15.keys()
     row =  ("%.f nodes, %.f TRIA3, %.f TRIA6, %.f QUAD4, %.f QUAD8, %.f TETRA4, %.f TETRA10," 
@@ -183,7 +201,6 @@ def import_inp(file_name, domain_elset, domain_optimized, f_log):
         f_log.close()
         assert False, msg
 
-    f.close()
     return nodes, elements, domains, opt_domains, en_all
 
 # function for computing volumes and centres of gravity of all elements (non-penalized)
