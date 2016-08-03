@@ -44,6 +44,7 @@ def import_inp(file_name, domain_elset, domain_optimized, f_log):
     read_hexa20 = False
     read_penta6 = False
     read_penta15 = False
+    model_definition = True
     domains = {}
 
     def read_elm_nodes(elm_category, number_of_nodes):
@@ -92,7 +93,7 @@ def import_inp(file_name, domain_elset, domain_optimized, f_log):
             read_domain = False
 
         # reading nodes
-        if line[:5].upper() == "*NODE":
+        if (line[:5].upper() == "*NODE") and (model_definition == True):
             read_node = True
         elif read_node == True:
             line_list = string.split(line,',')
@@ -178,6 +179,8 @@ def import_inp(file_name, domain_elset, domain_optimized, f_log):
                     domains[domain_number].append(int(en))
             if line.replace(" ", "").upper() == "EALL\n":
                 domains[domain_number] = elements.tria3.keys() + elements.tria6.keys() + elements.quad4.keys() + elements.quad8.keys() + elements.tetra4.keys() + elements.tetra10.keys() + elements.hexa8.keys() + elements.hexa20.keys() + elements.penta6.keys() + elements.penta15.keys()
+        elif line[:5].upper() == "*STEP":
+            model_definition = False
     f.close()
 
     en_all = elements.tria3.keys() + elements.tria6.keys() + elements.quad4.keys() + elements.quad8.keys() + elements.tetra4.keys() + elements.tetra10.keys() + elements.hexa8.keys() + elements.hexa20.keys() + elements.penta6.keys() + elements.penta15.keys()
