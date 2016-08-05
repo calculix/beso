@@ -149,15 +149,19 @@ def import_inp(file_name, domain_elset, domain_optimized, f_log):
             read_elm_nodes(elements.hexa8, 8)
         elif read_hexa20_line2 == True:
             line_list = string.split(line,',')
-            for en in range(0, 5):
+            if line_list[-1].strip() == "":
+                del line_list[-1]
+            for en in range(0, len(line_list)):
                 enode = int(line_list[en])
                 elements.hexa20[number].append(enode)
             read_hexa20_line2 = False
         elif read_hexa20_line1 == True:
             line_list = string.split(line,',')
+            if line_list[-1].strip() == "":
+                del line_list[-1]
             number = int(line_list[0])
             elements.hexa20[number] = []
-            for en in range(1, 16):
+            for en in range(1, len(line_list)):
                 enode = int(line_list[en])
                 elements.hexa20[number].append(enode)
             read_hexa20_line2 = True
