@@ -9,7 +9,7 @@ def sround(x, s):
     if x > 0:
         result = round(x, -int(np.floor(np.log10(x))) + s-1)
     elif x < 0:
-        result = round(x, -int(np.floor(np.log10(-x))) + s-1)        
+        result = round(x, -int(np.floor(np.log10(-x))) + s-1)
     elif x == 0:
         result = 0
     return result
@@ -33,17 +33,6 @@ def import_inp(file_name, domain_elset, domain_optimized, f_log):
         hexa20 = {}
         penta6 = {}
         penta15 = {}
-    read_node = False
-    read_tria3 = False
-    read_tria6 = False
-    read_quad4 = False
-    read_quad8 = False
-    read_tetra4 = False
-    read_tetra10 = False
-    read_hexa8 = False
-    read_hexa20 = False
-    read_penta6 = False
-    read_penta15 = False
     model_definition = True
     domains = {}
 
@@ -188,11 +177,11 @@ def import_inp(file_name, domain_elset, domain_optimized, f_log):
     f.close()
 
     en_all = elements.tria3.keys() + elements.tria6.keys() + elements.quad4.keys() + elements.quad8.keys() + elements.tetra4.keys() + elements.tetra10.keys() + elements.hexa8.keys() + elements.hexa20.keys() + elements.penta6.keys() + elements.penta15.keys()
-    row =  ("%.f nodes, %.f TRIA3, %.f TRIA6, %.f QUAD4, %.f QUAD8, %.f TETRA4, %.f TETRA10," 
+    row =  ("%.f nodes, %.f TRIA3, %.f TRIA6, %.f QUAD4, %.f QUAD8, %.f TETRA4, %.f TETRA10,"
         %(len(nodes), len(elements.tria3), len(elements.tria6), len(elements.quad4), len(elements.quad8), len(elements.tetra4), len(elements.tetra10)))
     print(row)
     f_log.write(row + "\n")
-    row =  ("%.f HEXA8, %.f HEXA20, %.f PENTA6, %.f PENTA15 have been imported" 
+    row =  ("%.f HEXA8, %.f HEXA20, %.f PENTA6, %.f PENTA15 have been imported"
         %(len(elements.hexa8), len(elements.hexa20), len(elements.penta6), len(elements.penta15)))
     print(row)
     f_log.write(row + "\n")
@@ -216,7 +205,7 @@ def elm_volume_cg(nodes, elements, domain_elset, domain_thickness, domains, f_lo
     u = [0.0, 0.0, 0.0]
     v = [0.0, 0.0, 0.0]
     w = [0.0, 0.0, 0.0]
-    
+
     def tria_volume_cg(nod, thickness):
         # compute volume
         for i in [0, 1, 2]:  # denote x, y, z directions
@@ -368,7 +357,7 @@ def elm_volume_cg(nodes, elements, domain_elset, domain_thickness, domains, f_lo
 
     return cg, cg_min, cg_max, volume_elm
 
-# function preparing values for filtering element sensitivity numbers to suppress checkerboard    
+# function preparing values for filtering element sensitivity numbers to suppress checkerboard
 def filter_prepare1(nodes, elements, cg, r_min, opt_domains):
     # searching for elements neighbouring to every node
     node_neighbours = {}
@@ -377,17 +366,35 @@ def filter_prepare1(nodes, elements, cg, r_min, opt_domains):
             node_neighbours[nn] = [en]
         elif en not in node_neighbours[nn]:
             node_neighbours[nn].append(en)
+    for en in elements.tria3:
+        for nn in elements.tria3[en]:
+            fce()
+    for en in elements.tria6:
+        for nn in elements.tria6[en]:
+            fce()
+    for en in elements.quad4:
+        for nn in elements.quad4[en]:
+            fce()
+    for en in elements.quad8:
+        for nn in elements.quad8[en]:
+            fce()
     for en in elements.tetra4:
         for nn in elements.tetra4[en]:
             fce()
     for en in elements.tetra10:
         for nn in elements.tetra10[en]:
             fce()
-    for en in elements.tria3:
-        for nn in elements.tria3[en]:
+    for en in elements.hexa8:
+        for nn in elements.hexa8[en]:
             fce()
-    for en in elements.tria6:
-        for nn in elements.tria6[en]:
+    for en in elements.hexa20:
+        for nn in elements.hexa20[en]:
+            fce()
+    for en in elements.penta6:
+        for nn in elements.penta6[en]:
+            fce()
+    for en in elements.penta15:
+        for nn in elements.penta15[en]:
             fce()
     # computing weight factors for sensitivity number of nodes according to distance to adjacent elements
     distance = {}
@@ -446,17 +453,35 @@ def filter_prepare1s(nodes, elements, cg, r_min, opt_domains):
             node_neighbours[nn] = [en]
         elif en not in node_neighbours[nn]:
             node_neighbours[nn].append(en)
-    for en in elements.tetra4: # element cg computed also out of opt_domains due to this neighbours counted also there
+    for en in elements.tria3:  # element cg computed also out of opt_domains due to neighbours counted also there
+        for nn in elements.tria3[en]:
+            fce()
+    for en in elements.tria6:
+        for nn in elements.tria6[en]:
+            fce()
+    for en in elements.quad4:
+        for nn in elements.quad4[en]:
+            fce()
+    for en in elements.quad8:
+        for nn in elements.quad8[en]:
+            fce()
+    for en in elements.tetra4:
         for nn in elements.tetra4[en]:
             fce()
     for en in elements.tetra10:
         for nn in elements.tetra10[en]:
             fce()
-    for en in elements.tria3:
-        for nn in elements.tria3[en]:
+    for en in elements.hexa8:
+        for nn in elements.hexa8[en]:
             fce()
-    for en in elements.tria6:
-        for nn in elements.tria6[en]:
+    for en in elements.hexa20:
+        for nn in elements.hexa20[en]:
+            fce()
+    for en in elements.penta6:
+        for nn in elements.penta6[en]:
+            fce()
+    for en in elements.penta15:
+        for nn in elements.penta15[en]:
             fce()
     # computing weight factors for sensitivity number of nodes according to distance to adjacent elements
     M = {} # element numbers en adjacent to each node nn
@@ -517,7 +542,7 @@ def filter_prepare1s(nodes, elements, cg, r_min, opt_domains):
             position = nodes_min[k] + r_min * (0.5 + np.floor((cg[en][k] - nodes_min[k])/ r_min))
             sector_centre.append(sround(position, 6))
         sector_elm[tuple(sector_centre)].append(en)
-        near_nodes[en] = []   
+        near_nodes[en] = []
     # finding near nodes in neighbouring sectors (even inside) by comparing distance with neighbouring sector elements
     x = nodes_min[0] + 0.5 * r_min
     while x <= nodes_max[0] + 0.5 * r_min:
@@ -543,7 +568,7 @@ def filter_prepare1s(nodes, elements, cg, r_min, opt_domains):
                                 except KeyError: pass
                 z += r_min
             y += r_min
-        x += r_min   
+        x += r_min
     #print ("weight_factor_distance have been computed")
     return weight_factor_node, M, weight_factor_distance, near_nodes
 
@@ -551,7 +576,7 @@ def filter_prepare1s(nodes, elements, cg, r_min, opt_domains):
 def filter_run1(sensitivity_number, weight_factor_node, M, weight_factor_distance, near_nodes, nodes, opt_domains, f_log):
     sensitivity_number_node = {} # hypothetical sensitivity number of each node
     for nn in nodes:
-        if nn in M: 
+        if nn in M:
             sensitivity_number_node[nn] = 0
             for en in M[nn]:
                 sensitivity_number_node[nn] += weight_factor_node[nn][en] * sensitivity_number[en]
@@ -572,7 +597,7 @@ def filter_run1(sensitivity_number, weight_factor_node, M, weight_factor_distanc
             return sensitivity_number
     return sensitivity_number_filtered
 
-# function preparing values for filtering element rho to suppress checkerboard 
+# function preparing values for filtering element rho to suppress checkerboard
 # uses sectoring to prevent computing distance of far points
 def filter_prepare2s(cg, cg_min, cg_max, r_min, opt_domains):
     weight_factor2 = {}
@@ -587,9 +612,9 @@ def filter_prepare2s(cg, cg_min, cg_max, r_min, opt_domains):
             while z <= cg_max[2] + 0.5 * r_min:
                 # 6 significant digit round because of small declination (6 must be used for all sround below)
                 sector_elm[(sround(x, 6), sround(y, 6), sround(z, 6))] = []
-                z += r_min 
+                z += r_min
             y += r_min
-        x += r_min  
+        x += r_min
     # assigning elements to the sectors
     for en in opt_domains:
         sector_centre = []
@@ -610,7 +635,7 @@ def filter_prepare2s(cg, cg_min, cg_max, r_min, opt_domains):
                     dx = cg[en][0] - cg[en2][0]
                     dy = cg[en][1] - cg[en2][1]
                     dz = cg[en][2] - cg[en2][2]
-                    distance = (dx**2 + dy**2 + dz**2)**0.5               
+                    distance = (dx**2 + dy**2 + dz**2)**0.5
                     if distance < r_min:
                         weight_factor2[(en, en2)] = r_min - distance
                         weight_factor2[(en2, en)] = weight_factor2[(en, en2)]
@@ -619,9 +644,9 @@ def filter_prepare2s(cg, cg_min, cg_max, r_min, opt_domains):
     # finding near elements in neighbouring sectors by comparing distance with neighbouring sector elements
     x = cg_min[0] + 0.5 * r_min
     while x <= cg_max[0] + 0.5 * r_min:
-        y = cg_min[1] + 0.5 * r_min 
+        y = cg_min[1] + 0.5 * r_min
         while y <= cg_max[1] + 0.5 * r_min:
-            z = cg_min[2] + 0.5 * r_min 
+            z = cg_min[2] + 0.5 * r_min
             while z <= cg_max[2] + 0.5 * r_min:
                 position = (sround(x, 6), sround(y, 6), sround(z, 6))
                 # down level neighbouring sectors:
@@ -631,11 +656,11 @@ def filter_prepare2s(cg, cg_min, cg_max, r_min, opt_domains):
                 # middle level neighbouring sectors:
                 # o  o  -
                 # o self -
-                # o  -  -        
+                # o  -  -
                 # upper level neighbouring sectors:
                 # o  o  -
                 # o  o  -
-                # o  -  -                   
+                # o  -  -
                 for position_neighbour in [(x + r_min, y - r_min, z - r_min),
                                            (x + r_min, y        , z - r_min),
                                            (x + r_min, y + r_min, z - r_min),
@@ -667,7 +692,7 @@ def filter_prepare2s(cg, cg_min, cg_max, r_min, opt_domains):
                 z += r_min
             y += r_min
         x += r_min
-    #print ("near elements have been associated, weight factors computed")    
+    #print ("near elements have been associated, weight factors computed")
     return weight_factor2, near_elm
 
 # function to filter sensitivity number to suppress checkerboard
@@ -690,7 +715,7 @@ def filter_run2(sensitivity_number, weight_factor2, near_elm, opt_domains, f_log
             f_log.write(msg + "\n")
             use_filter = 0
             return sensitivity_number
-    return sensitivity_number_filtered    
+    return sensitivity_number_filtered
 
 # function for copying .inp file with additional elsets, materials, solid and shell sections, different output request
 # switch_elm is a dict of the elements containing 0 for void element or 1 for full element
@@ -752,7 +777,7 @@ def write_inp(file_nameR, file_nameW, switch_elm, domains, domain_optimized, dom
         fW.write(" \n")
 
     for line in fR:
-        if line[0]== "*": 
+        if line[0]== "*":
             commenting = False
 
         # writing ELSETs
@@ -881,7 +906,7 @@ def import_sigma(file_name):
                 sigma_step.append({})
                 last_time = line.split()[-1]
         elif read_sigma == 1:
-            if integ_pnt >= int(line.split()[1]): 
+            if integ_pnt >= int(line.split()[1]):
                 average()
             integ_pnt = int(line.split()[1])
             line_memory[integ_pnt - 1] = line.split()
@@ -892,7 +917,7 @@ def import_sigma(file_name):
     return sigma_step
 
 # function for exporting the resulting mesh without void elements
-# only elements found by import_inp function are taken into account    
+# only elements found by import_inp function are taken into account
 def export_frd(file_name, nodes, elements, switch_elm):
     if file_name[-4:] == ".inp":
         new_name = file_name[:-4] + "_res_mesh.frd"
@@ -917,15 +942,24 @@ def export_frd(file_name, nodes, elements, switch_elm):
                 f.write(" -1" + str(en).rjust(10," ") + "    " + category_symbol +"\n")
                 line = ""
                 nodes_done = 0
-                for nn in elm_category[en]:
-                    line += str(nn).rjust(10," ")
-                    nodes_done += 1
-                    if nodes_done == 10:
-                        f.write(" -2" + line + "\n")
-                        line = ""
-                f.write(" -2" + line + "\n")
+                if category_symbol == "4":  # hexa20 has different node numbering in inp and frd file
+                    for np in [0, 1, 2, 3, 4, 5, 6, 7, 8, 9,
+                               10, 11, 16, 17, 18, 19, 12, 13, 14, 15]:
+                        nn = elm_category[en][np]
+                        line += str(nn).rjust(10," ")
+                        if np in [9, 15]:
+                            f.write(" -2" + line + "\n")
+                            line = ""
+                else:
+                    for nn in elm_category[en]:
+                        line += str(nn).rjust(10," ")
+                        nodes_done += 1
+                        if nodes_done == 10 and elm_category != elements.tetra10:
+                            f.write(" -2" + line + "\n")
+                            line = ""
+                    f.write(" -2" + line + "\n")
 
-    write_elm(elements.tria3, "7")        
+    write_elm(elements.tria3, "7")
     write_elm(elements.tria6, "8")
     write_elm(elements.quad4, "9")
     write_elm(elements.quad8, "10")
