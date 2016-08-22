@@ -116,10 +116,14 @@ while True:
     os.remove(file_nameW + ".inp")
 
     # reading von Mises stress
-    sigma_step = beso_lib.import_sigma(file_nameW + ".dat")
+    try:
+        sigma_step = beso_lib.import_sigma(file_nameW + ".dat")
+    except:
+        raise Exception("CalculiX results not found, check your inputs")
     os.remove(file_nameW + ".dat")
     os.remove(file_nameW + ".frd")
     os.remove(file_nameW + ".sta")
+    os.remove(file_nameW + ".cvg")
     sigma_max.append([])
     print("sigma_max (by domain) =")
     for dn in range(len(domains)):

@@ -5,9 +5,9 @@ def inputs(domain_elset, domain_optimized, domain_E, domain_poisson, domain_dens
     path = "d:\\tmp\\" # path to the working directory where the initial file is located
     #path = "~/tmp/beso/" # Linux example
     #path = "D:\\tmp\\" # Windows example
-    path_calculix = "C:\c4w\programs\ccx\ccx.exe" # path to the CalculiX solver 
+    path_calculix = "d:\\soft\FreeCad\\FreeCAD_0.17.8264_x64_dev_win\\bin\\ccx" # path to the CalculiX solver 
     #path_calculix = "/usr/bin/ccx" # Linux example, may help shell command: which ccx
-    #path_calculix = "c:\\Program Files\\FreeCAD 0.16\\bin\\" # Windows example
+    #path_calculix = "d:\\soft\FreeCad\\FreeCAD_0.17.8264_x64_dev_win\\bin\\ccx" # Windows example
 
     file_name = "Fusion_Mesh.inp" # file with prepared linear static analysis
 
