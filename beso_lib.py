@@ -36,18 +36,10 @@ def import_inp(file_name, domain_elset, domain_optimized, f_log):
     model_definition = True
     domains = {}
 
-    def read_elm_nodes(elm_category, number_of_nodes):
-        line_list = string.split(line,',')
-        number = int(line_list[0])
-        elm_category[number] = []
-        for en in range(1, number_of_nodes + 1):
-            enode = int(line_list[en])
-            elm_category[number].append(enode)
-
     f = open(file_name, "r")
     line = "\n"
     include = ""
-    while line <> "":
+    while line != "":
         if include:
             line = f_include.readline()
             if line == "":
@@ -58,7 +50,7 @@ def import_inp(file_name, domain_elset, domain_optimized, f_log):
             line = f.readline()
         if line.strip() == '':
             continue
-        elif line[0] == '*': # start/end of a reading set
+        elif line[0] == '*':  # start/end of a reading set
             if line[0:2] == '**':  # comments
                 continue
             if line[:8].upper() == "*INCLUDE":
@@ -66,25 +58,15 @@ def import_inp(file_name, domain_elset, domain_optimized, f_log):
                 include = line[start:].strip().strip('"')
                 f_include = open(include, "r")
                 continue
-
             read_node = False
-            read_tria3 = False
-            read_tria6 = False
-            read_quad4 = False
-            read_quad8 = False
-            read_tetra4 = False
-            read_tetra10 = False
-            read_hexa8 = False
-            read_hexa20_line1 = False
-            read_hexa20_line2 = False
-            read_penta6 = False
-            read_penta15 = False
+            elm_category = []
+            elm_2nd_line = False
             read_domain = False
 
         # reading nodes
         if (line[:5].upper() == "*NODE") and (model_definition == True):
             read_node = True
-        elif read_node == True:
+        elif read_node is True:
             line_list = string.split(line,',')
             number = int(line_list[0])
             x = float(line_list[1])
@@ -102,62 +84,52 @@ def import_inp(file_name, domain_elset, domain_optimized, f_log):
                     #add_element_number_to_elset_not_implemented = line_part.split('=')[1].strip()
 
             if elm_type in ["S3", "CPS3", "CPE3", "CAX3"]:
-                read_tria3 = True
+                elm_category = elements.tria3
+                number_of_nodes = 3
             elif elm_type in ["S6", "CPS6", "CPE6", "CAX6"]:
-                read_tria6 = True
+                elm_category = elements.tria6
+                number_of_nodes = 6
             elif elm_type in ["S4", "S4R", "CPS4", "CPS4R", "CPE4", "CPE4R", "CAX4", "CAX4R"]:
-                read_quad4 = True
+                elm_category = elements.quad4
+                number_of_nodes = 4
             elif elm_type in ["S8", "S8R", "CPS8", "CPS8R", "CPE8", "CPE8R", "CAX8", "CAX8R"]:
-                read_quad8 = True
+                elm_category = elements.quad8
+                number_of_nodes = 8
             elif elm_type == "C3D4":
-                read_tetra4 = True
+                elm_category = elements.tetra4
+                number_of_nodes = 4
             elif elm_type == "C3D10":
-                read_tetra10 = True
+                elm_category = elements.tetra10
+                number_of_nodes = 10
             elif elm_type in ["C3D8", "C3D8R", "C3D8I"]:
-                read_hexa8 = True
+                elm_category = elements.hexa8
+                number_of_nodes = 8
             elif elm_type in ["C3D20", "C3D20R", "C3D20RI"]:
-                read_hexa20_line1 = True
+                elm_category = elements.hexa20
+                number_of_nodes = 20
             elif elm_type == "C3D6":
-                read_penta6 = True
+                elm_category = elements.penta6
+                number_of_nodes = 6
             elif elm_type == "C3D15":
-                read_penta15 = True
+                elm_category = elements.penta15
+                number_of_nodes = 15
 
-        elif read_tria3 == True:
-            read_elm_nodes(elements.tria3, 3)
-        elif read_tria6 == True:
-            read_elm_nodes(elements.tria6, 6)
-        elif read_quad4 == True:
-            read_elm_nodes(elements.quad4, 4)
-        elif read_quad8 == True:
-            read_elm_nodes(elements.quad8, 8)
-        elif read_tetra4 == True:
-            read_elm_nodes(elements.tetra4, 4)
-        elif read_tetra10 == True:
-            read_elm_nodes(elements.tetra10, 10)
-        elif read_hexa8 == True:
-            read_elm_nodes(elements.hexa8, 8)
-        elif read_hexa20_line2 == True:
-            line_list = string.split(line,',')
-            if line_list[-1].strip() == "":
-                del line_list[-1]
-            for en in range(0, len(line_list)):
-                enode = int(line_list[en])
-                elements.hexa20[number].append(enode)
-            read_hexa20_line2 = False
-        elif read_hexa20_line1 == True:
-            line_list = string.split(line,',')
-            if line_list[-1].strip() == "":
-                del line_list[-1]
-            number = int(line_list[0])
-            elements.hexa20[number] = []
-            for en in range(1, len(line_list)):
-                enode = int(line_list[en])
-                elements.hexa20[number].append(enode)
-            read_hexa20_line2 = True
-        elif read_penta6 == True:
-            read_elm_nodes(elements.penta6, 6)
-        elif read_penta15 == True:
-            read_elm_nodes(elements.penta15, 15)
+        elif elm_category != []:
+            line_list = string.split(line, ',')
+            if elm_2nd_line is False:
+                number = int(line_list[0])
+                elm_category[number] = []
+                pos = 1
+            else:
+                pos = 0
+                elm_2nd_line = False
+            for en in range(pos, pos + number_of_nodes - len(elm_category[number])):
+                try:
+                    enode = int(line_list[en])
+                    elm_category[number].append(enode)
+                except:
+                    elm_2nd_line = True
+                    break
 
         # reading domains from elset
         elif line[:6].upper() == "*ELSET":
@@ -339,7 +311,7 @@ def elm_volume_cg(nodes, elements, domain_elset, domain_thickness, domains, f_lo
         [v1, cg1] = tetra_volume_cg(nod[0:4])
         [v2, cg2] = tetra_volume_cg(nod[1:5])
         [v3, cg3] = tetra_volume_cg(nod[2:6])
-        [en] = float(v1 + v2 + v3)
+        volume_elm[en] = float(v1 + v2 + v3)
         cg[en] = [[],[],[]]
         for k in [0, 1, 2]:  # denote x, y, z dimensions
             cg[en][k] = (v1*cg1[k] + v2*cg2[k] + v3*cg3[k]) / volume_elm[en]
@@ -939,15 +911,23 @@ def export_frd(file_name, nodes, elements, switch_elm):
     def write_elm(elm_category, category_symbol):
         for en in elm_category:
             if switch_elm[en] == 1:
-                f.write(" -1" + str(en).rjust(10," ") + "    " + category_symbol +"\n")
+                f.write(" -1" + str(en).rjust(10," ") + category_symbol.rjust(5," ") +"\n")
                 line = ""
                 nodes_done = 0
-                if category_symbol == "4":  # hexa20 has different node numbering in inp and frd file
+                if category_symbol == "4":  # hexa20 different node numbering in inp and frd file
                     for np in [0, 1, 2, 3, 4, 5, 6, 7, 8, 9,
                                10, 11, 16, 17, 18, 19, 12, 13, 14, 15]:
                         nn = elm_category[en][np]
                         line += str(nn).rjust(10," ")
                         if np in [9, 15]:
+                            f.write(" -2" + line + "\n")
+                            line = ""
+                elif category_symbol == "5":  # penta15 has different node numbering in inp and frd file
+                    for np in [0, 1, 2, 3, 4, 5, 6, 7, 8, 12,
+                               13, 14, 9, 10, 11]:
+                        nn = elm_category[en][np]
+                        line += str(nn).rjust(10," ")
+                        if np in [12, 11]:
                             f.write(" -2" + line + "\n")
                             line = ""
                 else:
