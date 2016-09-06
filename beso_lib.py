@@ -896,11 +896,31 @@ def export_frd(file_name, nodes, elements, switch_elm):
     else:
         new_name = file_name + "_res_mesh.frd"
     f = open(new_name, "w")
+
     # print nodes
-    f.write("    2C" + str(len(nodes)).rjust(30," ") + "\n")
-    for nn in nodes:
+    associated_nodes = []
+    def get_full_elm(elm_category):
+        for en in elm_category:
+            if switch_elm[en] == 1:
+                associated_nodes.extend(elm_category[en])
+
+    get_full_elm(elements.tria3)
+    get_full_elm(elements.tria6)
+    get_full_elm(elements.quad4)
+    get_full_elm(elements.quad8)
+    get_full_elm(elements.tetra4)
+    get_full_elm(elements.tetra10)
+    get_full_elm(elements.penta6)
+    get_full_elm(elements.penta15)
+    get_full_elm(elements.hexa8)
+    get_full_elm(elements.hexa20)
+
+    associated_nodes = sorted(list(set(associated_nodes)))
+    f.write("    2C" + str(len(associated_nodes)).rjust(30," ") + "\n")
+    for nn in associated_nodes:
         f.write(" -1" + str(nn).rjust(10," ") + "% .5E% .5E% .5E\n" % (nodes[nn][0], nodes[nn][1], nodes[nn][2]))
     f.write(" -3\n")
+
     # print elements
     elm_sum = 0
     for en in switch_elm:
