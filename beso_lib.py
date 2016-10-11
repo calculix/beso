@@ -916,7 +916,8 @@ def export_frd(file_name, nodes, elements, switch_elm):
     get_full_elm(elements.hexa20)
 
     associated_nodes = sorted(list(set(associated_nodes)))
-    f.write("    2C" + str(len(associated_nodes)).rjust(30," ") + "\n")
+    f.write("    1C\n")
+    f.write("    2C" + str(len(associated_nodes)).rjust(30," ") + 37*" " + "1\n")
     for nn in associated_nodes:
         f.write(" -1" + str(nn).rjust(10," ") + "% .5E% .5E% .5E\n" % (nodes[nn][0], nodes[nn][1], nodes[nn][2]))
     f.write(" -3\n")
@@ -926,7 +927,7 @@ def export_frd(file_name, nodes, elements, switch_elm):
     for en in switch_elm:
         if switch_elm[en] == 1:
             elm_sum += 1
-    f.write("    3C" + str(elm_sum).rjust(30," ") + "\n")
+    f.write("    3C" + str(elm_sum).rjust(30," ") + 37*" " + "1\n")
 
     def write_elm(elm_category, category_symbol):
         for en in elm_category:
