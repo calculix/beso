@@ -602,15 +602,15 @@ def filter_prepare2s(cg, cg_min, cg_max, r_min, opt_domains):
             for en2 in sector_elm[sector_centre]:
                 if en == en2:
                     continue
-                try: weight_factor2[(en2, en)]
+                ee = (min(en, en2), max(en, en2))
+                try: weight_factor2[ee]
                 except:
                     dx = cg[en][0] - cg[en2][0]
                     dy = cg[en][1] - cg[en2][1]
                     dz = cg[en][2] - cg[en2][2]
                     distance = (dx**2 + dy**2 + dz**2)**0.5
                     if distance < r_min:
-                        weight_factor2[(en, en2)] = r_min - distance
-                        weight_factor2[(en2, en)] = weight_factor2[(en, en2)]
+                        weight_factor2[ee] = r_min - distance
                         near_elm[en].append(en2)
                         near_elm[en2].append(en)
     # finding near elements in neighbouring sectors by comparing distance with neighbouring sector elements
@@ -655,9 +655,8 @@ def filter_prepare2s(cg, cg_min, cg_max, r_min, opt_domains):
                             dz = cg[en][2] - cg[en2][2]
                             distance = (dx**2 + dy**2 + dz**2)**0.5
                             if distance < r_min:
-                                ee = [en, en2]
-                                ee.sort()
-                                weight_factor2[tuple(ee)] = r_min - distance
+                                ee = (min(en, en2), max(en, en2))
+                                weight_factor2[ee] = r_min - distance
                                 near_elm[en].append(en2)
                                 near_elm[en2].append(en)
                       except KeyError: pass
@@ -667,18 +666,18 @@ def filter_prepare2s(cg, cg_min, cg_max, r_min, opt_domains):
     #print ("near elements have been associated, weight factors computed")
     return weight_factor2, near_elm
 
+
 # function to filter sensitivity number to suppress checkerboard
 # simplified version: makes weighted average of sensitivity numbers from near elements
 def filter_run2(sensitivity_number, weight_factor2, near_elm, opt_domains, f_log):
-    sensitivity_number_filtered = {} # sensitivity number of each element after filtering
+    sensitivity_number_filtered = {}  # sensitivity number of each element after filtering
     for en in opt_domains:
         numerator = 0
         denominator = 0
         for en2 in near_elm[en]:
-            ee = [en, en2]
-            ee.sort()
-            numerator += weight_factor2[tuple(ee)] * sensitivity_number[en2]
-            denominator += weight_factor2[tuple(ee)]
+            ee = (min(en, en2), max(en, en2))
+            numerator += weight_factor2[ee] * sensitivity_number[en2]
+            denominator += weight_factor2[ee]
         if denominator <> 0:
             sensitivity_number_filtered[en] = numerator / denominator
         else:
@@ -688,6 +687,7 @@ def filter_run2(sensitivity_number, weight_factor2, near_elm, opt_domains, f_log
             use_filter = 0
             return sensitivity_number
     return sensitivity_number_filtered
+
 
 # function for copying .inp file with additional elsets, materials, solid and shell sections, different output request
 # switch_elm is a dict of the elements containing 0 for void element or 1 for full element
