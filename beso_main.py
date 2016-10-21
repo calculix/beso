@@ -112,7 +112,7 @@ while True:
     file_nameW = "file" + str(i).zfill(3)
     beso_lib.write_inp(file_name, file_nameW, switch_elm, domains, domain_optimized, domain_E, domain_poisson, domain_density, void_coefficient, domain_thickness, domain_offset)
     # running CalculiX analysis
-    subprocess.call(path_calculix + " " + path + file_nameW, shell=True)
+    subprocess.call(os.path.normpath(path_calculix) + " " + os.path.join(path, file_nameW), shell=True)
     os.remove(file_nameW + ".inp")
 
     # reading von Mises stress
