@@ -20,16 +20,23 @@ domain_density = []
 domain_thickness = []
 domain_offset = []
 domain_stress_allowable = []
-try:
-    reload(beso_conf)  # user inputs
-except NameError:
-    import beso_conf
-[path, path_calculix, file_name, domain_elset, domain_optimized, domain_E, domain_poisson, domain_density,
- domain_thickness, domain_offset, domain_stress_allowable, volume_goal, r_min, continue_from, sigma_allowable_tolerance,
- use_filter, evolutionary_volume_ratio, volume_additional_ratio_max, iterations_limit, tolerance, void_coefficient,
- save_iteration_meshes
- ] = beso_conf.inputs(domain_elset, domain_optimized, domain_E, domain_poisson, domain_density, domain_thickness,
-                      domain_offset, domain_stress_allowable)
+path = None
+path_calculix = None
+file_name = None
+volume_goal = None
+r_min = None
+continue_from = None
+sigma_allowable_tolerance = None
+use_filter = None
+evolutionary_volume_ratio = None
+volume_additional_ratio_max = None
+iterations_limit = None
+tolerance = None
+void_coefficient = None
+save_iteration_meshes = None
+
+# read configuration file to fill variables listed above
+execfile("beso_conf.py")
 
 if iterations_limit == 0:  # automatic setting
     iterations_limit = int((1 - volume_goal) / evolutionary_volume_ratio + 25)
