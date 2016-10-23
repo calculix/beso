@@ -13,11 +13,18 @@ def sround(x, s):
     return result
 
 
+# function to print ongoing messages to the log file
+def write_to_log(file_name, msg):
+    f_log = open(file_name[:-4] + ".log", "a")
+    f_log.write(msg)
+    f_log.close()
+
+
 # function importing a mesh consisting of nodes and elements of type C3D4, C3D10, S3, S6
 # and importing *ELSET,ELSET=OptimizationDomain
 # all elements of OptimizationDomain must be listed, divided by newline or comma
 # possible problems: *Card lines of .inp file must be of exact format (as printed by FreeCAD)
-def import_inp(file_name, domain_elset, domain_optimized, f_log):
+def import_inp(file_name, domain_elset, domain_optimized):
     nodes = {}  # dict with a nodes position
 
     class Elements():
@@ -154,33 +161,31 @@ def import_inp(file_name, domain_elset, domain_optimized, f_log):
     en_all = Elements.tria3.keys() + Elements.tria6.keys() + Elements.quad4.keys() + Elements.quad8.keys() + \
              Elements.tetra4.keys() + Elements.tetra10.keys() + Elements.hexa8.keys() + Elements.hexa20.keys() + \
              Elements.penta6.keys() + Elements.penta15.keys()
-    row = ("%.f nodes, %.f TRIA3, %.f TRIA6, %.f QUAD4, %.f QUAD8, %.f TETRA4, %.f TETRA10,"
+    msg = ("nodes  : %.f\nTRIA3  : %.f\nTRIA6  : %.f\nQUAD4  : %.f\nQUAD8  : %.f\nTETRA4 : %.f\nTETRA10: %.f\n"
+           "HEXA8  : %.f\nHEXA20 : %.f\nPENTA6 : %.f\nPENTA15: %.f\n"
            % (len(nodes), len(Elements.tria3), len(Elements.tria6), len(Elements.quad4), len(Elements.quad8),
-              len(Elements.tetra4), len(Elements.tetra10)))
-    print(row)
-    f_log.write(row + "\n")
-    row = ("%.f HEXA8, %.f HEXA20, %.f PENTA6, %.f PENTA15 have been imported"
-           % (len(Elements.hexa8), len(Elements.hexa20), len(Elements.penta6), len(Elements.penta15)))
-    print(row)
-    f_log.write(row + "\n")
+              len(Elements.tetra4), len(Elements.tetra10), len(Elements.hexa8), len(Elements.hexa20),
+              len(Elements.penta6), len(Elements.penta15)))
 
     opt_domains = []
     for dn in domains:
         if domain_optimized[dn] is True:
             opt_domains.extend(domains[dn])
-    print ("%.f domains have been imported" % len(domains))
+    msg += ("domains: %.f\n" % len(domains))
+    print(msg)
+    write_to_log(file_name, msg)
     if not opt_domains:
-        msg = "None optimized domain has been found"
-        f_log.write("ERROR: " + msg + "\n")
-        f_log.close()
-        assert False, msg
+        row = "None optimized domain has been found"
+        msg += ("ERROR: " + row + "\n")
+        write_to_log(file_name, msg)
+        assert False, row
 
     return nodes, Elements, domains, opt_domains, en_all
 
 
 # function for computing volumes and centres of gravity of all elements (non-penalized)
 # approximate for 2nd order elements!
-def elm_volume_cg(nodes, Elements, domain_elset, domain_thickness, domains, f_log):
+def elm_volume_cg(file_name, nodes, Elements, domain_elset, domain_thickness, domains):
     u = [0.0, 0.0, 0.0]
     v = [0.0, 0.0, 0.0]
     w = [0.0, 0.0, 0.0]
@@ -223,15 +228,15 @@ def elm_volume_cg(nodes, Elements, domain_elset, domain_thickness, domains, f_lo
 
     def check_thickness(en):
         if en not in thickness:
-            msg = "Shell element found in domain with 0 thickness"
-            f_log.write("ERROR: " + msg + "\n")
-            f_log.close()
-            assert False, msg
+            row = "Shell element found in domain with 0 thickness"
+            msg = ("ERROR: " + row + "\n")
+            write_to_log(file_name, msg)
+            assert False, row
 
     def second_order_warning(elm_type):
-        msg = "WARNING: areas and centres of gravity of " + elm_type.upper() + " elements ignore mid-nodes' positions"
+        msg = "WARNING: areas and centres of gravity of " + elm_type.upper() + " elements ignore mid-nodes' positions\n"
         print(msg)
-        f_log.write(msg + "\n")
+        write_to_log(file_name, msg)
 
     # defining volume and centre of gravity for all element types
     volume_elm = {}
@@ -561,8 +566,8 @@ def filter_prepare1s(nodes, Elements, cg, r_min, opt_domains):
 
 
 # function to filter sensitivity number to suppress checkerboard
-def filter_run1(sensitivity_number, weight_factor_node, M, weight_factor_distance, near_nodes, nodes, opt_domains,
-                f_log):
+def filter_run1(file_name, sensitivity_number, weight_factor_node, M, weight_factor_distance, near_nodes, nodes,
+                opt_domains,):
     sensitivity_number_node = {}  # hypothetical sensitivity number of each node
     for nn in nodes:
         if nn in M:
@@ -579,9 +584,9 @@ def filter_run1(sensitivity_number, weight_factor_node, M, weight_factor_distanc
         if denominator != 0:
             sensitivity_number_filtered[en] = numerator / denominator
         else:
-            msg = "WARNING: filter1 failed due to division by 0. Some element CG has not a node in distance <= r_min."
+            msg = "WARNING: filter1 failed due to division by 0. Some element CG has not a node in distance <= r_min.\n"
             print(msg)
-            f_log.write(msg + "\n")
+            write_to_log(file_name, msg)
             use_filter = 0
             return sensitivity_number
     return sensitivity_number_filtered
@@ -690,7 +695,7 @@ def filter_prepare2s(cg, cg_min, cg_max, r_min, opt_domains):
 
 # function to filter sensitivity number to suppress checkerboard
 # simplified version: makes weighted average of sensitivity numbers from near elements
-def filter_run2(sensitivity_number, weight_factor2, near_elm, opt_domains, f_log):
+def filter_run2(file_name, sensitivity_number, weight_factor2, near_elm, opt_domains):
     sensitivity_number_filtered = {}  # sensitivity number of each element after filtering
     for en in opt_domains:
         numerator = 0
@@ -703,9 +708,9 @@ def filter_run2(sensitivity_number, weight_factor2, near_elm, opt_domains, f_log
             sensitivity_number_filtered[en] = numerator / denominator
         else:
             msg = "WARNING: filter2 failed due to division by 0." \
-                  "Some element has not a near element in distance <= r_min."
+                  "Some element has not a near element in distance <= r_min.\n"
             print(msg)
-            f_log.write(msg + "\n")
+            write_to_log(file_name, msg)
             use_filter = 0
             return sensitivity_number
     return sensitivity_number_filtered
