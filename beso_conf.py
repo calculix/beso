@@ -39,6 +39,8 @@ continue_from = ""  # if not "", optimization will load full elements from the g
 
 # ADVANCED INPUTS:
 
+cpu_cores = 0  # 0 - use all processor cores, N - will use N number of processor cores
+
 sigma_allowable_tolerance = 10  # negative tolerance to de-freeze volume_goal
 # make note, this is von Mises stress averaged over integration points of the each element;
 # stresses in nodes are different (they are not used in this algorithm)

@@ -3,6 +3,7 @@
 
 import numpy as np
 import matplotlib.pyplot as plt
+import multiprocessing
 import os
 import subprocess
 import operator
@@ -26,6 +27,7 @@ file_name = None
 volume_goal = None
 r_min = None
 continue_from = None
+cpu_cores = None
 sigma_allowable_tolerance = None
 use_filter = None
 evolutionary_volume_ratio = None
@@ -41,6 +43,11 @@ execfile("beso_conf.py")
 if iterations_limit == 0:  # automatic setting
     iterations_limit = int((1 - volume_goal) / evolutionary_volume_ratio + 25)
     print("iterations_limit set to %s" % iterations_limit)
+
+# set an environmental variable driving number of cpu cores to be used by CalculiX
+if cpu_cores == 0:  # use all processor cores
+    cpu_cores = multiprocessing.cpu_count()
+os.putenv('OMP_NUM_THREADS', str(cpu_cores))
 
 # writing log file with settings
 f_log = open(file_name[:-4] + ".log", "a")
@@ -58,6 +65,7 @@ for dn in range(len(domain_elset)):
     f_log.write("domain_stress_allowable = %s\n" % domain_stress_allowable[dn])
     f_log.write("\n")
 f_log.write("volume_goal initial = %s\n" % volume_goal)
+f_log.write("cpu_cores = %s\n" % cpu_cores)
 f_log.write("sigma_allowable_tolerance = %s\n" % sigma_allowable_tolerance)
 f_log.write("r_min = %s\n" % r_min)
 f_log.write("use_filter = %s\n" % use_filter)
