@@ -803,8 +803,7 @@ def write_inp(file_nameR, file_nameW, switch_elm, domains, domain_optimized, dom
 
                 fW.write("*MATERIAL, NAME=OptimizationMaterialVoid" + str(dn) + "\n")
                 fW.write("*ELASTIC\n")
-                fW.write(str(domain_E[dn] * void_coefficient) + ",\n")
-                fW.write(str(domain_poisson[dn]) + "\n")
+                fW.write(str(domain_E[dn] * void_coefficient) + ", " + str(domain_poisson[dn]) + "\n")
                 fW.write("*DENSITY\n")
                 fW.write(str(domain_density[dn] * void_coefficient) + "\n")
 
