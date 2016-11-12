@@ -716,6 +716,249 @@ def filter_run2(file_name, sensitivity_number, weight_factor2, near_elm, opt_dom
     return sensitivity_number_filtered
 
 
+# function preparing values for filtering element sensitivity number using own point mesh
+# currently set to work only with elements in opt_domains
+def filter_prepare3(file_name, cg, cg_min, r_min, opt_domains):
+    weight_factor3 = {}
+    near_points = {}
+    near_elm = {}
+    grid_size = 0.7 * r_min  # constant less than sqrt(6)/2 is chosen ensuring that each element has at least 3 near points
+    # if codes below are done for situation where grid_size > 0.5 * r_min
+
+    # searching for near points of each element
+    for en in opt_domains:  # domain to take elements for filtering
+        x_elm, y_elm, z_elm = cg[en]
+
+        # set proper starting point coordinates
+        reminder = divmod(x_elm - cg_min[0], grid_size)[1]
+        if (grid_size + reminder) < r_min:
+            x = x_elm - grid_size - reminder
+        else:
+            x = x_elm - reminder
+        reminder = divmod(y_elm - cg_min[1], grid_size)[1]
+        if (grid_size + reminder) < r_min:
+            yy = y_elm - grid_size - reminder
+        else:
+            yy = y_elm - reminder
+        reminder = divmod(z_elm - cg_min[2], grid_size)[1]
+        if (grid_size + reminder) < r_min:
+            zz = z_elm - grid_size - reminder
+        else:
+            zz = z_elm - reminder
+        near_points[en] = []
+
+        # through points in the cube around element centre of gravity
+        while x < x_elm + r_min:
+            y = yy
+            while y < y_elm + r_min:
+                z = zz
+                while z < z_elm + r_min:
+                    distance = ((x_elm - x) ** 2 + (y_elm - y) ** 2 + (z_elm - z) ** 2) ** 0.5
+                    if distance < r_min:
+                        weight_factor3[(en, (x, y, z))] = r_min - distance
+                        near_points[en].append((x, y, z))
+                        try:
+                            near_elm[(x, y, z)].append(en)
+                        except KeyError:
+                            near_elm[(x, y, z)] = [en]
+                    z += grid_size
+                y += grid_size
+            x += grid_size
+    hist_near_elm = list(np.zeros(25))
+    hist_near_points = list(np.zeros(25))
+    for pn in near_elm:
+        if isinstance(near_elm[pn], int):
+            le = 1
+        else:
+            le = len(near_elm[pn])
+        if le >= len(hist_near_elm):
+            while len(hist_near_elm) <= le:
+                hist_near_elm.append(0)
+        hist_near_elm[le] += 1
+    for en in near_points:
+        if isinstance(near_points[en], int):
+            le = 1
+        else:
+            le = len(near_points[en])
+        if le >= len(hist_near_points):
+            while len(hist_near_points) <= le:
+                hist_near_points.append(0)
+        hist_near_points[le] += 1
+    msg = "histogram - number of near elements vs. number of points\n"
+    msg += str(hist_near_elm) + "\n"
+    msg += "histogram - number of near points vs. number of elements\n"
+    msg += str(hist_near_points) + "\n"
+    write_to_log(file_name, msg)
+    return weight_factor3, near_elm, near_points
+
+
+# function for filtering element sensitivity number using own point mesh
+# currently works only with elements in opt_domains
+def filter_run3(sensitivity_number, weight_factor3, near_elm, near_points):
+    sensitivity_number_filtered = {}  # sensitivity number of each element after filtering
+    point_sensitivity = {}
+
+    # weighted averaging of sensitivity number from elements to points
+    for pn in near_elm:
+        numerator = 0
+        denominator = 0
+        for en in near_elm[pn]:
+            numerator += weight_factor3[(en, pn)] * sensitivity_number[en]
+            denominator += weight_factor3[(en, pn)]
+        point_sensitivity[pn] = numerator / denominator
+
+    # weighted averaging of sensitivity number from points back to elements
+    for en in near_points:
+        numerator = 0
+        denominator = 0
+        for pn in near_points[en]:
+            numerator += weight_factor3[(en, pn)] * point_sensitivity[pn]
+            denominator += weight_factor3[(en, pn)]
+        sensitivity_number_filtered[en] = numerator / denominator
+
+    return sensitivity_number_filtered
+
+
+# function preparing values for morphology based filtering
+# it is a copy of filter_prepare2s without saving distance of near elements
+# uses sectoring to prevent computing distance of far points
+def filter_prepare_morphology(cg, cg_min, cg_max, r_min, opt_domains):
+    near_elm = {}
+    sector_elm = {}
+
+    # preparing empty sectors
+    x = cg_min[0] + 0.5 * r_min
+    while x <= cg_max[0] + 0.5 * r_min:
+        y = cg_min[1] + 0.5 * r_min
+        while y <= cg_max[1] + 0.5 * r_min:
+            z = cg_min[2] + 0.5 * r_min
+            while z <= cg_max[2] + 0.5 * r_min:
+                # 6 significant digit round because of small declination (6 must be used for all sround below)
+                sector_elm[(sround(x, 6), sround(y, 6), sround(z, 6))] = []
+                z += r_min
+            y += r_min
+        x += r_min
+
+    # assigning elements to the sectors
+    for en in opt_domains:
+        sector_centre = []
+        for k in range(3):
+            position = cg_min[k] + r_min * (0.5 + np.floor((cg[en][k] - cg_min[k]) / r_min))
+            sector_centre.append(sround(position, 6))
+        sector_elm[tuple(sector_centre)].append(en)
+
+    # finding near elements inside each sector
+    for sector_centre in sector_elm:
+        for en in sector_elm[sector_centre]:
+            near_elm[en] = []
+        for en in sector_elm[sector_centre]:
+            for en2 in sector_elm[sector_centre]:
+                if en == en2:
+                    continue
+                dx = cg[en][0] - cg[en2][0]
+                dy = cg[en][1] - cg[en2][1]
+                dz = cg[en][2] - cg[en2][2]
+                distance = (dx ** 2 + dy ** 2 + dz ** 2) ** 0.5
+                if distance < r_min:
+                    near_elm[en].append(en2)
+                    near_elm[en2].append(en)
+
+    # finding near elements in neighbouring sectors by comparing distance with neighbouring sector elements
+    x = cg_min[0] + 0.5 * r_min
+    while x <= cg_max[0] + 0.5 * r_min:
+        y = cg_min[1] + 0.5 * r_min
+        while y <= cg_max[1] + 0.5 * r_min:
+            z = cg_min[2] + 0.5 * r_min
+            while z <= cg_max[2] + 0.5 * r_min:
+                position = (sround(x, 6), sround(y, 6), sround(z, 6))
+                # down level neighbouring sectors:
+                # o  o  -
+                # o  -  -
+                # o  -  -
+                # middle level neighbouring sectors:
+                # o  o  -
+                # o self -
+                # o  -  -
+                # upper level neighbouring sectors:
+                # o  o  -
+                # o  o  -
+                # o  -  -
+                for position_neighbour in [(x + r_min, y - r_min, z - r_min),
+                                           (x + r_min, y, z - r_min),
+                                           (x + r_min, y + r_min, z - r_min),
+                                           (x, y + r_min, z - r_min),
+                                           (x + r_min, y - r_min, z),
+                                           (x + r_min, y, z),
+                                           (x + r_min, y + r_min, z),
+                                           (x, y + r_min, z),
+                                           (x + r_min, y - r_min, z + r_min),
+                                           (x + r_min, y, z + r_min),
+                                           (x + r_min, y + r_min, z + r_min),
+                                           (x, y + r_min, z + r_min),
+                                           (x, y, z + r_min)]:
+                    position_neighbour = (sround(position_neighbour[0], 6), sround(position_neighbour[1], 6),
+                                          sround(position_neighbour[2], 6))
+                    for en in sector_elm[position]:
+                        try:
+                            for en2 in sector_elm[position_neighbour]:
+                                dx = cg[en][0] - cg[en2][0]
+                                dy = cg[en][1] - cg[en2][1]
+                                dz = cg[en][2] - cg[en2][2]
+                                distance = (dx ** 2 + dy ** 2 + dz ** 2) ** 0.5
+                                if distance < r_min:
+                                    near_elm[en].append(en2)
+                                    near_elm[en2].append(en)
+                        except KeyError:
+                            pass
+                z += r_min
+            y += r_min
+        x += r_min
+    # print ("near elements have been associated")
+    return near_elm
+
+
+# morphology based filtering (erode, dilate, open, close, open-close, close-open, combine)
+def filter_run_morphology(sensitivity_number, near_elm, opt_domains, filter_type):
+
+    def filter(filter_type, sensitivity_number, near_elm, opt_domains):
+        sensitivity_number_subtype = {}  # sensitivity number of each element after filtering
+        for en in opt_domains:
+            sensitivity_number_near = [sensitivity_number[en]]
+            for en2 in near_elm[en]:
+                sensitivity_number_near.append(sensitivity_number[en2])
+            if filter_type == "erode":
+                sensitivity_number_subtype[en] = min(sensitivity_number_near)
+            elif filter_type == "dilate":
+                sensitivity_number_subtype[en] = max(sensitivity_number_near)
+        return sensitivity_number_subtype
+
+    sensitivity_number_filtered = {}  # sensitivity number of each element after filtering
+    if filter_type in ["erode", "dilate"]:
+        sensitivity_number_filtered = filter(filter_type, sensitivity_number, near_elm, opt_domains)
+    elif filter_type == "open":
+        sensitivity_number_1 = filter("erode", sensitivity_number, near_elm, opt_domains)
+        sensitivity_number_filtered = filter("dilate", sensitivity_number_1, near_elm, opt_domains)
+    elif filter_type == "close":
+        sensitivity_number_1 = filter("dilate", sensitivity_number, near_elm, opt_domains)
+        sensitivity_number_filtered = filter("erode", sensitivity_number_1, near_elm, opt_domains)
+    elif filter_type == "open-close":
+        sensitivity_number_1 = filter("erode", sensitivity_number, near_elm, opt_domains)
+        sensitivity_number_1 = filter("dilate", sensitivity_number_1, near_elm, opt_domains)
+        sensitivity_number_1 = filter("dilate", sensitivity_number_1, near_elm, opt_domains)
+        sensitivity_number_filtered = filter("erode", sensitivity_number_1, near_elm, opt_domains)
+    elif filter_type == "close-open":
+        sensitivity_number_1 = filter("dilate", sensitivity_number, near_elm, opt_domains)
+        sensitivity_number_1 = filter("erode", sensitivity_number_1, near_elm, opt_domains)
+        sensitivity_number_1 = filter("erode", sensitivity_number_1, near_elm, opt_domains)
+        sensitivity_number_filtered = filter("dilate", sensitivity_number_1, near_elm, opt_domains)
+    elif filter_type == "combine":
+        sensitivity_number_1 = filter("erode", sensitivity_number, near_elm, opt_domains)
+        sensitivity_number_2 = filter("dilate", sensitivity_number, near_elm, opt_domains)
+        for en in opt_domains:
+            sensitivity_number_filtered[en] = (sensitivity_number_1[en] + sensitivity_number_2[en]) / 2.0
+    return sensitivity_number_filtered
+
+
 # function for copying .inp file with additional elsets, materials, solid and shell sections, different output request
 # switch_elm is a dict of the elements containing 0 for void element or 1 for full element
 def write_inp(file_nameR, file_nameW, switch_elm, domains, domain_optimized, domain_E, domain_poisson, domain_density,

@@ -110,6 +110,10 @@ if use_filter == 1:
                                                                                             opt_domains)
 elif use_filter == 2:
     [weight_factor2, near_elm] = beso_lib.filter_prepare2s(cg, cg_min, cg_max, r_min, opt_domains)
+elif use_filter == 3:
+    [weight_factor3, near_elm, near_points] = beso_lib.filter_prepare3(file_name, cg, cg_min, r_min, opt_domains)
+elif use_filter in ["erode", "dilate", "open", "close", "open-close", "close-open", "combine"]:
+    near_elm = beso_lib.filter_prepare_morphology(cg, cg_min, cg_max, r_min, opt_domains)
 
 # writing log table header
 msg = "\n"
@@ -169,9 +173,13 @@ while True:
     # filtering sensitivity number
     if use_filter == 1:
         sensitivity_number = beso_lib.filter_run1(file_name, sensitivity_number, weight_factor_node, M,
-        weight_factor_distance, near_nodes, nodes, opt_domains)
+                                                  weight_factor_distance, near_nodes, nodes, opt_domains)
     elif use_filter == 2:
         sensitivity_number = beso_lib.filter_run2(file_name, sensitivity_number, weight_factor2, near_elm, opt_domains)
+    elif use_filter == 3:
+        sensitivity_number = beso_lib.filter_run3(sensitivity_number, weight_factor3, near_elm, near_points)
+    elif use_filter in ["erode", "dilate", "open", "close", "open-close", "close-open", "combine"]:
+        sensitivity_number = beso_lib.filter_run_morphology(sensitivity_number, near_elm, opt_domains, use_filter)
     elif use_filter == 0:
         pass
 

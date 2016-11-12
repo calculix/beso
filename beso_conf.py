@@ -32,7 +32,7 @@ domain_stress_allowable.append(0)  # if not 0, after overcoming this stress, vol
 
 volume_goal = 0.4  # the goal volume as a fragment of the optimized domains full volume
 
-r_min = 2.0  # the radius for applying a filter, perhaps good is double time mesh size
+r_min = 2.0  # the radius for applying a filter, perhaps good is double time mesh size for filters 1, 2, and 3
 
 continue_from = ""  # if not "", optimization will load full elements from the given .frd file, e.g. "file051_res_mesh.frd"
 
@@ -45,7 +45,18 @@ sigma_allowable_tolerance = 10  # negative tolerance to de-freeze volume_goal
 # make note, this is von Mises stress averaged over integration points of the each element;
 # stresses in nodes are different (they are not used in this algorithm)
 
-use_filter = 1  # 0 - do not use filter, 1 - filter from literature (Huang, Xie) - recommended, 2 - simple filter
+use_filter = 3  # 0 - do not use filter,
+                # 1 - filter with step over nodes (suffer from boundary sticking, 2nd order elements need more memory)
+                # 2 - filter only between elements (suffer from boundary sticking)
+                # 3 - filter with step over own point mesh
+                # morphology based filters:
+                # "erode" - use minimum sensitivity number in radius range
+                # "dilate" - use maximum sensitivity number in radius range
+                # "open" - remove details smaller than filter radius(it is "erode" and than "dilate" filter)
+                # "close" - close holes smaller than filter radius (it is "dilate" and than "erode" filter)
+                # "open-close" - (it is "open" and than "close" filter)
+                # "close-open" - (it is "close" and than "open" filter)
+                # "combine" - average of erode and delate (i.e. simplified/dirty "open-close" or "close-open" filter)
 
 evolutionary_volume_ratio = 0.015  # the maximum volume change from the last iteration
 volume_additional_ratio_max = 0.05  # the maximum volume change of elements switched to the full volume
