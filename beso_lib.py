@@ -1108,7 +1108,7 @@ def write_inp(file_nameR, file_nameW, switch_elm, domains, domain_optimized, dom
 # function for importing von Mises stress of the given domain
 # stress components in each element are averaged over integration points
 # von Mises stress is computed from components
-def import_sigma(file_name):
+def import_sigma_average(file_name):
     f = open(file_name, "r")
     read_sigma = 0
     step_number = -1
@@ -1158,6 +1158,53 @@ def import_sigma(file_name):
         average()
     f.close()
     # print("Von Mises element stresses have been imported")
+    return sigma_step
+
+
+# function for importing von Mises stress of the given domain
+# von Mises stress is computed at each integration point, it's maximum at the element is yields as output
+def import_sigma_max(file_name):
+    f = open(file_name, "r")
+    read_sigma = 0
+    last_time = "initial"  # HERE CONTINUE WITH SOLVING HOW TO READ A NEW STEP WHICH DIFFERS IN TIME
+    step_number = -1
+    en_last = None
+    von_mises = []
+    sigma_step = []
+
+    def compute_von_mises():
+        sxx = float(line_split[2])
+        syy = float(line_split[3])
+        szz = float(line_split[4])
+        sxy = float(line_split[5])
+        sxz = float(line_split[6])
+        syz = float(line_split[7])
+        von_mises.append(np.sqrt(
+            0.5 * ((sxx - syy) ** 2 + (syy - szz) ** 2 + (szz - sxx) ** 2 + 6 * (sxy ** 2 + syz ** 2 + sxz ** 2))))
+
+    for line in f:
+        line_split = line.split()
+        if line == "\n":
+            if read_sigma == 1:
+                sigma_step[step_number][en] = max(von_mises)
+            read_sigma -= 1
+        elif line[:9] == " stresses":
+            read_sigma = 2
+            if last_time != line_split[-1]:
+                step_number += 1
+                sigma_step.append({})
+                last_time = line_split[-1]
+        elif read_sigma == 1:
+            en = int(line_split[0])
+            if en_last != en:
+                if en_last:
+                    sigma_step[step_number][en_last] = max(von_mises)
+                    von_mises = []
+                en_last = en
+            compute_von_mises()
+    if read_sigma == 1:
+        sigma_step[step_number][en] = max(von_mises)
+    f.close()
     return sigma_step
 
 

@@ -30,6 +30,7 @@ continue_from = None
 cpu_cores = None
 sigma_allowable_tolerance = None
 use_filter = None
+integration_points = None
 evolutionary_volume_ratio = None
 volume_additional_ratio_max = None
 iterations_limit = None
@@ -145,7 +146,10 @@ while True:
 
     # reading von Mises stress
     try:
-        sigma_step = beso_lib.import_sigma(file_nameW + ".dat")
+        if integration_points == "max":
+            sigma_step = beso_lib.import_sigma_max(file_nameW + ".dat")
+        elif integration_points == "average":
+            sigma_step = beso_lib.import_sigma_average(file_nameW + ".dat")
     except:
         raise Exception("CalculiX results not found, check your inputs")
     os.remove(file_nameW + ".dat")
@@ -205,7 +209,7 @@ while True:
     beso_lib.write_to_log(file_name, msg)
 
     # relative difference in a mean stress for the last 5 iterations must be < tolerance
-    if check_tolerance is True:
+    if (check_tolerance is True) and (len(sigma_mean) > 5):
         difference_last = []
         for last in range(1, 6):
             difference_last.append(abs(sigma_mean[i] - sigma_mean[i-last]) / sigma_mean[i])

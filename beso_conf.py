@@ -52,11 +52,14 @@ use_filter = 3  # 0 - do not use filter,
                 # morphology based filters:
                 # "erode" - use minimum sensitivity number in radius range
                 # "dilate" - use maximum sensitivity number in radius range
-                # "open" - remove details smaller than filter radius(it is "erode" and than "dilate" filter)
-                # "close" - close holes smaller than filter radius (it is "dilate" and than "erode" filter)
+                # "open" - aims to remove elements smaller than filter radius(it is "erode" and than "dilate" filter)
+                # "close" - aims to close holes smaller than filter radius (it is "dilate" and than "erode" filter)
                 # "open-close" - (it is "open" and than "close" filter)
                 # "close-open" - (it is "close" and than "open" filter)
                 # "combine" - average of erode and delate (i.e. simplified/dirty "open-close" or "close-open" filter)
+
+integration_points = "max"  # "max" - maximal value from all int. pt.,
+                            # "average" - average value from all int. pt. (do not use for shell elements in bending)
 
 evolutionary_volume_ratio = 0.015  # the maximum volume change from the last iteration
 volume_additional_ratio_max = 0.05  # the maximum volume change of elements switched to the full volume
