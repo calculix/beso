@@ -22,7 +22,7 @@ def write_to_log(file_name, msg):
 
 # function importing a mesh consisting of nodes, volume and shell elements
 def import_inp(file_name, domains_from_config, domain_optimized):
-    nodes = {}  # dict with a nodes position
+    nodes = {}  # dict with nodes position
 
     class Elements():
         tria3 = {}
@@ -35,6 +35,17 @@ def import_inp(file_name, domains_from_config, domain_optimized):
         hexa20 = {}
         penta6 = {}
         penta15 = {}
+
+    all_tria3 = {}
+    all_tria6 = {}
+    all_quad4 = {}
+    all_quad8 = {}
+    all_tetra4 = {}
+    all_tetra10 = {}
+    all_hexa8 = {}
+    all_hexa20 = {}
+    all_penta6 = {}
+    all_penta15 = {}
 
     model_definition = True
     domains = {}
@@ -89,34 +100,34 @@ def import_inp(file_name, domains_from_config, domain_optimized):
                     current_elset = line_part.split('=')[1].strip().upper()
 
             if elm_type in ["S3", "CPS3", "CPE3", "CAX3"]:
-                elm_category = Elements.tria3
+                elm_category = all_tria3
                 number_of_nodes = 3
             elif elm_type in ["S6", "CPS6", "CPE6", "CAX6"]:
-                elm_category = Elements.tria6
+                elm_category = all_tria6
                 number_of_nodes = 6
             elif elm_type in ["S4", "S4R", "CPS4", "CPS4R", "CPE4", "CPE4R", "CAX4", "CAX4R"]:
-                elm_category = Elements.quad4
+                elm_category = all_quad4
                 number_of_nodes = 4
             elif elm_type in ["S8", "S8R", "CPS8", "CPS8R", "CPE8", "CPE8R", "CAX8", "CAX8R"]:
-                elm_category = Elements.quad8
+                elm_category = all_quad8
                 number_of_nodes = 8
             elif elm_type == "C3D4":
-                elm_category = Elements.tetra4
+                elm_category = all_tetra4
                 number_of_nodes = 4
             elif elm_type == "C3D10":
-                elm_category = Elements.tetra10
+                elm_category = all_tetra10
                 number_of_nodes = 10
             elif elm_type in ["C3D8", "C3D8R", "C3D8I"]:
-                elm_category = Elements.hexa8
+                elm_category = all_hexa8
                 number_of_nodes = 8
             elif elm_type in ["C3D20", "C3D20R", "C3D20RI"]:
-                elm_category = Elements.hexa20
+                elm_category = all_hexa20
                 number_of_nodes = 20
             elif elm_type == "C3D6":
-                elm_category = Elements.penta6
+                elm_category = all_penta6
                 number_of_nodes = 6
             elif elm_type == "C3D15":
-                elm_category = Elements.penta15
+                elm_category = all_penta15
                 number_of_nodes = 15
 
         elif elm_category != []:
@@ -160,23 +171,48 @@ def import_inp(file_name, domains_from_config, domain_optimized):
             model_definition = False
     f.close()
 
+    en_all = []
+    opt_domains = []
+    for dn in domains:
+        if dn in domains_from_config:
+            en_all.extend(domains[dn])
+            if domain_optimized[dn] is True:
+                opt_domains.extend(domains[dn])
+    msg = ("domains: %.f\n" % len(domains_from_config))
+
+    # only elements in domains_from_config are stored, the rest is discarded
+    keys = set(en_all).intersection(set(all_tria3.keys()))
+    Elements.tria3 = {k: all_tria3[k] for k in keys}
+    keys = set(en_all).intersection(set(all_tria6.keys()))
+    Elements.tria6 = {k: all_tria6[k] for k in keys}
+    keys = set(en_all).intersection(set(all_quad4.keys()))
+    Elements.quad4 = {k: all_quad4[k] for k in keys}
+    keys = set(en_all).intersection(set(all_quad8.keys()))
+    Elements.quad8 = {k: all_quad8[k] for k in keys}
+    keys = set(en_all).intersection(set(all_tetra4.keys()))
+    Elements.tetra4 = {k: all_tetra4[k] for k in keys}
+    keys = set(en_all).intersection(set(all_tetra10.keys()))
+    Elements.tetra10 = {k: all_tetra10[k] for k in keys}
+    keys = set(en_all).intersection(set(all_hexa8.keys()))
+    Elements.hexa8 = {k: all_hexa8[k] for k in keys}
+    keys = set(en_all).intersection(set(all_hexa20.keys()))
+    Elements.hexa20 = {k: all_hexa20[k] for k in keys}
+    keys = set(en_all).intersection(set(all_penta6.keys()))
+    Elements.penta6 = {k: all_penta6[k] for k in keys}
+    keys = set(en_all).intersection(set(all_penta15.keys()))
+    Elements.penta15 = {k: all_penta15[k] for k in keys}
     en_all = Elements.tria3.keys() + Elements.tria6.keys() + Elements.quad4.keys() + Elements.quad8.keys() + \
              Elements.tetra4.keys() + Elements.tetra10.keys() + Elements.hexa8.keys() + Elements.hexa20.keys() + \
              Elements.penta6.keys() + Elements.penta15.keys()
-    msg = ("nodes  : %.f\nTRIA3  : %.f\nTRIA6  : %.f\nQUAD4  : %.f\nQUAD8  : %.f\nTETRA4 : %.f\nTETRA10: %.f\n"
+
+    msg += ("nodes  : %.f\nTRIA3  : %.f\nTRIA6  : %.f\nQUAD4  : %.f\nQUAD8  : %.f\nTETRA4 : %.f\nTETRA10: %.f\n"
            "HEXA8  : %.f\nHEXA20 : %.f\nPENTA6 : %.f\nPENTA15: %.f\n"
            % (len(nodes), len(Elements.tria3), len(Elements.tria6), len(Elements.quad4), len(Elements.quad8),
               len(Elements.tetra4), len(Elements.tetra10), len(Elements.hexa8), len(Elements.hexa20),
               len(Elements.penta6), len(Elements.penta15)))
-
-    opt_domains = []
-    for dn in domains:
-        if dn in domains_from_config:
-            if domain_optimized[dn] is True:
-                opt_domains.extend(domains[dn])
-    msg += ("domains: %.f\n" % len(domains_from_config))
     print(msg)
     write_to_log(file_name, msg)
+
     if not opt_domains:
         row = "None optimized domain has been found"
         msg += ("ERROR: " + row + "\n")

@@ -202,7 +202,7 @@ while True:
             sigma_mean_sum += sigma_step_max[en] * volume_elm[en]  # mean sum from maximums of each element in all steps
     sigma_mean.append(sigma_mean_sum / volume[i])
     print("sigma_mean = %f" % sigma_mean[i])
-    
+
     # writing log table row
     msg = str(i).rjust(3, " ") + ", " + str(volume[i]).rjust(13, " ") + ", " + str(sigma_mean[i]).rjust(13, " ")
     for dn in domains_from_config:
