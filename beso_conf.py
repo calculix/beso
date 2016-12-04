@@ -11,30 +11,34 @@ path_calculix = "d:\\soft\FreeCad\\FreeCAD_0.17.8264_x64_dev_win\\bin\\ccx"  # p
 
 file_name = "Fusion_Mesh.inp"  # file with prepared linear static analysis
 
-domain_elset.append("MechanicalMaterialShellThickness")  # string with name of the element set in .inp file
-domain_optimized.append(True)  # True - optimized domain, False - elements will not be removed
-domain_E.append(210000)  # the elastic moduli of elements in the domain
-domain_poisson.append(0.3)  # Poisson s number of elements in the domain
-domain_density.append(7.9e-9)  # the density of material in the domain
-domain_thickness.append(1.0)  # 0.0 for solid elements / thickness of shell elements
-domain_offset.append(0.0)  # the offset of shell elements
-domain_stress_allowable.append(0)  # if not 0, after overcoming this stress, volume_goal will be frozen at the present value
+elset_name = "MechanicalMaterialShellThickness"  # string with name of the element set in .inp file
+domain_optimized[elset_name] = True  # True - optimized domain, False - elements will not be removed
+domain_density[elset_name] = [7.9e-9, 7.9e-15]  # equivalent density of the domain material for full material and void material
+domain_thickness[elset_name] = [1.0, 1.0]  # [0] for solid elements / thickness of [full, void] shell elements - TODO ignore for solid elements
+domain_offset[elset_name] = 0  # offset of shell elements - TODO read offset from .inp file
+domain_stress_allowable[elset_name] = [0]  # if not [0], after overcoming this stress, volume_goal will be frozen at the present value
+# material of the domain in a CalculiX format after *MATERIAL line,
+# insert data for VOID material, FULL material is let from .inp file
+# use \n for line break
+domain_material[elset_name] = ["*ELASTIC \n210000e-6,  0.3"]
 
-domain_elset.append("MechanicalMaterial001ShellThickness")  # string with name of the element set in .inp file
-domain_optimized.append(False)  # True - optimized domain, False - elements will not be removed
-domain_E.append(210000)  # the elastic moduli of elements in the domain
-domain_poisson.append(0.3)  # Poisson s number of elements in the domain
-domain_density.append(7.9e-9)  # the density of material in the domain
-domain_thickness.append(1.0)  # 0.0 for solid elements / thickness of shell elements
-domain_offset.append(0.0)  # the offset of shell elements
-domain_stress_allowable.append(0)  # if not 0, after overcoming this stress, volume_goal will be frozen at the present value
+elset_name = "MechanicalMaterial001ShellThickness"  # string with name of the element set in .inp file
+domain_optimized[elset_name] = False  # True - optimized domain, False - elements will not be removed
+domain_density[elset_name] = [7.9e-9, 7.9e-15]  # the density of material in the domain
+domain_thickness[elset_name] = [1.0, 1.0]  # 0.0 for solid elements / thickness of shell elements
+domain_offset[elset_name] = 0  # offset of shell elements
+domain_stress_allowable[elset_name] = [0]  # if not 0, after overcoming this stress, volume_goal will be frozen at the present value
+# material of the domain in a CalculiX format after *MATERIAL line,
+# insert data for VOID material, FULL material is let from .inp file
+# use \n for line break
+domain_material[elset_name] = ["*ELASTIC \n210000e-6,  0.3"]
 # copy this block for defining properties of the next domain
 
 volume_goal = 0.4  # the goal volume as a fragment of the optimized domains full volume
 
-r_min = 2.0  # the radius for applying a filter, perhaps good is double time mesh size for filters 1, 2, and 3
+r_min = 2.0  # the radius for applying a filter, perhaps good is 2x mesh size for filters 1, 2; 1.5x mesh size for filter 3
 
-continue_from = ""  # if not "", optimization will load full elements from the given .frd file, e.g. "file051_res_mesh.frd"
+continue_from = ""  # if not "", optimization will load full elements from the given .frd file, e.g. "file051_res_mesh.frd" - TODO will not work for sequential thicknesses
 
 
 # ADVANCED INPUTS:
@@ -66,7 +70,5 @@ volume_additional_ratio_max = 0.05  # the maximum volume change of elements swit
 
 iterations_limit = 0  # 0 - automatic, <number> - the maximum allowable number of iterations
 tolerance = 1e-3  # the maximum relative difference in mean stress in optimization domains between the last 5 iterations needed to finish
-
-void_coefficient = 1e-6  # the coefficient for moduli and density of void elements (must be > 0)
 
 save_iteration_meshes = 10  # every i-th iteration export a resulting mesh, 0 - do not save

@@ -13,14 +13,12 @@ plt.close(1)
 start_time = time.time()
 
 # initialization of variables
-domain_elset = []
-domain_optimized = []
-domain_E = []
-domain_poisson = []
-domain_density = []
-domain_thickness = []
-domain_offset = []
-domain_stress_allowable = []
+domain_optimized = {}
+domain_density = {}
+domain_thickness = {}
+domain_offset = {}
+domain_stress_allowable = {}
+domain_material = {}
 path = None
 path_calculix = None
 file_name = None
@@ -35,11 +33,11 @@ evolutionary_volume_ratio = None
 volume_additional_ratio_max = None
 iterations_limit = None
 tolerance = None
-void_coefficient = None
 save_iteration_meshes = None
 
 # read configuration file to fill variables listed above
 execfile("beso_conf.py")
+domains_from_config = domain_optimized.keys()
 
 if iterations_limit == 0:  # automatic setting
     iterations_limit = int((1 - volume_goal) / evolutionary_volume_ratio + 25)
@@ -55,15 +53,13 @@ msg = "\n"
 msg += "---------------------------------------------------\n"
 msg += ("file_name = %s\n" % file_name)
 msg += ("Start at    " + time.ctime() + "\n\n")
-for dn in range(len(domain_elset)):
-    msg += ("domain_elset            = %s\n" % domain_elset[dn])
+for dn in domain_optimized:
+    msg += ("elset_name              = %s\n" % dn)
     msg += ("domain_optimized        = %s\n" % domain_optimized[dn])
-    msg += ("domain_E                = %s\n" % domain_E[dn])
-    msg += ("domain_poisson          = %s\n" % domain_poisson[dn])
     msg += ("domain_density          = %s\n" % domain_density[dn])
     msg += ("domain_thickness        = %s\n" % domain_thickness[dn])
-    msg += ("domain_offset           = %s\n" % domain_offset[dn])
     msg += ("domain_stress_allowable = %s\n" % domain_stress_allowable[dn])
+    msg += ("domain_material         = %s\n" % domain_material[dn])
     msg += "\n"
 msg += ("volume_goal                 = %s\n" % volume_goal)
 msg += ("cpu_cores                   = %s\n" % cpu_cores)
@@ -74,13 +70,12 @@ msg += ("evolutionary_volume_ratio   = %s\n" % evolutionary_volume_ratio)
 msg += ("volume_additional_ratio_max = %s\n" % volume_additional_ratio_max)
 msg += ("iterations_limit            = %s\n" % iterations_limit)
 msg += ("tolerance                   = %s\n" % tolerance)
-msg += ("void_coefficient            = %s\n" % void_coefficient)
 msg += ("save_iteration_meshes       = %s\n" % save_iteration_meshes)
 msg += "\n"
 beso_lib.write_to_log(file_name, msg)
 
 # mesh and domains importing
-[nodes, Elements, domains, opt_domains, en_all] = beso_lib.import_inp(file_name, domain_elset, domain_optimized)
+[nodes, Elements, domains, opt_domains, en_all] = beso_lib.import_inp(file_name, domains_from_config, domain_optimized)
 
 switch_elm = {}  # initial full/void Elements
 new_switch_elm = {}
@@ -95,11 +90,11 @@ else:
     new_switch_elm = switch_elm.copy()
 
 # computing volume and centre of gravity of each element
-[cg, cg_min, cg_max, volume_elm] = beso_lib.elm_volume_cg(file_name, nodes, Elements, domain_elset, domain_thickness,
-                                                          domains)
+[cg, cg_min, cg_max, volume_elm] = beso_lib.elm_volume_cg(file_name, nodes, Elements, domains_from_config,
+                                                          domain_thickness, domains)
 volume = [0.0]
 volume_sum = 0
-for en in opt_domains:  # in the first iteration (for the optimization domain only)
+for en in opt_domains:  # in the zeroth iteration (for the optimization domain only)
     if switch_elm[en] == 1:
         volume[0] += volume_elm[en]
     volume_sum += volume_elm[en]
@@ -118,8 +113,13 @@ elif use_filter in ["erode", "dilate", "open", "close", "open-close", "close-ope
 
 # writing log table header
 msg = "\n"
+msg += "domain order: \n"
+dorder = 0
+for dn in domains_from_config:
+    msg += str(dorder) + ") " + dn + "\n"
+    dorder += 1
 msg += "iteration,  volume, stresses:mean"
-for dn in range(len(domains)):
+for dn in range(len(domains_from_config)):
     msg += ", " + "max".rjust(12, " ") + str(dn)
 msg += "\n"
 beso_lib.write_to_log(file_name, msg)
@@ -138,8 +138,8 @@ volume_goal_backup = volume_goal
 while True:
     # creating a new .inp file for CalculiX
     file_nameW = "file" + str(i).zfill(3)
-    beso_lib.write_inp(file_name, file_nameW, switch_elm, domains, domain_optimized, domain_E, domain_poisson,
-                       domain_density, void_coefficient, domain_thickness, domain_offset)
+    beso_lib.write_inp(file_name, file_nameW, switch_elm, domains, domains_from_config, domain_optimized,
+                       domain_density, domain_thickness, domain_offset, domain_material)
     # running CalculiX analysis
     subprocess.call(os.path.normpath(path_calculix) + " " + os.path.join(path, file_nameW), shell=True)
     os.remove(file_nameW + ".inp")
@@ -151,15 +151,17 @@ while True:
         elif integration_points == "average":
             sigma_step = beso_lib.import_sigma_average(file_nameW + ".dat")
     except:
-        raise Exception("CalculiX results not found, check your inputs")
+        msg = "CalculiX results not found, check your inputs"
+        beso_lib.write_to_log(file_name, "ERROR: " + msg + "\n")
+        raise Exception(msg)
     os.remove(file_nameW + ".dat")
     os.remove(file_nameW + ".frd")
     os.remove(file_nameW + ".sta")
     os.remove(file_nameW + ".cvg")
-    sigma_max.append([])
+    sigma_max.append({})
     print("sigma_max (by domain) =")
-    for dn in range(len(domains)):
-        sigma_max[i].append(0)
+    for dn in domains_from_config:
+        sigma_max[i][dn] = 0
         for en in domains[dn]:
             for sn in range(len(sigma_step)):
                 sigma_max[i][dn] = max(sigma_max[i][dn], sigma_step[sn][en])
@@ -167,12 +169,12 @@ while True:
 
     # handling with more steps
     sigma_step_max = {}
-    for dn in range(len(domains)):
+    for dn in domains_from_config:
         for en in domains[dn]:
             sigma_step_max[en] = 0
             for sn in range(len(sigma_step)):
                 sigma_step_max[en] = max(sigma_step[sn][en], sigma_step_max[en])
-            sensitivity_number[en] = sigma_step_max[en] / domain_density[dn]
+            sensitivity_number[en] = sigma_step_max[en] / domain_density[dn][0]  # TODO density of actual element state
 
     # filtering sensitivity number
     if use_filter == 1:
@@ -202,9 +204,9 @@ while True:
     print("sigma_mean = %f" % sigma_mean[i])
     
     # writing log table row
-    msg = str(i).rjust(3," ") + ", " + str(volume[i]).rjust(13," ") + ", " + str(sigma_mean[i]).rjust(13," ")
-    for dn in range(len(domains)):
-        msg += ", " + str(sigma_max[i][dn]).rjust(13," ")
+    msg = str(i).rjust(3, " ") + ", " + str(volume[i]).rjust(13, " ") + ", " + str(sigma_mean[i]).rjust(13, " ")
+    for dn in domains_from_config:
+        msg += ", " + str(sigma_max[i][dn]).rjust(13, " ")
     msg += "\n"
     beso_lib.write_to_log(file_name, msg)
 
@@ -232,12 +234,11 @@ while True:
     print("----------- new iteration number %d ----------" % i)
 
     # fixing volume_goal
-    dn = -1
     can_defreeze = True
     freeze = False
-    for sigma_allowable in domain_stress_allowable:
-        dn += 1
-        if sigma_allowable:
+    for dn in domains_from_config:
+        sigma_allowable = domain_stress_allowable[dn]
+        if sigma_allowable != [0]:
             if sigma_max[i-1][dn] > sigma_allowable:
                 freeze = True
             elif sigma_max[i-1][dn] < (sigma_allowable - sigma_allowable_tolerance):
@@ -268,10 +269,8 @@ while True:
         sensitivity_number_opt[en] = sensitivity_number[en]
     # sorting elm_list by sensitivity number
     sensitivity_number_sorted = sorted(sensitivity_number_opt.items(), key=operator.itemgetter(1))
-    highest_position = len(sensitivity_number_sorted) - 1
     while volume[i] < volume_new:
-        en = sensitivity_number_sorted[highest_position][0]
-        highest_position -= 1
+        en = sensitivity_number_sorted.pop()[0]
         if switch_elm[en] == 1:
             pass
         elif (switch_elm[en] == 0) and (volume_switched / volume_sum <= volume_additional_ratio_max):
@@ -290,11 +289,13 @@ beso_lib.export_frd(file_name, nodes, Elements, switch_elm)
 plt.figure(1)
 plt.subplot2grid((1, 5), (0, 1), colspan=4)
 plt.plot(range(i+1), sigma_mean, '--', label="mean")
-for dn in range(len(domains)):
+dorder = 0
+for dn in domains_from_config:  # TODO use domains_from_config for printing only
     sigma_max_dn = []
     for ii in range(i+1):
         sigma_max_dn.append(sigma_max[ii][dn])
-    plt.plot(range(i+1), sigma_max_dn, label="max" + str(dn))
+    plt.plot(range(i+1), sigma_max_dn, label="max" + str(dorder))
+    dorder += 1
 plt.legend(bbox_to_anchor=(-0.45, 1), loc=2, title="Stresses")
 plt.title("Maximal domain stresses,\n mean stress in all optimization domains")
 plt.xlabel("Iteration")
@@ -309,9 +310,9 @@ plt.show()
 
 msg = "\n"
 if volume_goal != volume_goal_backup:
-    msg += ("volume_goal freezed = %s\n" % volume_goal)
-msg += ("Finish at             " + time.ctime() + "\n")
-msg += ("Total time            " + str(time.time() - start_time) + " s\n")
+    msg += ("volume_goal absolute value froze = %s\n" % volume_goal)
+msg += ("Finish at                          " + time.ctime() + "\n")
+msg += ("Total time                         " + str(time.time() - start_time) + " s\n")
 msg += "\n"
 beso_lib.write_to_log(file_name, msg)
 print("total time: " + str(time.time() - start_time) + " s")

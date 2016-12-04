@@ -20,11 +20,8 @@ def write_to_log(file_name, msg):
     f_log.close()
 
 
-# function importing a mesh consisting of nodes and elements of type C3D4, C3D10, S3, S6
-# and importing *ELSET,ELSET=OptimizationDomain
-# all elements of OptimizationDomain must be listed, divided by newline or comma
-# possible problems: *Card lines of .inp file must be of exact format (as printed by FreeCAD)
-def import_inp(file_name, domain_elset, domain_optimized):
+# function importing a mesh consisting of nodes, volume and shell elements
+def import_inp(file_name, domains_from_config, domain_optimized):
     nodes = {}  # dict with a nodes position
 
     class Elements():
@@ -41,6 +38,7 @@ def import_inp(file_name, domain_elset, domain_optimized):
 
     model_definition = True
     domains = {}
+    read_domain = False
 
     f = open(file_name, "r")
     line = "\n"
@@ -82,12 +80,13 @@ def import_inp(file_name, domain_elset, domain_optimized):
 
         # reading elements
         elif line[:8].upper() == "*ELEMENT":
+            current_elset = ""
             line_list = line[8:].upper().split(',')
             for line_part in line_list:
-                if line_part.lstrip()[:4] == "TYPE":
+                if line_part.split('=')[0].strip() == "TYPE":
                     elm_type = line_part.split('=')[1].strip()
-                # elif line_part.lstrip()[:5] == "ELSET":
-                    # add_element_number_to_elset_not_implemented = line_part.split('=')[1].strip()
+                elif line_part.split('=')[0].strip() == "ELSET":
+                    current_elset = line_part.split('=')[1].strip().upper()
 
             if elm_type in ["S3", "CPS3", "CPE3", "CAX3"]:
                 elm_category = Elements.tria3
@@ -123,16 +122,21 @@ def import_inp(file_name, domain_elset, domain_optimized):
         elif elm_category != []:
             line_list = string.split(line, ',')
             if elm_2nd_line is False:
-                number = int(line_list[0])
-                elm_category[number] = []
+                en = int(line_list[0])  # element number
+                elm_category[en] = []
                 pos = 1
+                if current_elset:  # save en to the domain
+                    try:
+                        domains[current_elset].append(en)
+                    except KeyError:
+                        domains[current_elset] = [en]
             else:
                 pos = 0
                 elm_2nd_line = False
-            for en in range(pos, pos + number_of_nodes - len(elm_category[number])):
+            for nn in range(pos, pos + number_of_nodes - len(elm_category[en])):
                 try:
-                    enode = int(line_list[en])
-                    elm_category[number].append(enode)
+                    enode = int(line_list[nn])
+                    elm_category[en].append(enode)
                 except IndexError:
                     elm_2nd_line = True
                     break
@@ -140,20 +144,18 @@ def import_inp(file_name, domain_elset, domain_optimized):
         # reading domains from elset
         elif line[:6].upper() == "*ELSET":
             line_splitted = line.split("=")
-            if line_splitted[1].strip() in domain_elset:
-                read_domain = True
-                domain_number = domain_elset.index(line_splitted[1].strip())
-                domains[domain_number] = []
+            current_elset = line_splitted[1].strip()
+            try:
+                domains[current_elset]
+            except KeyError:
+                domains[current_elset] = []
+            read_domain = True
         elif read_domain is True:
             for en in line.replace("\n", "").replace(" ", "").split(","):
                 if en.isdigit():
-                    domains[domain_number].append(int(en))
-            if line.replace(" ", "").upper() == "EALL\n":
-                domains[
-                    domain_number] = Elements.tria3.keys() + Elements.tria6.keys() + Elements.quad4.keys() + \
-                                     Elements.quad8.keys() + Elements.tetra4.keys() + Elements.tetra10.keys() + \
-                                     Elements.hexa8.keys() + Elements.hexa20.keys() + Elements.penta6.keys() + \
-                                     Elements.penta15.keys()
+                    domains[current_elset].append(int(en))
+                elif en.isalpha():  # else: en is name of a previous elset
+                    domains[current_elset].extend(domains[en.upper()])
         elif line[:5].upper() == "*STEP":
             model_definition = False
     f.close()
@@ -169,9 +171,10 @@ def import_inp(file_name, domain_elset, domain_optimized):
 
     opt_domains = []
     for dn in domains:
-        if domain_optimized[dn] is True:
-            opt_domains.extend(domains[dn])
-    msg += ("domains: %.f\n" % len(domains))
+        if dn in domains_from_config:
+            if domain_optimized[dn] is True:
+                opt_domains.extend(domains[dn])
+    msg += ("domains: %.f\n" % len(domains_from_config))
     print(msg)
     write_to_log(file_name, msg)
     if not opt_domains:
@@ -185,7 +188,7 @@ def import_inp(file_name, domain_elset, domain_optimized):
 
 # function for computing volumes and centres of gravity of all elements (non-penalized)
 # approximate for 2nd order elements!
-def elm_volume_cg(file_name, nodes, Elements, domain_elset, domain_thickness, domains):
+def elm_volume_cg(file_name, nodes, Elements, domains_from_config, domain_thickness, domains):
     u = [0.0, 0.0, 0.0]
     v = [0.0, 0.0, 0.0]
     w = [0.0, 0.0, 0.0]
@@ -218,13 +221,11 @@ def elm_volume_cg(file_name, nodes, Elements, domain_elset, domain_thickness, do
         return volume_tetra, cg_tetra
 
     # find thickness for each element
-    dn = 0
     thickness = {}
-    for elset in domain_elset:
-        if domain_thickness[dn] != 0:
-            for en in domains[dn]:
-                thickness[en] = domain_thickness[dn]
-        dn += 1
+    for current_elset in domains_from_config:
+        if domain_thickness[current_elset][0] != 0:  # TODO automatic recognising of solid / shell section
+            for en in domains[current_elset]:
+                thickness[en] = domain_thickness[current_elset][0]  # TODO deal with thickness list
 
     def check_thickness(en):
         if en not in thickness:
@@ -784,9 +785,10 @@ def filter_prepare3(file_name, cg, cg_min, r_min, opt_domains):
             while len(hist_near_points) <= le:
                 hist_near_points.append(0)
         hist_near_points[le] += 1
-    msg = "histogram - number of near elements vs. number of points\n"
+    msg = "\nfilter3 statistics:\n"
+    msg += "histogram - number of near elements (list position) vs. number of points (value)\n"
     msg += str(hist_near_elm) + "\n"
-    msg += "histogram - number of near points vs. number of elements\n"
+    msg += "histogram - number of near points (list position) vs. number of elements (value)\n"
     msg += str(hist_near_points) + "\n"
     write_to_log(file_name, msg)
     return weight_factor3, near_elm, near_points
@@ -961,15 +963,15 @@ def filter_run_morphology(sensitivity_number, near_elm, opt_domains, filter_type
 
 # function for copying .inp file with additional elsets, materials, solid and shell sections, different output request
 # switch_elm is a dict of the elements containing 0 for void element or 1 for full element
-def write_inp(file_nameR, file_nameW, switch_elm, domains, domain_optimized, domain_E, domain_poisson, domain_density,
-              void_coefficient, domain_thickness, domain_offset):
+def write_inp(file_nameR, file_nameW, switch_elm, domains, domains_from_config, domain_optimized, domain_density,
+              domain_thickness, domain_offset, domain_material):
     fR = open(file_nameR, "r")
     fW = open(file_nameW + ".inp", "w")
 
     solid_domains = []
     shell_domains = []
-    for dn in range(len(domain_thickness)):
-        if domain_thickness[dn] == 0:
+    for dn in domains_from_config:
+        if sum(domain_thickness[dn]) == 0:  # TODO automatic recognising of solid / shell section
             solid_domains.append(dn)
         else:
             shell_domains.append(dn)
@@ -978,7 +980,6 @@ def write_inp(file_nameR, file_nameW, switch_elm, domains, domain_optimized, dom
     sections_done = 0
     outputs_done = 1
     commenting = False
-    content_full = {}
     content_void = {}
 
     # function for writing ELSETs
@@ -986,37 +987,21 @@ def write_inp(file_nameR, file_nameW, switch_elm, domains, domain_optimized, dom
         fW.write(" \n")
         fW.write("** Added ELSETs by optimization:\n")
         for dn in solid_domains:
-            content_full[dn] = False
             content_void[dn] = False
-            fW.write("*ELSET,ELSET=OptimizationSolidFull" + str(dn) + "\n")
-            voids = []
+            fW.write("*ELSET,ELSET=VOID_" + dn + "\n")
             if domain_optimized[dn] is True:
                 for en in domains[dn]:
-                    if switch_elm[en] == 1:
+                    if switch_elm[en] == 0:
                         fW.write(str(en) + ",\n")
-                        content_full[dn] = True
-                    else:
-                        voids.append(en)
                         content_void[dn] = True
-            fW.write("*ELSET,ELSET=OptimizationSolidVoid" + str(dn) + "\n")
-            for en in voids:
-                fW.write(str(en) + ",\n")
         for dn in shell_domains:
-            content_full[dn] = False
             content_void[dn] = False
-            fW.write("*ELSET,ELSET=OptimizationShellFull" + str(dn) + "\n")
-            voids = []
+            fW.write("*ELSET,ELSET=VOID_" + dn + "\n")
             if domain_optimized[dn] is True:
                 for en in domains[dn]:
-                    if switch_elm[en] == 1:
+                    if switch_elm[en] == 0:
                         fW.write(str(en) + ",\n")
-                        content_full[dn] = True
-                    else:
-                        voids.append(en)
                         content_void[dn] = True
-            fW.write("*ELSET,ELSET=OptimizationShellVoid" + str(dn) + "\n")
-            for en in voids:
-                fW.write(str(en) + ",\n")
         fW.write(" \n")
 
     for line in fR:
@@ -1036,39 +1021,20 @@ def write_inp(file_nameR, file_nameW, switch_elm, domains, domain_optimized, dom
 
             fW.write(" \n")
             fW.write("** Materials and sections by optimization\n")
-            fW.write("** (redefines elements properties defined above):\n")
-            for dn in domains:
-                fW.write("*MATERIAL, NAME=OptimizationMaterialFull" + str(dn) + "\n")
-                fW.write("*ELASTIC\n")
-                fW.write(str(domain_E[dn]) + ", " + str(domain_poisson[dn]) + "\n")
-                fW.write("*DENSITY\n")
-                fW.write(str(domain_density[dn]) + "\n")
-
-                fW.write("*MATERIAL, NAME=OptimizationMaterialVoid" + str(dn) + "\n")
-                fW.write("*ELASTIC\n")
-                fW.write(str(domain_E[dn] * void_coefficient) + ", " + str(domain_poisson[dn]) + "\n")
-                fW.write("*DENSITY\n")
-                fW.write(str(domain_density[dn] * void_coefficient) + "\n")
-
-                if domain_thickness[dn] == 0:
-                    if content_full[dn] is True:
-                        fW.write("*SOLID SECTION, ELSET=OptimizationSolidFull" + str(dn) +
-                                 ", MATERIAL=OptimizationMaterialFull" + str(dn) + "\n")
-                    if content_void[dn] is True:
-                        fW.write("*SOLID SECTION, ELSET=OptimizationSolidVoid" + str(dn) +
-                                 ", MATERIAL=OptimizationMaterialVoid" + str(dn) + "\n")
-                else:
-                    if content_full[dn] is True:
-                        fW.write("*SHELL SECTION, ELSET=OptimizationShellFull" + str(dn) +
-                                 ", MATERIAL=OptimizationMaterialFull" + str(dn) +
-                                 ", OFFSET=" + str(domain_offset[dn]) + "\n")
-                        fW.write(str(domain_thickness[dn]) + "\n")
-                    if content_void[dn] is True:
-                        fW.write("*SHELL SECTION, ELSET=OptimizationShellVoid" + str(dn) +
-                                 ", MATERIAL=OptimizationMaterialVoid" + str(dn) +
-                                 ", OFFSET=" + str(domain_offset[dn]) + "\n")
-                        fW.write(str(domain_thickness[dn]) + "\n")
-                fW.write(" \n")
+            fW.write("** (redefines elements properties defined above for void elements):\n")
+            for dn in domains_from_config:
+                if domain_optimized[dn]:
+                    fW.write("*MATERIAL, NAME=VOID_" + dn + "\n")
+                    fW.write(str(domain_material[dn][0]) + "\n\n")  # TODO [0] replace with cycle over material list
+                    if sum(domain_thickness[dn]) == 0:  # TODO automatic recognising of solid / shell section
+                        if content_void[dn] is True:
+                            fW.write("*SOLID SECTION, ELSET=VOID_" + dn + ", MATERIAL=VOID_" + dn + "\n")
+                    else:
+                        if content_void[dn] is True:
+                            fW.write("*SHELL SECTION, ELSET=VOID_" + dn + ", MATERIAL=VOID_" + dn +
+                                     ", OFFSET=" + str(domain_offset[dn]) + "\n")
+                            fW.write(str(domain_thickness[dn][1]) + "\n")  # TODO replace [1] with element state value
+                    fW.write(" \n")
             sections_done = 1
 
         if line[:5] == "*STEP":
@@ -1080,19 +1046,9 @@ def write_inp(file_nameR, file_nameW, switch_elm, domains, domain_optimized, dom
 
             if outputs_done < 1:
                 fW.write(" \n")
-                # for dn in solid_domains:
-                #     fW.write("** Added output requested by optimization:\n")
-                #     fW.write("*EL PRINT, " + "ELSET=OptimizationSolidFull" + str(dn) + "\n")
-                #     fW.write("S\n")
-                #     fW.write("*EL PRINT, " + " ELSET=OptimizationSolidVoid" + str(dn) + "\n")
-                #     fW.write("S\n")
-                # for dn in shell_domains:
-                #     fW.write("*EL PRINT, " + "ELSET=OptimizationShellFull" + str(dn) + "\n")
-                #     fW.write("S\n")
-                #     fW.write("*EL PRINT, " + "ELSET=OptimizationShellVoid" + str(dn) + "\n")
-                #     fW.write("S\n")
-                fW.write("*EL PRINT, " + "ELSET=EALL" + "\n")
-                fW.write("S\n")
+                for dn in domains_from_config:
+                    fW.write("*EL PRINT, " + "ELSET=" + dn + "\n")
+                    fW.write("S\n")
                 fW.write(" \n")
                 outputs_done += 1
             commenting = True
