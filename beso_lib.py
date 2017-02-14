@@ -1,5 +1,5 @@
 import numpy as np
-import string
+import operator
 
 
 def sround(x, s):
@@ -82,7 +82,7 @@ def import_inp(file_name, domains_from_config, domain_optimized):
         if (line[:5].upper() == "*NODE") and (model_definition is True):
             read_node = True
         elif read_node is True:
-            line_list = string.split(line, ',')
+            line_list = line.split(',')
             number = int(line_list[0])
             x = float(line_list[1])
             y = float(line_list[2])
@@ -131,7 +131,7 @@ def import_inp(file_name, domains_from_config, domain_optimized):
                 number_of_nodes = 15
 
         elif elm_category != []:
-            line_list = string.split(line, ',')
+            line_list = line.split(',')
             if elm_2nd_line is False:
                 en = int(line_list[0])  # element number
                 elm_category[en] = []
@@ -162,7 +162,8 @@ def import_inp(file_name, domains_from_config, domain_optimized):
                 domains[current_elset] = []
             read_domain = True
         elif read_domain is True:
-            for en in line.replace("\n", "").replace(" ", "").split(","):
+            for en in line.split(","):
+                en = en.strip()
                 if en.isdigit():
                     domains[current_elset].append(int(en))
                 elif en.isalpha():  # else: en is name of a previous elset
@@ -173,11 +174,10 @@ def import_inp(file_name, domains_from_config, domain_optimized):
 
     en_all = []
     opt_domains = []
-    for dn in domains:
-        if dn in domains_from_config:
-            en_all.extend(domains[dn])
-            if domain_optimized[dn] is True:
-                opt_domains.extend(domains[dn])
+    for dn in domains_from_config:
+        en_all.extend(domains[dn])
+        if domain_optimized[dn] is True:
+            opt_domains.extend(domains[dn])
     msg = ("domains: %.f\n" % len(domains_from_config))
 
     # only elements in domains_from_config are stored, the rest is discarded
@@ -201,9 +201,10 @@ def import_inp(file_name, domains_from_config, domain_optimized):
     Elements.penta6 = {k: all_penta6[k] for k in keys}
     keys = set(en_all).intersection(set(all_penta15.keys()))
     Elements.penta15 = {k: all_penta15[k] for k in keys}
-    en_all = Elements.tria3.keys() + Elements.tria6.keys() + Elements.quad4.keys() + Elements.quad8.keys() + \
-             Elements.tetra4.keys() + Elements.tetra10.keys() + Elements.hexa8.keys() + Elements.hexa20.keys() + \
-             Elements.penta6.keys() + Elements.penta15.keys()
+    en_all = list(Elements.tria3.keys()) + list(Elements.tria6.keys()) + list(Elements.quad4.keys()) + \
+             list(Elements.quad8.keys()) + list(Elements.tetra4.keys()) + list(Elements.tetra10.keys()) + \
+             list(Elements.hexa8.keys()) + list(Elements.hexa20.keys()) + list(Elements.penta6.keys()) + \
+             list(Elements.penta15.keys())
 
     msg += ("nodes  : %.f\nTRIA3  : %.f\nTRIA6  : %.f\nQUAD4  : %.f\nQUAD8  : %.f\nTETRA4 : %.f\nTETRA10: %.f\n"
            "HEXA8  : %.f\nHEXA20 : %.f\nPENTA6 : %.f\nPENTA15: %.f\n"
@@ -214,7 +215,7 @@ def import_inp(file_name, domains_from_config, domain_optimized):
     write_to_log(file_name, msg)
 
     if not opt_domains:
-        row = "None optimized domain has been found"
+        row = "None optimized domain has been found. Check your inputs."
         msg += ("ERROR: " + row + "\n")
         write_to_log(file_name, msg)
         assert False, row
@@ -222,25 +223,25 @@ def import_inp(file_name, domains_from_config, domain_optimized):
     return nodes, Elements, domains, opt_domains, en_all
 
 
-# function for computing volumes and centres of gravity of all elements (non-penalized)
+# function for computing volumes or area (shell elements) and centres of gravity
 # approximate for 2nd order elements!
-def elm_volume_cg(file_name, nodes, Elements, domains_from_config, domain_thickness, domains):
+def elm_volume_cg(file_name, nodes, Elements):
     u = [0.0, 0.0, 0.0]
     v = [0.0, 0.0, 0.0]
     w = [0.0, 0.0, 0.0]
 
-    def tria_volume_cg(nod, thickness):
+    def tria_area_cg(nod):
         # compute volume
         for i in [0, 1, 2]:  # denote x, y, z directions
             u[i] = nodes[nod[2]][i] - nodes[nod[1]][i]
             v[i] = nodes[nod[0]][i] - nodes[nod[1]][i]
-        volume_tria = np.linalg.linalg.norm(np.cross(u, v)) / 2.0 * thickness
+        area_tria = np.linalg.linalg.norm(np.cross(u, v)) / 2.0
         # compute centre of gravity
         x_cg = (nodes[nod[0]][0] + nodes[nod[1]][0] + nodes[nod[2]][0]) / 3.0
         y_cg = (nodes[nod[0]][1] + nodes[nod[1]][1] + nodes[nod[2]][1]) / 3.0
         z_cg = (nodes[nod[0]][2] + nodes[nod[1]][2] + nodes[nod[2]][2]) / 3.0
         cg_tria = [x_cg, y_cg, z_cg]
-        return volume_tria, cg_tria
+        return area_tria, cg_tria
 
     def tetra_volume_cg(nod):
         # compute volume
@@ -256,20 +257,6 @@ def elm_volume_cg(file_name, nodes, Elements, domains_from_config, domain_thickn
         cg_tetra = [x_cg, y_cg, z_cg]
         return volume_tetra, cg_tetra
 
-    # find thickness for each element
-    thickness = {}
-    for current_elset in domains_from_config:
-        if domain_thickness[current_elset][0] != 0:  # TODO automatic recognising of solid / shell section
-            for en in domains[current_elset]:
-                thickness[en] = domain_thickness[current_elset][0]  # TODO deal with thickness list
-
-    def check_thickness(en):
-        if en not in thickness:
-            row = "Shell element found in domain with 0 thickness"
-            msg = ("ERROR: " + row + "\n")
-            write_to_log(file_name, msg)
-            assert False, row
-
     def second_order_warning(elm_type):
         msg = "WARNING: areas and centres of gravity of " + elm_type.upper() + " elements ignore mid-nodes' positions\n"
         print(msg)
@@ -277,47 +264,44 @@ def elm_volume_cg(file_name, nodes, Elements, domains_from_config, domain_thickn
 
     # defining volume and centre of gravity for all element types
     volume_elm = {}
+    area_elm = {}
     cg = {}
 
-    for en, nod in Elements.tria3.iteritems():
-        check_thickness(en)
-        [volume_elm[en], cg[en]] = tria_volume_cg(nod, thickness[en])
+    for en, nod in Elements.tria3.items():
+        [area_elm[en], cg[en]] = tria_area_cg(nod)
 
     if Elements.tria6:
         second_order_warning("tria6")
-    for en, nod in Elements.tria6.iteritems():  # copy from tria3
-        check_thickness(en)
-        [volume_elm[en], cg[en]] = tria_volume_cg(nod, thickness[en])
+    for en, nod in Elements.tria6.items():  # copy from tria3
+        [area_elm[en], cg[en]] = tria_area_cg(nod)
 
-    for en, nod in Elements.quad4.iteritems():
-        check_thickness(en)
-        [v1, cg1] = tria_volume_cg(nod[0:3], thickness[en])
-        [v2, cg2] = tria_volume_cg(nod[0:1] + nod[2:4], thickness[en])
-        volume_elm[en] = float(v1 + v2)
+    for en, nod in Elements.quad4.items():
+        [a1, cg1] = tria_area_cg(nod[0:3])
+        [a2, cg2] = tria_area_cg(nod[0:1] + nod[2:4])
+        area_elm[en] = float(a1 + a2)
         cg[en] = [[], [], []]
         for k in [0, 1, 2]:  # denote x, y, z dimensions
-            cg[en][k] = (v1 * cg1[k] + v2 * cg2[k]) / volume_elm[en]
+            cg[en][k] = (a1 * cg1[k] + a2 * cg2[k]) / area_elm[en]
 
     if Elements.quad8:
         second_order_warning("quad8")
-    for en, nod in Elements.quad8.iteritems():  # copy from quad4
-        check_thickness(en)
-        [v1, cg1] = tria_volume_cg(nod[0:3], thickness[en])
-        [v2, cg2] = tria_volume_cg(nod[0:1] + nod[2:4], thickness[en])
-        volume_elm[en] = float(v1 + v2)
+    for en, nod in Elements.quad8.items():  # copy from quad4
+        [a1, cg1] = tria_area_cg(nod[0:3])
+        [a2, cg2] = tria_area_cg(nod[0:1] + nod[2:4])
+        area_elm[en] = float(a1 + a2)
         cg[en] = [[], [], []]
         for k in [0, 1, 2]:  # denote x, y, z dimensions
-            cg[en][k] = (v1 * cg1[k] + v2 * cg2[k]) / volume_elm[en]
+            cg[en][k] = (a1 * cg1[k] + a2 * cg2[k]) / area_elm[en]
 
-    for en, nod in Elements.tetra4.iteritems():
+    for en, nod in Elements.tetra4.items():
         [volume_elm[en], cg[en]] = tetra_volume_cg(nod)
 
     if Elements.tetra10:
         second_order_warning("tetra10")
-    for en, nod in Elements.tetra10.iteritems():  # copy from tetra4
+    for en, nod in Elements.tetra10.items():  # copy from tetra4
         [volume_elm[en], cg[en]] = tetra_volume_cg(nod)
 
-    for en, nod in Elements.hexa8.iteritems():
+    for en, nod in Elements.hexa8.items():
         [v1, cg1] = tetra_volume_cg(nod[0:3] + nod[5:6])
         [v2, cg2] = tetra_volume_cg(nod[0:1] + nod[2:3] + nod[4:6])
         [v3, cg3] = tetra_volume_cg(nod[2:3] + nod[4:7])
@@ -332,7 +316,7 @@ def elm_volume_cg(file_name, nodes, Elements, domains_from_config, domain_thickn
 
     if Elements.hexa20:
         second_order_warning("hexa20")
-    for en, nod in Elements.hexa20.iteritems():  # copy from hexa8
+    for en, nod in Elements.hexa20.items():  # copy from hexa8
         [v1, cg1] = tetra_volume_cg(nod[0:3] + nod[5:6])
         [v2, cg2] = tetra_volume_cg(nod[0:1] + nod[2:3] + nod[4:6])
         [v3, cg3] = tetra_volume_cg(nod[2:3] + nod[4:7])
@@ -345,7 +329,7 @@ def elm_volume_cg(file_name, nodes, Elements, domains_from_config, domain_thickn
             cg[en][k] = (v1 * cg1[k] + v2 * cg2[k] + v3 * cg3[k] + v4 * cg4[k] + v5 * cg5[k] + v6 * cg6[k]
                          ) / volume_elm[en]
 
-    for en, nod in Elements.penta6.iteritems():
+    for en, nod in Elements.penta6.items():
         [v1, cg1] = tetra_volume_cg(nod[0:4])
         [v2, cg2] = tetra_volume_cg(nod[1:5])
         [v3, cg3] = tetra_volume_cg(nod[2:6])
@@ -356,7 +340,7 @@ def elm_volume_cg(file_name, nodes, Elements, domains_from_config, domain_thickn
 
     if Elements.penta15:
         second_order_warning("penta15")  # copy from penta6
-    for en, nod in Elements.penta15.iteritems():
+    for en, nod in Elements.penta15.items():
         [v1, cg1] = tetra_volume_cg(nod[0:4])
         [v2, cg2] = tetra_volume_cg(nod[1:5])
         [v3, cg3] = tetra_volume_cg(nod[2:6])
@@ -376,7 +360,7 @@ def elm_volume_cg(file_name, nodes, Elements, domains_from_config, domain_thickn
     cg_min = [min(x_cg), min(y_cg), min(z_cg)]
     cg_max = [max(x_cg), max(y_cg), max(z_cg)]
 
-    return cg, cg_min, cg_max, volume_elm
+    return cg, cg_min, cg_max, volume_elm, area_elm
 
 
 # function preparing values for filtering element sensitivity numbers to suppress checkerboard
@@ -538,8 +522,8 @@ def filter_prepare1s(nodes, Elements, cg, r_min, opt_domains):
     near_nodes = {}
     sector_nodes = {}
     sector_elm = {}
-    nodes_min = nodes[nodes.keys()[0]]  # initial values
-    nodes_max = nodes[nodes.keys()[0]]
+    nodes_min = nodes[list(nodes.keys())[0]]  # initial values
+    nodes_max = nodes[list(nodes.keys())[0]]
     for nn in nodes:
         nodes_min = [min(nodes[nn][0], nodes_min[0]), min(nodes[nn][1], nodes_min[1]), min(nodes[nn][2], nodes_min[2])]
         nodes_max = [max(nodes[nn][0], nodes_max[0]), max(nodes[nn][1], nodes_max[1]), max(nodes[nn][2], nodes_max[2])]
@@ -616,15 +600,18 @@ def filter_run1(file_name, sensitivity_number, weight_factor_node, M, weight_fac
         numerator = 0
         denominator = 0
         for nn in near_nodes[en]:
-            numerator += weight_factor_distance[(en, nn)] * sensitivity_number_node[nn]
-            denominator += weight_factor_distance[(en, nn)]
+            try:
+                numerator += weight_factor_distance[(en, nn)] * sensitivity_number_node[nn]
+                denominator += weight_factor_distance[(en, nn)]
+            except KeyError:
+                pass
         if denominator != 0:
             sensitivity_number_filtered[en] = numerator / denominator
         else:
             msg = "WARNING: filter1 failed due to division by 0. Some element CG has not a node in distance <= r_min.\n"
             print(msg)
             write_to_log(file_name, msg)
-            use_filter = 0
+            filter_on_sensitivity = 0
             return sensitivity_number
     return sensitivity_number_filtered
 
@@ -665,7 +652,7 @@ def filter_prepare2s(cg, cg_min, cg_max, r_min, opt_domains):
                 ee = (min(en, en2), max(en, en2))
                 try:
                     weight_factor2[ee]
-                except IndexError:
+                except KeyError:
                     dx = cg[en][0] - cg[en2][0]
                     dy = cg[en][1] - cg[en2][1]
                     dz = cg[en][2] - cg[en2][2]
@@ -748,7 +735,7 @@ def filter_run2(file_name, sensitivity_number, weight_factor2, near_elm, opt_dom
                   "Some element has not a near element in distance <= r_min.\n"
             print(msg)
             write_to_log(file_name, msg)
-            use_filter = 0
+            filter_on_sensitivity = 0
             return sensitivity_number
     return sensitivity_number_filtered
 
@@ -959,7 +946,7 @@ def filter_prepare_morphology(cg, cg_min, cg_max, r_min, opt_domains):
 def filter_run_morphology(sensitivity_number, near_elm, opt_domains, filter_type):
 
     def filter(filter_type, sensitivity_number, near_elm, opt_domains):
-        sensitivity_number_subtype = {}  # sensitivity number of each element after filtering
+        sensitivity_number_subtype = sensitivity_number.copy()
         for en in opt_domains:
             sensitivity_number_near = [sensitivity_number[en]]
             for en2 in near_elm[en]:
@@ -970,7 +957,7 @@ def filter_run_morphology(sensitivity_number, near_elm, opt_domains, filter_type
                 sensitivity_number_subtype[en] = max(sensitivity_number_near)
         return sensitivity_number_subtype
 
-    sensitivity_number_filtered = {}  # sensitivity number of each element after filtering
+    sensitivity_number_filtered = sensitivity_number.copy()
     if filter_type in ["erode", "dilate"]:
         sensitivity_number_filtered = filter(filter_type, sensitivity_number, near_elm, opt_domains)
     elif filter_type == "open":
@@ -998,46 +985,44 @@ def filter_run_morphology(sensitivity_number, near_elm, opt_domains, filter_type
 
 
 # function for copying .inp file with additional elsets, materials, solid and shell sections, different output request
-# switch_elm is a dict of the elements containing 0 for void element or 1 for full element
-def write_inp(file_nameR, file_nameW, switch_elm, domains, domains_from_config, domain_optimized, domain_density,
-              domain_thickness, domain_offset, domain_material):
+# elm_states is a dict of the elements containing 0 for void element or 1 for full element
+def write_inp(file_nameR, file_nameW, elm_states, number_of_states, domains, domains_from_config, domain_optimized,
+              domain_thickness, domain_offset, domain_material, domain_volumes):
     fR = open(file_nameR, "r")
     fW = open(file_nameW + ".inp", "w")
-
-    solid_domains = []
-    shell_domains = []
-    for dn in domains_from_config:
-        if sum(domain_thickness[dn]) == 0:  # TODO automatic recognising of solid / shell section
-            solid_domains.append(dn)
-        else:
-            shell_domains.append(dn)
-
     elsets_done = 0
     sections_done = 0
     outputs_done = 1
     commenting = False
-    content_void = {}
+    elset_new = {}
+    elsets_used = {}
 
-    # function for writing ELSETs
+    # function for writing ELSETs of each state
     def write_elset():
         fW.write(" \n")
         fW.write("** Added ELSETs by optimization:\n")
-        for dn in solid_domains:
-            content_void[dn] = False
-            fW.write("*ELSET,ELSET=VOID_" + dn + "\n")
+        for dn in domains_from_config:
             if domain_optimized[dn] is True:
-                for en in domains[dn]:
-                    if switch_elm[en] == 0:
-                        fW.write(str(en) + ",\n")
-                        content_void[dn] = True
-        for dn in shell_domains:
-            content_void[dn] = False
-            fW.write("*ELSET,ELSET=VOID_" + dn + "\n")
-            if domain_optimized[dn] is True:
-                for en in domains[dn]:
-                    if switch_elm[en] == 0:
-                        fW.write(str(en) + ",\n")
-                        content_void[dn] = True
+                elsets_used[dn] = []
+                elset_new[dn] = {}
+                for sn in range(number_of_states):
+                    elset_new[dn][sn] = []
+                    for en in domains[dn]:
+                        if elm_states[en] == sn:
+                            elset_new[dn][elm_states[en]].append(en)
+                for sn, en_list in elset_new[dn].items():
+                    if en_list:
+                        elsets_used[dn].append(sn)
+                        fW.write("*ELSET,ELSET=" + dn + str(sn) + "\n")
+                        position = 0
+                        for en in en_list:
+                            if position < 8:
+                                fW.write(str(en) + ", ")
+                                position += 1
+                            else:
+                                fW.write(str(en) + ",\n")
+                                position = 0
+                        fW.write("\n")
         fW.write(" \n")
 
     for line in fR:
@@ -1045,7 +1030,7 @@ def write_inp(file_nameR, file_nameW, switch_elm, domains, domains_from_config, 
             commenting = False
 
         # writing ELSETs
-        if line[:6] == "*ELSET" and elsets_done == 0:
+        if (line[:6] == "*ELSET" and elsets_done == 0) or (line[:5] == "*STEP" and elsets_done == 0):
             write_elset()
             elsets_done = 1
 
@@ -1056,21 +1041,20 @@ def write_inp(file_nameR, file_nameW, switch_elm, domains, domains_from_config, 
                 elsets_done = 1
 
             fW.write(" \n")
-            fW.write("** Materials and sections by optimization\n")
-            fW.write("** (redefines elements properties defined above for void elements):\n")
+            fW.write("** Materials and sections in optimized domains\n")
+            fW.write("** (redefines elements properties defined above):\n")
             for dn in domains_from_config:
                 if domain_optimized[dn]:
-                    fW.write("*MATERIAL, NAME=VOID_" + dn + "\n")
-                    fW.write(str(domain_material[dn][0]) + "\n\n")  # TODO [0] replace with cycle over material list
-                    if sum(domain_thickness[dn]) == 0:  # TODO automatic recognising of solid / shell section
-                        if content_void[dn] is True:
-                            fW.write("*SOLID SECTION, ELSET=VOID_" + dn + ", MATERIAL=VOID_" + dn + "\n")
-                    else:
-                        if content_void[dn] is True:
-                            fW.write("*SHELL SECTION, ELSET=VOID_" + dn + ", MATERIAL=VOID_" + dn +
+                    for sn in elsets_used[dn]:
+                        fW.write("*MATERIAL, NAME=" + dn + str(sn) + "\n")
+                        fW.write(domain_material[dn][sn] + "\n\n")
+                        if domain_volumes[dn]:
+                            fW.write("*SOLID SECTION, ELSET=" + dn + str(sn) + ", MATERIAL=" + dn + str(sn) + "\n")
+                        else:
+                            fW.write("*SHELL SECTION, ELSET=" + dn + str(sn) + ", MATERIAL=" + dn + str(sn) +
                                      ", OFFSET=" + str(domain_offset[dn]) + "\n")
-                            fW.write(str(domain_thickness[dn][1]) + "\n")  # TODO replace [1] with element state value
-                    fW.write(" \n")
+                            fW.write(str(domain_thickness[dn][sn]) + "\n")
+                        fW.write(" \n")
             sections_done = 1
 
         if line[:5] == "*STEP":
@@ -1097,154 +1081,207 @@ def write_inp(file_nameR, file_nameW, switch_elm, domains, domains_from_config, 
     fW.close()
 
 
-# function for importing von Mises stress of the given domain
-# stress components in each element are averaged over integration points
-# von Mises stress is computed from components
-def import_sigma_average(file_name):
-    f = open(file_name, "r")
-    read_sigma = 0
+# function for importing results from .dat file
+# Failure Indices are computed at each integration point and maximum or average above each element is yielded
+def import_FI(max_or_average, file_nameW, domains, criteria, domain_FI, file_name, elm_states):
+    try:
+        f = open(file_nameW, "r")
+    except IOError:
+        msg = "CalculiX results not found, check your inputs"
+        write_to_log(file_name, "ERROR: " + msg + "\n")
+        assert False, msg
+    last_time = "initial"  # TODO solve how to read a new step which differs in time
     step_number = -1
-    line_memory = {}
-    integ_pnt = 0
-    last_time = "initial"  # HERE CONTINUE WITH SOLVING HOW TO READ A NEW STEP WHICH DIFFERS IN TIME
-    sigma_step = []
+    FI_step_template = {}  # {en1: numbers of applied critera, en2: [], ...}
+    FI_step = []  # list for steps - [{en1: list for criteria FI, en2: [], ...}, {en1: [], en2: [], ...}, next step]
 
-    # averages stress in integration points and computes von Mises stress
-    def average():
-        en = int(line_memory[0][0])
-        sum_sxx, sum_syy, sum_szz, sum_sxy, sum_sxz, sum_syz = 0, 0, 0, 0, 0, 0
-        for i in range(integ_pnt):
-            sum_sxx += float(line_memory[i][2])
-            sum_syy += float(line_memory[i][3])
-            sum_szz += float(line_memory[i][4])
-            sum_sxy += float(line_memory[i][5])
-            sum_sxz += float(line_memory[i][6])
-            sum_syz += float(line_memory[i][7])
-        sxx = sum_sxx / float(integ_pnt)
-        syy = sum_syy / float(integ_pnt)
-        szz = sum_szz / float(integ_pnt)
-        sxy = sum_sxy / float(integ_pnt)
-        sxz = sum_sxz / float(integ_pnt)
-        syz = sum_syz / float(integ_pnt)
-        von_mises = np.sqrt(
-            0.5 * ((sxx - syy) ** 2 + (syy - szz) ** 2 + (szz - sxx) ** 2 + 6 * (sxy ** 2 + syz ** 2 + sxz ** 2)))
-        sigma_step[step_number][en] = von_mises
+    # prepare FI dict from failure criteria
+    for dn in domain_FI:
+        for en in domains[dn]:
+            cr = []
+            for dn_crit in domain_FI[dn][elm_states[en]]:
+                cr.append(criteria.index(dn_crit))
+            FI_step_template[en] = cr
 
-    for line in f:
-        if line == "\n":
-            if read_sigma == 1:
-                average()
-            read_sigma -= 1
-        elif line[:9] == " stresses":
-            read_sigma = 2
-            if last_time != line.split()[-1]:
-                step_number += 1
-                sigma_step.append({})
-                last_time = line.split()[-1]
-        elif read_sigma == 1:
-            if integ_pnt >= int(line.split()[1]):
-                average()
-            integ_pnt = int(line.split()[1])
-            line_memory[integ_pnt - 1] = line.split()
-    if read_sigma == 1:
-        average()
-    f.close()
-    # print("Von Mises element stresses have been imported")
-    return sigma_step
-
-
-# function for importing von Mises stress of the given domain
-# von Mises stress is computed at each integration point, it's maximum at the element is yields as output
-def import_sigma_max(file_name):
-    f = open(file_name, "r")
-    read_sigma = 0
-    last_time = "initial"  # HERE CONTINUE WITH SOLVING HOW TO READ A NEW STEP WHICH DIFFERS IN TIME
-    step_number = -1
-    en_last = None
-    von_mises = []
-    sigma_step = []
-
-    def compute_von_mises():
+    def compute_FI():  # for the actual integration point
         sxx = float(line_split[2])
         syy = float(line_split[3])
         szz = float(line_split[4])
         sxy = float(line_split[5])
         sxz = float(line_split[6])
         syz = float(line_split[7])
-        von_mises.append(np.sqrt(
-            0.5 * ((sxx - syy) ** 2 + (syy - szz) ** 2 + (szz - sxx) ** 2 + 6 * (sxy ** 2 + syz ** 2 + sxz ** 2))))
+        for FIn in FI_step_template[en]:
+            if criteria[FIn][0] == "stress_von_Mises":
+                s_allowable = criteria[FIn][1]
+                FI_int_pt[FIn].append(np.sqrt(0.5 * ((sxx - syy) ** 2 + (syy - szz) ** 2 + (szz - sxx) ** 2 +
+                                                     6 * (sxy ** 2 + syz ** 2 + sxz ** 2))) / s_allowable)
+            elif criteria[FIn][0] == "user_def":
+                FI_int_pt[FIn].append(eval(criteria[FIn][0]))
 
+    def save_FI():
+        FI_step[step_number][en_last] = []
+        for FIn in range(len(criteria)):
+            FI_step[step_number][en_last].append(None)
+            if FIn in FI_step_template[en_last]:
+                if max_or_average == "max":
+                    FI_step[step_number][en_last][FIn] = max(FI_int_pt[FIn])
+                elif max_or_average == "average":
+                    FI_step[step_number][en_last][FIn] = np.average(FI_int_pt[FIn])
+
+    read_stresses = 0
     for line in f:
         line_split = line.split()
         if line == "\n":
-            if read_sigma == 1:
-                sigma_step[step_number][en] = max(von_mises)
-            read_sigma -= 1
-        elif line[:9] == " stresses":
-            read_sigma = 2
+            if read_stresses == 1:
+                save_FI()
+            read_stresses -= 1
+            FI_int_pt = [[]] * len(criteria)
+            en_last = None
+        elif line[:9] == " stresses":  # TODO prevent collision with results from another sets
+            read_stresses = 2
             if last_time != line_split[-1]:
                 step_number += 1
-                sigma_step.append({})
+                FI_step.append({})
                 last_time = line_split[-1]
-        elif read_sigma == 1:
+        elif read_stresses == 1:
             en = int(line_split[0])
             if en_last != en:
                 if en_last:
-                    sigma_step[step_number][en_last] = max(von_mises)
-                    von_mises = []
+                    save_FI()
+                    FI_int_pt = [[]] * len(criteria)
                 en_last = en
-            compute_von_mises()
-    if read_sigma == 1:
-        sigma_step[step_number][en] = max(von_mises)
+            compute_FI()
+    if read_stresses == 1:
+        save_FI()
     f.close()
-    return sigma_step
+    return FI_step
 
 
-# function for exporting the resulting mesh without void elements
-# only elements found by import_inp function are taken into account
-def export_frd(file_name, nodes, Elements, switch_elm):
-    if file_name[-4:] == ".inp":
-        new_name = file_name[:-4] + "_res_mesh.frd"
+# function for switch element states
+def switching(elm_states, domains_from_config, domain_optimized, domains, FI_step_max, domain_density, domain_thickness,
+              domain_shells, area_elm, volume_elm, sensitivity_number, mass, mass_full, mass_addition_ratio,
+              mass_removal_ratio, decay_coefficient, FI_violated, i_violated, i, mass_goal_i):
+    mass_increase = {}
+    mass_decrease = {}
+    sensitivity_number_opt = {}
+    mass.append(0)
+    mass_overloaded = 0.0
+    # switch up overloaded elements
+    for dn in domains_from_config:
+        if domain_optimized[dn] is True:
+            for en in domains[dn]:
+                if FI_step_max[en] >= 1:  # increase state if it is not highest
+                    en_added = False
+                    if elm_states[en] < len(domain_density[dn]) - 1:
+                        elm_states[en] += 1
+                        en_added = True
+                    if en in domain_shells[dn]:
+                        mass[i] += area_elm[en] * domain_density[dn][elm_states[en]] * domain_thickness[
+                            dn][elm_states[en]]
+                        if en_added is True:
+                            mass_difference = area_elm[en] * (
+                                domain_density[dn][elm_states[en]] * domain_thickness[dn][elm_states[en]] -
+                                domain_density[dn][elm_states[en] - 1] * domain_thickness[dn][elm_states[en] - 1])
+                            mass_overloaded += mass_difference
+                            mass_goal_i += mass_difference
+                    else:
+                        mass[i] += volume_elm[en] * domain_density[dn][elm_states[en]]
+                        if en_added is True:
+                            mass_difference = volume_elm[en] * (
+                                domain_density[dn][elm_states[en]] - domain_density[dn][elm_states[en] - 1])
+                            mass_overloaded += mass_difference
+                            mass_goal_i += mass_difference
+                else:  # rest of elements prepare to sorting and switching
+                    if en in domain_shells[dn]:  # shells
+                        mass[i] += area_elm[en] * domain_density[dn][elm_states[en]] * domain_thickness[
+                            dn][elm_states[en]]
+                        if elm_states[en] != 0:  # for potential switching down
+                            mass_decrease[en] = area_elm[en] * (
+                                domain_density[dn][elm_states[en]] * domain_thickness[dn][elm_states[en]] -
+                                domain_density[dn][elm_states[en] - 1] * domain_thickness[dn][elm_states[en] - 1])
+                        if elm_states[en] < len(domain_density[dn]) - 1:  # for potential switching up
+                            mass_increase[en] = area_elm[en] * (
+                                domain_density[dn][elm_states[en] + 1] * domain_thickness[dn][elm_states[en] + 1] -
+                                domain_density[dn][elm_states[en]] * domain_thickness[dn][elm_states[en]])
+                    else:  # volumes
+                        mass[i] += volume_elm[en] * domain_density[dn][elm_states[en]]
+                        if elm_states[en] != 0:  # for potential switching down
+                            mass_decrease[en] = volume_elm[en] * (
+                                domain_density[dn][elm_states[en]] - domain_density[dn][elm_states[en] - 1])
+                        if elm_states[en] < len(domain_density[dn]) - 1:  # for potential switching up
+                            mass_increase[en] = volume_elm[en] * (
+                                domain_density[dn][elm_states[en] + 1] - domain_density[dn][elm_states[en]])
+                    sensitivity_number_opt[en] = sensitivity_number[en]
+    # sorting
+    sensitivity_number_sorted = sorted(sensitivity_number_opt.items(), key=operator.itemgetter(1))
+    sensitivity_number_sorted2 = list(sensitivity_number_sorted)
+    if i_violated:
+        mass_to_add = mass_addition_ratio * mass_full * np.exp(decay_coefficient * (i - i_violated))
+        if sum(FI_violated[i - 1]):
+            mass_to_remove = mass_addition_ratio * mass_full * np.exp(decay_coefficient * (i - i_violated)) \
+                             - mass_overloaded
+        else:
+            mass_to_remove = mass_removal_ratio * mass_full * np.exp(decay_coefficient * (i - i_violated)) \
+                             - mass_overloaded
     else:
-        new_name = file_name + "_res_mesh.frd"
-    f = open(new_name, "w")
+        mass_to_add = mass_addition_ratio * mass_full
+        mass_to_remove = mass_removal_ratio * mass_full
+    mass_added = mass_overloaded
+    mass_removed = 0.0
+    # if mass_goal_i < mass[i - 1]:  # going from bigger mass to lower
+    added_elm = []
+    while mass_added < mass_to_add:
+        if sensitivity_number_sorted:
+            en = sensitivity_number_sorted.pop(-1)[0]  # highest sensitivity number
+            try:
+                mass[i] += mass_increase[en]
+                mass_added += mass_increase[en]
+                elm_states[en] += 1
+                added_elm.append(en)
+            except KeyError:  # there is no mass_increase due to highest element state
+                pass
+        else:
+            break
+    popped = 0
+    while mass_removed < mass_to_remove:
+        if mass[i] <= mass_goal_i:
+            break
+        if sensitivity_number_sorted:
+            en = sensitivity_number_sorted.pop(0)[0]  # lowest sensitivity number
+            popped += 1
+            if elm_states[en] != 0:
+                mass[i] -= mass_decrease[en]
+                mass_removed += mass_decrease[en]
+                elm_states[en] -= 1
+        else:
+            try:
+                en = sensitivity_number_sorted2[popped][0]
+                popped += 1
+            except IndexError:
+                break
+            if elm_states[en] != 0:
+                elm_states[en] -= 1
+                if en in added_elm:
+                    mass[i] -= mass_increase[en]
+                    mass_removed += mass_increase[en]
+                else:
+                    mass[i] -= mass_decrease[en]
+                    mass_removed += mass_decrease[en]
+    return elm_states, mass
 
-    # print nodes
-    associated_nodes = []
 
-    def get_full_elm(elm_category):
+# function for exporting the resulting mesh in separate files for each state of elm_states
+# only elements found by import_inp function are taken into account
+def export_frd(file_name, nodes, Elements, elm_states, number_of_states):
+
+    def get_associated_nodes(elm_category):
         for en in elm_category:
-            if switch_elm[en] == 1:
+            if elm_states[en] == state:
                 associated_nodes.extend(elm_category[en])
-
-    get_full_elm(Elements.tria3)
-    get_full_elm(Elements.tria6)
-    get_full_elm(Elements.quad4)
-    get_full_elm(Elements.quad8)
-    get_full_elm(Elements.tetra4)
-    get_full_elm(Elements.tetra10)
-    get_full_elm(Elements.penta6)
-    get_full_elm(Elements.penta15)
-    get_full_elm(Elements.hexa8)
-    get_full_elm(Elements.hexa20)
-
-    associated_nodes = sorted(list(set(associated_nodes)))
-    f.write("    1C\n")
-    f.write("    2C" + str(len(associated_nodes)).rjust(30, " ") + 37 * " " + "1\n")
-    for nn in associated_nodes:
-        f.write(" -1" + str(nn).rjust(10, " ") + "% .5E% .5E% .5E\n" % (nodes[nn][0], nodes[nn][1], nodes[nn][2]))
-    f.write(" -3\n")
-
-    # print elements
-    elm_sum = 0
-    for en in switch_elm:
-        if switch_elm[en] == 1:
-            elm_sum += 1
-    f.write("    3C" + str(elm_sum).rjust(30, " ") + 37 * " " + "1\n")
 
     def write_elm(elm_category, category_symbol):
         for en in elm_category:
-            if switch_elm[en] == 1:
+            if elm_states[en] == state:
                 f.write(" -1" + str(en).rjust(10, " ") + category_symbol.rjust(5, " ") + "\n")
                 line = ""
                 nodes_done = 0
@@ -1273,34 +1310,74 @@ def export_frd(file_name, nodes, Elements, switch_elm):
                             line = ""
                     f.write(" -2" + line + "\n")
 
-    write_elm(Elements.tria3, "7")
-    write_elm(Elements.tria6, "8")
-    write_elm(Elements.quad4, "9")
-    write_elm(Elements.quad8, "10")
-    write_elm(Elements.tetra4, "3")
-    write_elm(Elements.tetra10, "6")
-    write_elm(Elements.penta6, "2")
-    write_elm(Elements.penta15, "5")
-    write_elm(Elements.hexa8, "1")
-    write_elm(Elements.hexa20, "4")
+    # find all possible states in elm_states and run separately for each of them
+    for state in range(number_of_states):
+        if file_name[-4:] == ".inp":
+            new_name = file_name[:-4] + "_res_mesh" + str(state) + ".frd"
+        else:
+            new_name = file_name + "_res_mesh" + str(state) + ".frd"
+        f = open(new_name, "w")
 
-    f.write(" -3\n")
-    f.close()
-    print("%s file with resulting mesh has been created" % new_name)
+        # print nodes
+        associated_nodes = []
+        get_associated_nodes(Elements.tria3)
+        get_associated_nodes(Elements.tria6)
+        get_associated_nodes(Elements.quad4)
+        get_associated_nodes(Elements.quad8)
+        get_associated_nodes(Elements.tetra4)
+        get_associated_nodes(Elements.tetra10)
+        get_associated_nodes(Elements.penta6)
+        get_associated_nodes(Elements.penta15)
+        get_associated_nodes(Elements.hexa8)
+        get_associated_nodes(Elements.hexa20)
+
+        associated_nodes = sorted(list(set(associated_nodes)))
+        f.write("    1C\n")
+        f.write("    2C" + str(len(associated_nodes)).rjust(30, " ") + 37 * " " + "1\n")
+        for nn in associated_nodes:
+            f.write(" -1" + str(nn).rjust(10, " ") + "% .5E% .5E% .5E\n" % (nodes[nn][0], nodes[nn][1], nodes[nn][2]))
+        f.write(" -3\n")
+
+        # print elements
+        elm_sum = 0
+        for en in elm_states:
+            if elm_states[en] == state:
+                elm_sum += 1
+        f.write("    3C" + str(elm_sum).rjust(30, " ") + 37 * " " + "1\n")
+        write_elm(Elements.tria3, "7")
+        write_elm(Elements.tria6, "8")
+        write_elm(Elements.quad4, "9")
+        write_elm(Elements.quad8, "10")
+        write_elm(Elements.tetra4, "3")
+        write_elm(Elements.tetra10, "6")
+        write_elm(Elements.penta6, "2")
+        write_elm(Elements.penta15, "5")
+        write_elm(Elements.hexa8, "1")
+        write_elm(Elements.hexa20, "4")
+
+        f.write(" -3\n")
+        f.close()
+    print("%i files with resulting meshes have been created" % number_of_states)
 
 
-# function for importing full elements from .frd file which was previously created as resulting elements
+# function for importing elm_states state from .frd file which was previously created as a resulting mesh
 # it is done via element numbers only; in case of the wrong mesh, no error is recognised
-def frd_as_full(continue_from, switch_elm):
-    f = open(continue_from, "r")
-    read_elm = False
+def import_frd_state(continue_from, elm_states, number_of_states, file_name):
+    for state in range(number_of_states):
+        try:
+            f = open(continue_from + str(state) + ".frd", "r")
+        except IOError:
+            msg = "continue_from state " + str(state) + " file not found. Check your inputs."
+            write_to_log(file_name, "ERROR: " + msg + "\n")
+            assert False, msg
 
-    for line in f:
-        if line[4:6] == "3C":  # start reading element numbers
-            read_elm = True
-        elif read_elm is True and line[1:3] == "-1":
-            en = int(line[3:13])
-            switch_elm[en] = 1
-        elif read_elm is True and line[1:3] == "-3":  # finish reading element numbers
-            break
-    return switch_elm
+        read_elm = False
+        for line in f:
+            if line[4:6] == "3C":  # start reading element numbers
+                read_elm = True
+            elif read_elm is True and line[1:3] == "-1":
+                en = int(line[3:13])
+                elm_states[en] = state
+            elif read_elm is True and line[1:3] == "-3":  # finish reading element numbers
+                break
+    return elm_states
