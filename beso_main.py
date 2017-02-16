@@ -319,6 +319,9 @@ while True:
         mass_goal_i = mass[i - 1]  # use mass_new from previous iteration
         if i_violated == 0:
             i_violated = i
+    elif mass[i - 1] <= mass_goal_ratio * mass_full:  # goal volume achieved
+        if not i_violated:
+            i_violated = i  # to start decaying
     else:
         mass_goal_i = mass_goal_ratio * mass_full
 
