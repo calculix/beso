@@ -92,4 +92,4 @@ mass_removal_ratio = 0.03  # mass to be removed in each iteration
 iterations_limit = 0  # 0 - automatic estimate, <integer> - the maximum allowable number of iterations
 tolerance = 1e-3  # the maximum relative difference in mean stress in optimization domains between the last 5 iterations needed to finish
 
-save_iteration_meshes = 10  # every i-th iteration export a resulting mesh, 0 - do not save
+save_iteration_results = 10  # every i-th iteration export a resulting mesh and do not delete .frd and .dat, 0 - do not save

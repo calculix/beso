@@ -987,7 +987,7 @@ def filter_run_morphology(sensitivity_number, near_elm, opt_domains, filter_type
 # function for copying .inp file with additional elsets, materials, solid and shell sections, different output request
 # elm_states is a dict of the elements containing 0 for void element or 1 for full element
 def write_inp(file_nameR, file_nameW, elm_states, number_of_states, domains, domains_from_config, domain_optimized,
-              domain_thickness, domain_offset, domain_material, domain_volumes):
+              domain_thickness, domain_offset, domain_material, domain_volumes, save_iteration_results, i):
     fR = open(file_nameR, "r")
     fW = open(file_nameW + ".inp", "w")
     elsets_done = 0
@@ -1072,9 +1072,11 @@ def write_inp(file_nameR, file_nameW, elm_states, number_of_states, domains, dom
                 fW.write(" \n")
                 outputs_done += 1
             commenting = True
-            continue
+            if save_iteration_results and not np.mod(float(i - 1), save_iteration_results) == 0:
+                continue
         elif commenting is True:
-            continue
+            if save_iteration_results and not np.mod(float(i - 1), save_iteration_results) == 0:
+                continue
 
         fW.write(line)
     fR.close()
@@ -1083,7 +1085,7 @@ def write_inp(file_nameR, file_nameW, elm_states, number_of_states, domains, dom
 
 # function for importing results from .dat file
 # Failure Indices are computed at each integration point and maximum or average above each element is yielded
-def import_FI(max_or_average, file_nameW, domains, criteria, domain_FI, file_name, elm_states):
+def import_FI(max_or_average, file_nameW, domains, criteria, domain_FI, file_name, elm_states, domains_from_config):
     try:
         f = open(file_nameW, "r")
     except IOError:
@@ -1137,12 +1139,13 @@ def import_FI(max_or_average, file_nameW, domains, criteria, domain_FI, file_nam
             read_stresses -= 1
             FI_int_pt = [[]] * len(criteria)
             en_last = None
-        elif line[:9] == " stresses":  # TODO prevent collision with results from another sets
-            read_stresses = 2
-            if last_time != line_split[-1]:
-                step_number += 1
-                FI_step.append({})
-                last_time = line_split[-1]
+        elif line[:9] == " stresses":
+            if line.split()[-4] in map(lambda x: x.upper(), domains_from_config):  # TODO upper already on user input
+                read_stresses = 2
+                if last_time != line_split[-1]:
+                    step_number += 1
+                    FI_step.append({})
+                    last_time = line_split[-1]
         elif read_stresses == 1:
             en = int(line_split[0])
             if en_last != en:

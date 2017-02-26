@@ -38,7 +38,7 @@ mass_removal_ratio = None
 sensitivity_averaging = None
 iterations_limit = None
 tolerance = None
-save_iteration_meshes = None
+save_iteration_results = None
 
 # read configuration file to fill variables listed above
 exec(open("beso_conf.py").read())
@@ -91,7 +91,7 @@ msg += ("mass_removal_ratio      = %s\n" % mass_removal_ratio)
 msg += ("sensitivity_averaging   = %s\n" % sensitivity_averaging)
 msg += ("iterations_limit        = %s\n" % iterations_limit)
 msg += ("tolerance               = %s\n" % tolerance)
-msg += ("save_iteration_meshes   = %s\n" % save_iteration_meshes)
+msg += ("save_iteration_results  = %s\n" % save_iteration_results)
 msg += "\n"
 beso_lib.write_to_log(file_name, msg)
 
@@ -187,15 +187,18 @@ while True:
     # creating a new .inp file for CalculiX
     file_nameW = "file" + str(i).zfill(3)
     beso_lib.write_inp(file_name, file_nameW, elm_states, number_of_states, domains, domains_from_config,
-                       domain_optimized, domain_thickness, domain_offset, domain_material, domain_volumes)
+                       domain_optimized, domain_thickness, domain_offset, domain_material, domain_volumes,
+                       save_iteration_results, i)
     # running CalculiX analysis
     subprocess.call(os.path.normpath(path_calculix) + " " + os.path.join(path, file_nameW), shell=True)
 
-    # reading von Mises stress
-    FI_step = beso_lib.import_FI(max_or_average, file_nameW+".dat", domains, criteria, domain_FI, file_name, elm_states)
+    # reading .dat results and computing failure inceces
+    FI_step = beso_lib.import_FI(max_or_average, file_nameW+".dat", domains, criteria, domain_FI, file_name, elm_states,
+                                 domains_from_config)
     os.remove(file_nameW + ".inp")
-    os.remove(file_nameW + ".dat")
-    os.remove(file_nameW + ".frd")
+    if save_iteration_results and not np.mod(float(i - 1), save_iteration_results) > 0:
+        os.remove(file_nameW + ".dat")
+        os.remove(file_nameW + ".frd")
     os.remove(file_nameW + ".sta")
     os.remove(file_nameW + ".cvg")
     FI_max.append({})
@@ -309,7 +312,7 @@ while True:
         break
     else:
         # export the present mesh
-        if save_iteration_meshes and not np.mod(float(i-1), save_iteration_meshes) > 0:
+        if save_iteration_results and not np.mod(float(i-1), save_iteration_results) > 0:
             beso_lib.export_frd("file" + str(i), nodes, Elements, elm_states, number_of_states)
     i += 1  # iteration number
     print("----------- new iteration number %d ----------" % i)
