@@ -12,7 +12,7 @@ path_calculix = "d:\\soft\FreeCad\\FreeCAD_0.17.8264_x64_dev_win\\bin\\ccx"  # p
 
 file_name = "Fusion_Mesh.inp"  # file with prepared linear static analysis
 
-elset_name = "MechanicalMaterialShellThickness"  # string with name of the element set in .inp file
+elset_name = "SolidMaterialShellThickness"  # string with name of the element set in .inp file
 domain_optimized[elset_name] = True  # True - optimized domain, False - elements will not be removed
 domain_density[elset_name] = [7.9e-15, 7.9e-9]  # equivalent density of the domain material for states of switch_elm
 domain_thickness[elset_name] = [1.0, 1.0]  # thickness of shell elements for states of switch_elm
@@ -27,7 +27,7 @@ domain_FI[elset_name] = [[("stress_von_Mises", 450.0)],  # inner tuples () for s
 domain_material[elset_name] = ["*ELASTIC \n210000e-6,  0.3",  # material definition after CalculiX *MATERIAL card, use \n for line break
                                "*ELASTIC \n210000,  0.3"]  # next string for the next state of switch_elm
 
-elset_name = "MechanicalMaterial001ShellThickness"  # string with name of the element set in .inp file
+elset_name = "SolidMaterial001ShellThickness"  # string with name of the element set in .inp file
 domain_optimized[elset_name] = False  # True - optimized domain, False - elements will not be removed
 domain_density[elset_name] = [7.9e-15, 7.9e-9]  # equivalent density of the domain material for states of switch_elm
 domain_thickness[elset_name] = [1.0, 1.0]  # thickness of shell elements for states of switch_elm
@@ -45,14 +45,28 @@ domain_material[elset_name] = ["*ELASTIC \n210000e-6,  0.3",  # material definit
 
 mass_goal_ratio = 0.4  # the goal mass as a fragment of the optimized domains full mass
 
-r_min = 2.0  # the radius for applying a filter, perhaps good is 2x mesh size for filters 1, 2; 1.5x mesh size for filter 3
-             # this radius is for filter_on_sensitivity and for filter_on_state
-
 continue_from = ""  # if not "", optimization will load full elements from the given files,
-                              #  use file name without number of state e.g. "file051_res_mesh"
-                              # in this case total mass is computed from this state which affect mass_goal_ratio
+                              #  use 0th file name e.g. "file051_res_mesh0.frd" or "file051_res_mesh0.inp"
 
-filter_list = [["close", 1.5]]  # [[filter type, range, domains or nothing for all domains], [next filter type, range, "domain1", "domain2"], ...]
+filter_list = [["close sensitivity", 1.5]]  # [[filter type, range, domains or nothing for all domains], [next filter type, range, "domain1", "domain2"], ...]
+                            # filter types:
+                            # "simple" - averages sensitivity number with surroundings (suffer from boundary sticking?), works on sensitivities
+                            # morphology based filters:
+                            # "erode sensitivity" - use minimum sensitivity number in radius range
+                            # "dilate sensitivity" - use maximum sensitivity number in radius range
+                            # "open sensitivity" - aims to remove elements smaller than filter radius(it is "erode" and than "dilate" filter)
+                            # "close sensitivity" - aims to close holes smaller than filter radius (it is "dilate" and than "erode" filter)
+                            # "open-close sensitivity" - (it is "open" and than "close" filter)
+                            # "close-open sensitivity" - (it is "close" and than "open" filter)
+                            # "combine sensitivity" - average of erode and delate (i.e. simplified/dirty "open-close" or "close-open" filter)
+
+                            # replace "sensitivity" by "state" to use filter on element states instead of sensitivities
+
+# deprecated filter functions, which work only on all optimization domains together, and work on sensitivity numbers
+r_min = 2.0  # radius for filter_on_sensitivity
+filter_on_sensitivity = 0  # 0 - do not use this filter,
+                # "over nodes" - filter with step over nodes (suffer from boundary sticking?, 2nd order elements need more memory)
+                # "over points" - filter with step over own point mesh (broken?)
 
 # ADVANCED INPUTS:
 
@@ -63,22 +77,6 @@ FI_violated_tolerance = 1  # 0 - do not freeze mass due to high FI,
 decay_coefficient = -0.2  # exponential decay coefficient to dump mass_additive_ratio and mass_removal_ratio after freezing mass
                            # exp(-0.22 x) ~ 0.1 x
                            # exp(0 x) = x
-
-filter_on_sensitivity = 0  # 0 - do not use filter,
-                # 1 - filter with step over nodes (suffer from boundary sticking, 2nd order elements need more memory)
-                # 2 - filter only between elements (suffer from boundary sticking)
-                # 3 - filter with step over own point mesh
-                # morphology based filters:
-                # "erode" - use minimum sensitivity number in radius range
-                # "dilate" - use maximum sensitivity number in radius range
-                # "open" - aims to remove elements smaller than filter radius(it is "erode" and than "dilate" filter)
-                # "close" - aims to close holes smaller than filter radius (it is "dilate" and than "erode" filter)
-                # "open-close" - (it is "open" and than "close" filter)
-                # "close-open" - (it is "close" and than "open" filter)
-                # "combine" - average of erode and delate (i.e. simplified/dirty "open-close" or "close-open" filter)
-
-filter_on_state = 0  # 0 - do not use filter,
-                                # or any of morphological filters mentioned above (except "combine")
 
 ##same_state = []  # list of domains which are forced to have same element state over the whole domain (each separately)
 
@@ -93,3 +91,4 @@ iterations_limit = 0  # 0 - automatic estimate, <integer> - the maximum allowabl
 tolerance = 1e-3  # the maximum relative difference in mean stress in optimization domains between the last 5 iterations needed to finish
 
 save_iteration_results = 10  # every i-th iteration export a resulting mesh and do not delete .frd and .dat, 0 - do not save
+save_iteration_format = "frd"  # "frd" or "inp" format of resulting meshes (each state separately in own mesh file)

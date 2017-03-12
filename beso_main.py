@@ -8,6 +8,7 @@ import os
 import subprocess
 import time
 import beso_lib
+import beso_filters
 plt.close("all")
 start_time = time.time()
 
@@ -22,15 +23,13 @@ path = None
 path_calculix = None
 file_name = None
 mass_goal_ratio = None
-r_min = None
 continue_from = None
 filter_list = None
+r_min = None
+filter_on_sensitivity = None
 cpu_cores = None
-# FI_tolerance = None
 FI_violated_tolerance = None
 decay_coefficient = None
-filter_on_sensitivity = None
-filter_on_state = None
 same_state = None
 max_or_average = None
 mass_addition_ratio = None
@@ -39,6 +38,7 @@ sensitivity_averaging = None
 iterations_limit = None
 tolerance = None
 save_iteration_results = None
+save_iteration_format = None
 
 # read configuration file to fill variables listed above
 exec(open("beso_conf.py").read())
@@ -78,13 +78,11 @@ for dn in domain_optimized:
     msg += "\n"
 msg += ("mass_goal_ratio         = %s\n" % mass_goal_ratio)
 msg += ("filter_list             = %s\n" % filter_list)
-msg += ("cpu_cores               = %s\n" % cpu_cores)
-# msg += ("FI_tolerance            = %s\n" % FI_tolerance)
-msg += ("FI_violated_tolerance   = %s\n" % FI_violated_tolerance)
-msg += ("decay_coefficient       = %s\n" % decay_coefficient)
 msg += ("r_min                   = %s\n" % r_min)
 msg += ("filter_on_sensitivity   = %s\n" % filter_on_sensitivity)
-msg += ("filter_on_state         = %s\n" % filter_on_state)
+msg += ("cpu_cores               = %s\n" % cpu_cores)
+msg += ("FI_violated_tolerance   = %s\n" % FI_violated_tolerance)
+msg += ("decay_coefficient       = %s\n" % decay_coefficient)
 msg += ("same_state              = %s\n" % same_state)
 msg += ("mass_addition_ratio     = %s\n" % mass_addition_ratio)
 msg += ("mass_removal_ratio      = %s\n" % mass_removal_ratio)
@@ -92,6 +90,7 @@ msg += ("sensitivity_averaging   = %s\n" % sensitivity_averaging)
 msg += ("iterations_limit        = %s\n" % iterations_limit)
 msg += ("tolerance               = %s\n" % tolerance)
 msg += ("save_iteration_results  = %s\n" % save_iteration_results)
+msg += ("save_iteration_format   = %s\n" % save_iteration_format)
 msg += "\n"
 beso_lib.write_to_log(file_name, msg)
 
@@ -108,8 +107,10 @@ for dn in domains_from_config:  # distinguishing shell elements and volume eleme
 
 elm_states = {}  # initial element state
 
-if continue_from:
+if continue_from[-4:] == ".frd":
     elm_states = beso_lib.import_frd_state(continue_from, elm_states, number_of_states, file_name)
+elif continue_from[-4:] == ".inp":
+    elm_states = beso_lib.import_inp_state(continue_from, elm_states, number_of_states, file_name)
 else:
     for dn in domains_from_config:
         for en in domains[dn]:
@@ -132,17 +133,8 @@ for dn in domains_from_config:
 print("initial optimization domains mass {}" .format(mass[0]))
 
 # preparing parameters for filtering sensitivity numbers
-if filter_on_sensitivity == 1:
-    [weight_factor_node, M, weight_factor_distance, near_nodes] = beso_lib.filter_prepare1s(nodes, Elements, cg, r_min,
-                                                                                            opt_domains)
-elif filter_on_sensitivity == 2:
-    [weight_factor2, near_elm] = beso_lib.filter_prepare2s(cg, cg_min, cg_max, r_min, opt_domains)
-elif filter_on_sensitivity == 3:
-    [weight_factor3, near_elm, near_points] = beso_lib.filter_prepare3(file_name, cg, cg_min, r_min, opt_domains)
-elif (filter_on_sensitivity in ["erode", "dilate", "open", "close", "open-close", "close-open", "combine"]
-      ) or (filter_on_state in ["erode", "dilate", "open", "close", "open-close", "close-open", "combine"]):
-    near_elm = beso_lib.filter_prepare_morphology(cg, cg_min, cg_max, r_min, opt_domains)
-
+weight_factor2 = {}
+near_elm = {}
 for ft in filter_list:
     f_range = ft[1]
     if len(ft) == 2:
@@ -151,8 +143,17 @@ for ft in filter_list:
         domains_to_filter = []
         for dn in ft[2:]:
             domains_to_filter += domains[dn]
-    if ft[0] in ["erode", "dilate", "open", "close", "open-close", "close-open", "combine"]:
-        near_elm = beso_lib.filter_prepare_morphology(cg, cg_min, cg_max, f_range, opt_domains)
+    if ft[0] == "simple":
+        [weight_factor2, near_elm] = beso_filters.prepare2s(cg, cg_min, cg_max, f_range, domains_to_filter,
+                                                            weight_factor2, near_elm)
+    elif ft[0].split()[0] in ["erode", "dilate", "open", "close", "open-close", "close-open", "combine"]:
+        near_elm = beso_filters.prepare_morphology(cg, cg_min, cg_max, f_range, domains_to_filter, near_elm)
+
+if filter_on_sensitivity == "over nodes":
+    [weight_factor_node, M, weight_factor_distance, near_nodes] = beso_filters.prepare1s(nodes, Elements, cg, r_min,
+                                                                                         opt_domains)
+elif filter_on_sensitivity == "over points":
+    [weight_factor3, near_elm3, near_points] = beso_filters.prepare3(file_name, cg, cg_min, r_min, opt_domains)
 
 # writing log table header
 msg = "\n"
@@ -164,9 +165,13 @@ for dn in domains_from_config:
 msg += "\niteration,              mass, FI_violated 0)"
 for dno in range(len(domains_from_config) - 1):
     msg += (" " + str(dno + 1)).rjust(4, " ") + ")"
-msg += ",          FI_mean,     FI_max     0)"
+if len(domains_from_config) > 1:
+    msg += "  all)"
+msg += ",          FI_mean   _without_state0,     FI_max     0)"
 for dno in range(len(domains_from_config) - 1):
     msg += str(dno + 1).rjust(18, " ") + ")"
+if len(domains_from_config) > 1:
+    msg += "all".rjust(18, " ") + ")"
 msg += "\n"
 beso_lib.write_to_log(file_name, msg)
 
@@ -175,6 +180,7 @@ sensitivity_number = {}
 sensitivity_number_old = {}
 FI_max = []
 FI_mean = []  # list of mean stress in every iteration
+FI_mean_without_state0 = []  # mean stress without elements in state 0
 FI_violated = []
 i = 0
 i_violated = 0
@@ -196,25 +202,28 @@ while True:
     FI_step = beso_lib.import_FI(max_or_average, file_nameW+".dat", domains, criteria, domain_FI, file_name, elm_states,
                                  domains_from_config)
     os.remove(file_nameW + ".inp")
-    if save_iteration_results and not np.mod(float(i - 1), save_iteration_results) > 0:
+    if not save_iteration_results or np.mod(float(i - 1), save_iteration_results) != 0:
         os.remove(file_nameW + ".dat")
         os.remove(file_nameW + ".frd")
     os.remove(file_nameW + ".sta")
     os.remove(file_nameW + ".cvg")
     FI_max.append({})
-    print("FI_max ordered by domain =")
     for dn in domains_from_config:
         FI_max[i][dn] = 0
         for en in domains[dn]:
             for sn in range(len(FI_step)):
                 try:
-                    FI_step_en = list(filter(lambda a: a != None, FI_step[sn][en]))  # drop None FI
+                    FI_step_en = list(filter(lambda a: a is not None, FI_step[sn][en]))  # drop None FI
                     FI_max[i][dn] = max(FI_max[i][dn], max(FI_step_en))
                 except ValueError:
                     msg = "FI_max computing failed. Check if each domain contains at least one failure criterion."
                     beso_lib.write_to_log(file_name, "ERROR: " + msg + "\n")
                     raise Exception(msg)
-        print(FI_max[i][dn])
+                except KeyError:
+                    msg = "Some result values are missing. Check available disk space."
+                    beso_lib.write_to_log(file_name, "ERROR: " + msg + "\n")
+                    raise Exception(msg)
+    print("domain ordered \nFI_max and number of violated elements")
 
     # handling with more steps
     FI_step_max = {}  # maximal FI over all steps for each element in this iteration
@@ -225,27 +234,15 @@ while True:
         for en in domains[dn]:
             FI_step_max[en] = 0
             for sn in range(len(FI_step)):
-                FI_step_en = list(filter(lambda a: a != None, FI_step[sn][en]))  # drop None FI
+                FI_step_en = list(filter(lambda a: a is not None, FI_step[sn][en]))  # drop None FI
                 FI_step_max[en] = max(FI_step_max[en], max(FI_step_en))
             sensitivity_number[en] = FI_step_max[en] / domain_density[dn][elm_states[en]]
             if FI_step_max[en] >= 1:
                 FI_violated[i][dno] += 1
+        print(str(FI_max[i][dn]).rjust(15) + " " + str(FI_violated[i][dno]).rjust(4))
         dno += 1
 
     # filtering sensitivity number
-    if filter_on_sensitivity == 1:
-        sensitivity_number = beso_lib.filter_run1(file_name, sensitivity_number, weight_factor_node, M,
-                                                  weight_factor_distance, near_nodes, nodes, opt_domains)
-    elif filter_on_sensitivity == 2:
-        sensitivity_number = beso_lib.filter_run2(file_name, sensitivity_number, weight_factor2, near_elm, opt_domains)
-    elif filter_on_sensitivity == 3:
-        sensitivity_number = beso_lib.filter_run3(sensitivity_number, weight_factor3, near_elm, near_points)
-    elif filter_on_sensitivity in ["erode", "dilate", "open", "close", "open-close", "close-open", "combine"]:
-        sensitivity_number = beso_lib.filter_run_morphology(sensitivity_number, near_elm, opt_domains,
-                                                            filter_on_sensitivity)
-    elif filter_on_sensitivity == 0:
-        pass
-
     for ft in filter_list:
         if len(ft) == 2:
             domains_to_filter = list(opt_domains)
@@ -253,15 +250,24 @@ while True:
             domains_to_filter = []
             for dn in ft[2:]:
                 domains_to_filter += domains[dn]
-        if ft[0] in ["erode", "dilate", "open", "close", "open-close", "close-open", "combine"]:
-            domains_en_in_state = [[]] * number_of_states
-            for en in domains_to_filter:
-                sn = elm_states[en]
-                domains_en_in_state[sn].append(en)
-            for sn in range(number_of_states):
-                if domains_en_in_state[sn]:
-                    sensitivity_number = beso_lib.filter_run_morphology(sensitivity_number, near_elm,
-                                                                        domains_en_in_state[sn], ft[0])
+        if ft[0] == "simple":
+            sensitivity_number = beso_filters.run2(file_name, sensitivity_number, weight_factor2, near_elm,
+                                                   domains_to_filter)
+        elif ft[0].split()[0] in ["erode", "dilate", "open", "close", "open-close", "close-open", "combine"]:
+            if ft[0].split()[1] == "sensitivity":
+                domains_en_in_state = [[]] * number_of_states
+                for en in domains_to_filter:
+                    sn = elm_states[en]
+                    domains_en_in_state[sn].append(en)
+                for sn in range(number_of_states):
+                    if domains_en_in_state[sn]:
+                        sensitivity_number = beso_filters.run_morphology(sensitivity_number, near_elm,
+                                                                         domains_en_in_state[sn], ft[0].split()[0])
+    if filter_on_sensitivity == "over nodes":
+        sensitivity_number = beso_filters.run1(file_name, sensitivity_number, weight_factor_node, M,
+                                               weight_factor_distance, near_nodes, nodes, opt_domains)
+    elif filter_on_sensitivity == "over points":
+        sensitivity_number = beso_filters.run3(sensitivity_number, weight_factor3, near_elm3, near_points)
 
     if sensitivity_averaging:
         for en in opt_domains:
@@ -272,24 +278,38 @@ while True:
 
     # computing mean stress from maximums of each element in all steps in the optimization domain
     FI_mean_sum = 0
+    FI_mean_sum_without_state0 = 0
+    mass_without_state0 = 0
     for dn in domain_optimized:
         if domain_optimized[dn] is True:
             for en in domain_shells[dn]:
                 mass_elm = domain_density[dn][elm_states[en]] * area_elm[en] * domain_thickness[dn][elm_states[en]]
                 FI_mean_sum += FI_step_max[en] * mass_elm
+                if elm_states[en] != 0:
+                    FI_mean_sum_without_state0 += FI_step_max[en] * mass_elm
+                    mass_without_state0 += mass_elm
             for en in domain_volumes[dn]:
                 mass_elm = domain_density[dn][elm_states[en]] * volume_elm[en]
                 FI_mean_sum += FI_step_max[en] * mass_elm
+                if elm_states[en] != 0:
+                    FI_mean_sum_without_state0 += FI_step_max[en] * mass_elm
+                    mass_without_state0 += mass_elm
     FI_mean.append(FI_mean_sum / mass[i])
-    print("FI_mean = {}" .format(FI_mean[i]))
+    FI_mean_without_state0.append(FI_mean_sum_without_state0 / mass_without_state0)
+    print("FI_mean                = {}" .format(FI_mean[i]))
+    print("FI_mean_without_state0 = {}".format(FI_mean_without_state0[i]))
 
     # writing log table row
     msg = str(i).rjust(9, " ") + ", " + str(mass[i]).rjust(17, " ") + ", " + str(FI_violated[i][0]).rjust(13, " ")
     for dno in range(len(domains_from_config) - 1):
         msg += ", " + str(FI_violated[i][dno + 1]).rjust(3, " ")
-    msg += ", " + str(FI_mean[i]).rjust(17, " ")
+    if len(domains_from_config) > 1:
+        msg += ", " + str(sum(FI_violated[i])).rjust(3, " ")
+    msg += ", " + str(FI_mean[i]).rjust(17, " ") + " " + str(FI_mean[i]).rjust(18, " ")
     for dn in domains_from_config:
         msg += ", " + str(FI_max[i][dn]).rjust(17, " ")
+    if len(domains_from_config) > 1:
+        msg += ", " + str(max(FI_max[i])).rjust(17, " ")
     msg += "\n"
     beso_lib.write_to_log(file_name, msg)
 
@@ -312,8 +332,11 @@ while True:
         break
     else:
         # export the present mesh
-        if save_iteration_results and not np.mod(float(i-1), save_iteration_results) > 0:
-            beso_lib.export_frd("file" + str(i), nodes, Elements, elm_states, number_of_states)
+        if save_iteration_results and np.mod(float(i - 1), save_iteration_results) == 0:
+            if "frd" in save_iteration_format:
+                beso_lib.export_frd("file" + str(i), nodes, Elements, elm_states, number_of_states)
+            if "inp" in save_iteration_format:
+                beso_lib.export_inp("file" + str(i), nodes, Elements, elm_states, number_of_states)
     i += 1  # iteration number
     print("----------- new iteration number %d ----------" % i)
 
@@ -322,9 +345,11 @@ while True:
         mass_goal_i = mass[i - 1]  # use mass_new from previous iteration
         if i_violated == 0:
             i_violated = i
+            check_tolerance = True
     elif mass[i - 1] <= mass_goal_ratio * mass_full:  # goal volume achieved
         if not i_violated:
             i_violated = i  # to start decaying
+            check_tolerance = True
     else:
         mass_goal_i = mass_goal_ratio * mass_full
 
@@ -345,27 +370,40 @@ while True:
     elm_states_last = elm_states.copy()
 
     # filtering state
-    if filter_on_state in ["erode", "dilate", "open", "close", "open-close", "close-open", "combine"]:
-        # the same filter as for sensitivity numbers
-        elm_states_filtered = beso_lib.filter_run_morphology(elm_states, near_elm, opt_domains, filter_on_state)
-        # compute mass difference
-        for dn in domains_from_config:
-            if domain_optimized[dn] is True:
-                for en in domain_shells[dn]:
-                    if elm_states[en] != elm_states_filtered[en]:
-                        mass[i] += area_elm[en] * (
-                            domain_density[dn][elm_states_filtered[en]] * domain_thickness[dn][elm_states_filtered[en]]
-                            - domain_density[dn][elm_states[en]] * domain_thickness[dn][elm_states[en]])
-                        elm_states[en] = elm_states_filtered[en]
-                for en in domain_volumes[dn]:
-                    if elm_states[en] != elm_states_filtered[en]:
-                        mass[i] += volume_elm[en] * (
-                            domain_density[dn][elm_states_filtered[en]] - domain_density[dn][elm_states[en]])
-                        elm_states[en] = elm_states_filtered[en]
+    for ft in filter_list:
+        if len(ft) == 2:
+            domains_to_filter = list(opt_domains)
+        else:
+            domains_to_filter = []
+            for dn in ft[2:]:
+                domains_to_filter += domains[dn]
+
+        if ft[0].split()[0] in ["erode", "dilate", "open", "close", "open-close", "close-open", "combine"]:
+            if ft[0].split()[1] == "state":
+                # the same filter as for sensitivity numbers
+                elm_states_filtered = beso_filters.run_morphology(elm_states, near_elm, opt_domains, ft[0].split()[0])
+                # compute mass difference
+                for dn in domains_from_config:
+                    if domain_optimized[dn] is True:
+                        for en in domain_shells[dn]:
+                            if elm_states[en] != elm_states_filtered[en]:
+                                mass[i] += area_elm[en] * (
+                                    domain_density[dn][elm_states_filtered[en]] * domain_thickness[dn][
+                                                                                                elm_states_filtered[en]]
+                                    - domain_density[dn][elm_states[en]] * domain_thickness[dn][elm_states[en]])
+                                elm_states[en] = elm_states_filtered[en]
+                        for en in domain_volumes[dn]:
+                            if elm_states[en] != elm_states_filtered[en]:
+                                mass[i] += volume_elm[en] * (
+                                    domain_density[dn][elm_states_filtered[en]] - domain_density[dn][elm_states[en]])
+                                elm_states[en] = elm_states_filtered[en]
     print("mass = {}" .format(mass[i]))
 
 # export the resulting mesh
-beso_lib.export_frd(file_name, nodes, Elements, elm_states, number_of_states)
+if "frd" in save_iteration_format:
+    beso_lib.export_frd(file_name, nodes, Elements, elm_states, number_of_states)
+if "inp" in save_iteration_format:
+    beso_lib.export_inp(file_name, nodes, Elements, elm_states, number_of_states)
 
 msg = "\n"
 msg += ("Finish at                          " + time.ctime() + "\n")
@@ -406,10 +444,12 @@ plt.savefig("FI_violated", dpi=100)
 
 # plot mean failure index
 plt.figure(3)
-plt.plot(range(i+1), FI_mean, label="mean")
+plt.plot(range(i+1), FI_mean, label="all")
+plt.plot(range(i+1), FI_mean_without_state0, label="without state 0")
 plt.title("Mean Failure Index weighted by element mass")
 plt.xlabel("Iteration")
 plt.ylabel("FI_mean")
+plt.legend(loc = 2, fontsize=10)
 plt.grid()
 plt.savefig("FI_mean", dpi=100)
 
