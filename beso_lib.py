@@ -199,25 +199,25 @@ def import_inp(file_name, domains_from_config, domain_optimized):
 
     # only elements in domains_from_config are stored, the rest is discarded
     keys = set(en_all).intersection(set(all_tria3.keys()))
-    Elements.tria3 = {k: all_tria3[k] for k in keys}
+    Elements.tria3 = dict([(k, all_tria3[k]) for k in keys])
     keys = set(en_all).intersection(set(all_tria6.keys()))
-    Elements.tria6 = {k: all_tria6[k] for k in keys}
+    Elements.tria6 = dict([(k, all_tria6[k]) for k in keys])
     keys = set(en_all).intersection(set(all_quad4.keys()))
-    Elements.quad4 = {k: all_quad4[k] for k in keys}
+    Elements.quad4 = dict([(k, all_quad4[k]) for k in keys])
     keys = set(en_all).intersection(set(all_quad8.keys()))
-    Elements.quad8 = {k: all_quad8[k] for k in keys}
+    Elements.quad8 = dict([(k, all_quad8[k]) for k in keys])
     keys = set(en_all).intersection(set(all_tetra4.keys()))
-    Elements.tetra4 = {k: all_tetra4[k] for k in keys}
+    Elements.tetra4 = dict([(k, all_tetra4[k]) for k in keys])
     keys = set(en_all).intersection(set(all_tetra10.keys()))
-    Elements.tetra10 = {k: all_tetra10[k] for k in keys}
+    Elements.tetra10 = dict([(k, all_tetra10[k]) for k in keys])
     keys = set(en_all).intersection(set(all_hexa8.keys()))
-    Elements.hexa8 = {k: all_hexa8[k] for k in keys}
+    Elements.hexa8 = dict([(k, all_hexa8[k]) for k in keys])
     keys = set(en_all).intersection(set(all_hexa20.keys()))
-    Elements.hexa20 = {k: all_hexa20[k] for k in keys}
+    Elements.hexa20 = dict([(k, all_hexa20[k]) for k in keys])
     keys = set(en_all).intersection(set(all_penta6.keys()))
-    Elements.penta6 = {k: all_penta6[k] for k in keys}
+    Elements.penta6 = dict([(k, all_penta6[k]) for k in keys])
     keys = set(en_all).intersection(set(all_penta15.keys()))
-    Elements.penta15 = {k: all_penta15[k] for k in keys}
+    Elements.penta15 = dict([(k, all_penta15[k]) for k in keys])
     en_all = list(Elements.tria3.keys()) + list(Elements.tria6.keys()) + list(Elements.quad4.keys()) + \
              list(Elements.quad8.keys()) + list(Elements.tetra4.keys()) + list(Elements.tetra10.keys()) + \
              list(Elements.hexa8.keys()) + list(Elements.hexa20.keys()) + list(Elements.penta6.keys()) + \

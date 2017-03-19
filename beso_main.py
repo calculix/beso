@@ -130,7 +130,8 @@ for dn in domains_from_config:
         for en in domain_volumes[dn]:
             mass[0] += domain_density[dn][elm_states[en]] * volume_elm[en]
             mass_full += domain_density[dn][len(domain_density[dn]) - 1] * volume_elm[en]
-print("initial optimization domains mass {}" .format(mass[0]))
+print("initial optimization domains mass " + str(mass[0]))
+
 
 # preparing parameters for filtering sensitivity numbers
 weight_factor2 = {}
@@ -296,8 +297,8 @@ while True:
                     mass_without_state0 += mass_elm
     FI_mean.append(FI_mean_sum / mass[i])
     FI_mean_without_state0.append(FI_mean_sum_without_state0 / mass_without_state0)
-    print("FI_mean                = {}" .format(FI_mean[i]))
-    print("FI_mean_without_state0 = {}".format(FI_mean_without_state0[i]))
+    print("FI_mean                = " + str(FI_mean[i]))
+    print("FI_mean_without_state0 = " + str(FI_mean_without_state0[i]))
 
     # writing log table row
     msg = str(i).rjust(9, " ") + ", " + str(mass[i]).rjust(17, " ") + ", " + str(FI_violated[i][0]).rjust(13, " ")
@@ -305,7 +306,7 @@ while True:
         msg += ", " + str(FI_violated[i][dno + 1]).rjust(3, " ")
     if len(domains_from_config) > 1:
         msg += ", " + str(sum(FI_violated[i])).rjust(3, " ")
-    msg += ", " + str(FI_mean[i]).rjust(17, " ") + " " + str(FI_mean[i]).rjust(18, " ")
+    msg += ", " + str(FI_mean[i]).rjust(17, " ") + " " + str(FI_mean_without_state0[i]).rjust(18, " ")
     for dn in domains_from_config:
         msg += ", " + str(FI_max[i][dn]).rjust(17, " ")
     if len(domains_from_config) > 1:
@@ -320,7 +321,7 @@ while True:
             difference_last.append(abs(FI_mean[i] - FI_mean[i-last]) / FI_mean[i])
         difference = max(difference_last)
         if check_tolerance is True:
-            print("maximum relative difference in FI_mean for the last 5 iterations = {}" .format(difference))
+            print("maximum relative difference in FI_mean for the last 5 iterations = " + str(difference))
         if difference < tolerance:
             continue_iterations = False
         elif FI_mean[i] == FI_mean[i-1] == FI_mean[i-2]:
@@ -397,7 +398,7 @@ while True:
                                 mass[i] += volume_elm[en] * (
                                     domain_density[dn][elm_states_filtered[en]] - domain_density[dn][elm_states[en]])
                                 elm_states[en] = elm_states_filtered[en]
-    print("mass = {}" .format(mass[i]))
+    print("mass = " +str(mass[i]))
 
 # export the resulting mesh
 if "frd" in save_iteration_format:
