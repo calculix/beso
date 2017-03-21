@@ -34,6 +34,7 @@ same_state = None
 max_or_average = None
 mass_addition_ratio = None
 mass_removal_ratio = None
+ratio_type = None
 sensitivity_averaging = None
 iterations_limit = None
 tolerance = None
@@ -86,6 +87,7 @@ msg += ("decay_coefficient       = %s\n" % decay_coefficient)
 msg += ("same_state              = %s\n" % same_state)
 msg += ("mass_addition_ratio     = %s\n" % mass_addition_ratio)
 msg += ("mass_removal_ratio      = %s\n" % mass_removal_ratio)
+msg += ("ratio_type              = %s\n" % ratio_type)
 msg += ("sensitivity_averaging   = %s\n" % sensitivity_averaging)
 msg += ("iterations_limit        = %s\n" % iterations_limit)
 msg += ("tolerance               = %s\n" % tolerance)
@@ -162,12 +164,12 @@ dorder = 0
 for dn in domains_from_config:
     msg += str(dorder) + ") " + dn + "\n"
     dorder += 1
-msg += "\niteration,              mass, FI_violated 0)"
+msg += "\niteration              mass FI_violated_0)"
 for dno in range(len(domains_from_config) - 1):
     msg += (" " + str(dno + 1)).rjust(4, " ") + ")"
 if len(domains_from_config) > 1:
     msg += "  all)"
-msg += ",          FI_mean   _without_state0,     FI_max     0)"
+msg += "          FI_mean    _without_state0         FI_max 0)"
 for dno in range(len(domains_from_config) - 1):
     msg += str(dno + 1).rjust(18, " ") + ")"
 if len(domains_from_config) > 1:
@@ -300,16 +302,16 @@ while True:
     print("FI_mean_without_state0 = {}".format(FI_mean_without_state0[i]))
 
     # writing log table row
-    msg = str(i).rjust(9, " ") + ", " + str(mass[i]).rjust(17, " ") + ", " + str(FI_violated[i][0]).rjust(13, " ")
+    msg = str(i).rjust(9, " ") + " " + str(mass[i]).rjust(17, " ") + " " + str(FI_violated[i][0]).rjust(13, " ")
     for dno in range(len(domains_from_config) - 1):
-        msg += ", " + str(FI_violated[i][dno + 1]).rjust(3, " ")
+        msg += " " + str(FI_violated[i][dno + 1]).rjust(3, " ")
     if len(domains_from_config) > 1:
-        msg += ", " + str(sum(FI_violated[i])).rjust(3, " ")
-    msg += ", " + str(FI_mean[i]).rjust(17, " ") + " " + str(FI_mean[i]).rjust(18, " ")
+        msg += " " + str(sum(FI_violated[i])).rjust(3, " ")
+    msg += " " + str(FI_mean[i]).rjust(17, " ") + " " + str(FI_mean_without_state0[i]).rjust(18, " ")
     for dn in domains_from_config:
-        msg += ", " + str(FI_max[i][dn]).rjust(17, " ")
+        msg += " " + str(FI_max[i][dn]).rjust(17, " ")
     if len(domains_from_config) > 1:
-        msg += ", " + str(max(FI_max[i])).rjust(17, " ")
+        msg += " " + str(max(FI_max[i])).rjust(17, " ")
     msg += "\n"
     beso_lib.write_to_log(file_name, msg)
 
@@ -338,7 +340,7 @@ while True:
             if "inp" in save_iteration_format:
                 beso_lib.export_inp("file" + str(i), nodes, Elements, elm_states, number_of_states)
     i += 1  # iteration number
-    print("----------- new iteration number %d ----------" % i)
+    print("\n----------- new iteration number %d ----------" % i)
 
     # check for number of violated elements
     if sum(FI_violated[i - 1]) > sum(FI_violated[0]) + FI_violated_tolerance:
@@ -354,9 +356,13 @@ while True:
         mass_goal_i = mass_goal_ratio * mass_full
 
     # switch element states
+    if ratio_type == "absolute":
+        mass_referential = mass_full
+    elif ratio_type == "relative":
+        mass_referential = mass[i - 1]
     [elm_states, mass] = beso_lib.switching(elm_states, domains_from_config, domain_optimized, domains, FI_step_max,
                                             domain_density, domain_thickness, domain_shells, area_elm, volume_elm,
-                                            sensitivity_number, mass, mass_full, mass_addition_ratio,
+                                            sensitivity_number, mass, mass_referential, mass_addition_ratio,
                                             mass_removal_ratio, decay_coefficient, FI_violated, i_violated, i,
                                             mass_goal_i)
 

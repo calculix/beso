@@ -14,7 +14,7 @@ file_name = "Fusion_Mesh.inp"  # file with prepared linear static analysis
 
 elset_name = "SolidMaterialShellThickness"  # string with name of the element set in .inp file
 domain_optimized[elset_name] = True  # True - optimized domain, False - elements will not be removed
-domain_density[elset_name] = [7.9e-15, 7.9e-9]  # equivalent density of the domain material for states of switch_elm
+domain_density[elset_name] = [1e-6, 1]  # equivalent density of the domain material for states of switch_elm
 domain_thickness[elset_name] = [1.0, 1.0]  # thickness of shell elements for states of switch_elm
 domain_offset[elset_name] = 0.0  # offset of shell elements
 domain_FI[elset_name] = [[("stress_von_Mises", 450.0)],  # inner tuples () for separate Failure indices
@@ -86,6 +86,7 @@ sensitivity_averaging = True  # True - averaging sensitivity numbers with previo
 
 mass_addition_ratio = 0.01  # mass to be added in each iteration
 mass_removal_ratio = 0.03  # mass to be removed in each iteration
+ratio_type = "relative"  # "relative" - ratios of actual mass, "absolute" - ratios of maximal mass
 
 iterations_limit = 0  # 0 - automatic estimate, <integer> - the maximum allowable number of iterations
 tolerance = 1e-3  # the maximum relative difference in mean stress in optimization domains between the last 5 iterations needed to finish

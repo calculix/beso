@@ -558,7 +558,7 @@ def import_FI(max_or_average, file_nameW, domains, criteria, domain_FI, file_nam
 
 # function for switch element states
 def switching(elm_states, domains_from_config, domain_optimized, domains, FI_step_max, domain_density, domain_thickness,
-              domain_shells, area_elm, volume_elm, sensitivity_number, mass, mass_full, mass_addition_ratio,
+              domain_shells, area_elm, volume_elm, sensitivity_number, mass, mass_referential, mass_addition_ratio,
               mass_removal_ratio, decay_coefficient, FI_violated, i_violated, i, mass_goal_i):
     mass_increase = {}
     mass_decrease = {}
@@ -615,16 +615,16 @@ def switching(elm_states, domains_from_config, domain_optimized, domains, FI_ste
     sensitivity_number_sorted = sorted(sensitivity_number_opt.items(), key=operator.itemgetter(1))
     sensitivity_number_sorted2 = list(sensitivity_number_sorted)
     if i_violated:
-        mass_to_add = mass_addition_ratio * mass_full * np.exp(decay_coefficient * (i - i_violated))
+        mass_to_add = mass_addition_ratio * mass_referential * np.exp(decay_coefficient * (i - i_violated))
         if sum(FI_violated[i - 1]):
-            mass_to_remove = mass_addition_ratio * mass_full * np.exp(decay_coefficient * (i - i_violated)) \
+            mass_to_remove = mass_addition_ratio * mass_referential * np.exp(decay_coefficient * (i - i_violated)) \
                              - mass_overloaded
         else:
-            mass_to_remove = mass_removal_ratio * mass_full * np.exp(decay_coefficient * (i - i_violated)) \
+            mass_to_remove = mass_removal_ratio * mass_referential * np.exp(decay_coefficient * (i - i_violated)) \
                              - mass_overloaded
     else:
-        mass_to_add = mass_addition_ratio * mass_full
-        mass_to_remove = mass_removal_ratio * mass_full
+        mass_to_add = mass_addition_ratio * mass_referential
+        mass_to_remove = mass_removal_ratio * mass_referential
     mass_added = mass_overloaded
     mass_removed = 0.0
     # if mass_goal_i < mass[i - 1]:  # going from bigger mass to lower
