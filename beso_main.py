@@ -9,6 +9,7 @@ import subprocess
 import time
 import beso_lib
 import beso_filters
+import beso_separate
 plt.close("all")
 start_time = time.time()
 
@@ -30,7 +31,8 @@ filter_on_sensitivity = None
 cpu_cores = None
 FI_violated_tolerance = None
 decay_coefficient = None
-max_or_average = None
+reference_points = None
+reference_value = None
 mass_addition_ratio = None
 mass_removal_ratio = None
 ratio_type = None
@@ -91,6 +93,8 @@ msg += ("filter_on_sensitivity   = %s\n" % filter_on_sensitivity)
 msg += ("cpu_cores               = %s\n" % cpu_cores)
 msg += ("FI_violated_tolerance   = %s\n" % FI_violated_tolerance)
 msg += ("decay_coefficient       = %s\n" % decay_coefficient)
+msg += ("reference_points        = %s\n" % reference_points)
+msg += ("reference_value         = %s\n" % reference_value)
 msg += ("mass_addition_ratio     = %s\n" % mass_addition_ratio)
 msg += ("mass_removal_ratio      = %s\n" % mass_removal_ratio)
 msg += ("ratio_type              = %s\n" % ratio_type)
@@ -115,7 +119,6 @@ for dn in domains_from_config:  # distinguishing shell elements and volume eleme
                                                        list(Elements.penta6.keys()) + list(Elements.penta15.keys()))
 
 elm_states = {}  # initial element state
-
 if continue_from[-4:] == ".frd":
     elm_states = beso_lib.import_frd_state(continue_from, elm_states, number_of_states, file_name)
 elif continue_from[-4:] == ".inp":
@@ -165,6 +168,10 @@ if filter_on_sensitivity == "over nodes":
 elif filter_on_sensitivity == "over points":
     [weight_factor3, near_elm3, near_points] = beso_filters.prepare3(file_name, cg, cg_min, r_min, opt_domains)
 
+# separating elements for reading nodal input
+if reference_points == "nodes":
+    beso_separate.separating(file_name, nodes)
+
 # writing log table header
 msg = "\n"
 msg += "domain order: \n"
@@ -204,13 +211,18 @@ while True:
     file_nameW = "file" + str(i).zfill(3)
     beso_lib.write_inp(file_name, file_nameW, elm_states, number_of_states, domains, domains_from_config,
                        domain_optimized, domain_thickness, domain_offset, domain_material, domain_volumes,
-                       domain_shells, plane_strain, plane_stress, axisymmetry, save_iteration_results, i)
+                       domain_shells, plane_strain, plane_stress, axisymmetry, save_iteration_results, i,
+                       reference_points)
     # running CalculiX analysis
     subprocess.call(os.path.normpath(path_calculix) + " " + os.path.join(path, file_nameW), shell=True)
 
-    # reading .dat results and computing failure inceces
-    FI_step = beso_lib.import_FI(max_or_average, file_nameW+".dat", domains, criteria, domain_FI, file_name, elm_states,
-                                 domains_from_config)
+    # reading results and computing failure indeces
+    if reference_points == "integration points":  # from .dat file
+        FI_step = beso_lib.import_FI_int_pt(reference_value, file_nameW, domains, criteria, domain_FI, file_name,
+                                            elm_states, domains_from_config)
+    elif reference_points == "nodes":  # from .frd file
+        FI_step = beso_lib.import_FI_node(reference_value, file_nameW, domains, criteria, domain_FI, file_name,
+                                          elm_states)
     os.remove(file_nameW + ".inp")
     if not save_iteration_results or np.mod(float(i - 1), save_iteration_results) != 0:
         os.remove(file_nameW + ".dat")
@@ -425,6 +437,9 @@ if "frd" in save_iteration_format:
     beso_lib.export_frd(file_name, nodes, Elements, elm_states, number_of_states)
 if "inp" in save_iteration_format:
     beso_lib.export_inp(file_name, nodes, Elements, elm_states, number_of_states)
+
+if reference_points == "nodes":
+    os.remove(file_name[:-4] + "_separated.inp")
 
 msg = "\n"
 msg += ("Finish at                          " + time.ctime() + "\n")

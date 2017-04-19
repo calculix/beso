@@ -402,16 +402,12 @@ def elm_volume_cg(file_name, nodes, Elements):
 # elm_states is a dict of the elements containing 0 for void element or 1 for full element
 def write_inp(file_name, file_nameW, elm_states, number_of_states, domains, domains_from_config, domain_optimized,
               domain_thickness, domain_offset, domain_material, domain_volumes, domain_shells, plane_strain,
-              plane_stress, axisymmetry, save_iteration_results, i):
-    fR = open(file_name, "r")
+              plane_stress, axisymmetry, save_iteration_results, i, reference_points):
+    if reference_points == "nodes":
+        fR = open(file_name[:-4] + "_separated.inp", "r")
+    else:
+        fR = open(file_name, "r")
     fW = open(file_nameW + ".inp", "w")
-    elsets_done = 0
-    sections_done = 0
-    outputs_done = 1
-    commenting = False
-    elset_new = {}
-    elsets_used = {}
-    msg_error = ""
 
     # function for writing ELSETs of each state
     def write_elset():
@@ -441,6 +437,13 @@ def write_inp(file_name, file_nameW, elm_states, number_of_states, domains, doma
                         fW.write("\n")
         fW.write(" \n")
 
+    elsets_done = 0
+    sections_done = 0
+    outputs_done = 1
+    commenting = False
+    elset_new = {}
+    elsets_used = {}
+    msg_error = ""
     for line in fR:
         if line[0] == "*":
             commenting = False
@@ -499,8 +502,12 @@ def write_inp(file_name, file_nameW, elm_states, number_of_states, domains, doma
                         line[0:9].upper() == "*EL PRINT" or line[0:14].upper() == "*CONTACT PRINT":
             if outputs_done < 1:
                 fW.write(" \n")
-                for dn in domains_from_config:
-                    fW.write("*EL PRINT, " + "ELSET=" + dn + "\n")
+                if reference_points == "integration points":
+                    for dn in domains_from_config:
+                        fW.write("*EL PRINT, " + "ELSET=" + dn + "\n")
+                        fW.write("S\n")
+                elif reference_points == "nodes":
+                    fW.write("*EL FILE\n")
                     fW.write("S\n")
                 fW.write(" \n")
                 outputs_done += 1
@@ -517,17 +524,18 @@ def write_inp(file_name, file_nameW, elm_states, number_of_states, domains, doma
 
 
 # function for importing results from .dat file
-# Failure Indices are computed at each integration point and maximum or average above each element is yielded
-def import_FI(max_or_average, file_nameW, domains, criteria, domain_FI, file_name, elm_states, domains_from_config):
+# Failure Indices are computed at each integration point and maximum or average above each element is returned
+def import_FI_int_pt(reference_value, file_nameW, domains, criteria, domain_FI, file_name, elm_states,
+                     domains_from_config):
     try:
-        f = open(file_nameW, "r")
+        f = open(file_nameW + ".dat", "r")
     except IOError:
         msg = "CalculiX results not found, check your inputs"
         write_to_log(file_name, "ERROR: " + msg + "\n")
         assert False, msg
     last_time = "initial"  # TODO solve how to read a new step which differs in time
     step_number = -1
-    FI_step_template = {}  # {en1: numbers of applied critera, en2: [], ...}
+    criteria_elm = {}  # {en1: numbers of applied criteria, en2: [], ...}
     FI_step = []  # list for steps - [{en1: list for criteria FI, en2: [], ...}, {en1: [], en2: [], ...}, next step]
 
     # prepare FI dict from failure criteria
@@ -536,7 +544,7 @@ def import_FI(max_or_average, file_nameW, domains, criteria, domain_FI, file_nam
             cr = []
             for dn_crit in domain_FI[dn][elm_states[en]]:
                 cr.append(criteria.index(dn_crit))
-            FI_step_template[en] = cr
+            criteria_elm[en] = cr
 
     def compute_FI():  # for the actual integration point
         sxx = float(line_split[2])
@@ -545,22 +553,25 @@ def import_FI(max_or_average, file_nameW, domains, criteria, domain_FI, file_nam
         sxy = float(line_split[5])
         sxz = float(line_split[6])
         syz = float(line_split[7])
-        for FIn in FI_step_template[en]:
+        syx = sxy
+        szx = sxz
+        szy = syz
+        for FIn in criteria_elm[en]:
             if criteria[FIn][0] == "stress_von_Mises":
                 s_allowable = criteria[FIn][1]
                 FI_int_pt[FIn].append(np.sqrt(0.5 * ((sxx - syy) ** 2 + (syy - szz) ** 2 + (szz - sxx) ** 2 +
                                                      6 * (sxy ** 2 + syz ** 2 + sxz ** 2))) / s_allowable)
             elif criteria[FIn][0] == "user_def":
-                FI_int_pt[FIn].append(eval(criteria[FIn][0]))
+                FI_int_pt[FIn].append(eval(criteria[FIn][1]))
 
     def save_FI():
         FI_step[step_number][en_last] = []
         for FIn in range(len(criteria)):
             FI_step[step_number][en_last].append(None)
-            if FIn in FI_step_template[en_last]:
-                if max_or_average == "max":
+            if FIn in criteria_elm[en_last]:
+                if reference_value == "max":
                     FI_step[step_number][en_last][FIn] = max(FI_int_pt[FIn])
-                elif max_or_average == "average":
+                elif reference_value == "average":
                     FI_step[step_number][en_last][FIn] = np.average(FI_int_pt[FIn])
 
     read_stresses = 0
@@ -589,6 +600,109 @@ def import_FI(max_or_average, file_nameW, domains, criteria, domain_FI, file_nam
             compute_FI()
     if read_stresses == 1:
         save_FI()
+    f.close()
+    return FI_step
+
+
+# function for importing results from .frd file
+# Failure Indices are computed at each node and maximum or average above each element is returned
+def import_FI_node(reference_value, file_nameW, domains, criteria, domain_FI, file_name, elm_states):
+    try:
+        f = open(file_nameW + ".frd", "r")
+    except IOError:
+        msg = "CalculiX results not found, check your inputs"
+        write_to_log(file_name, "ERROR: " + msg + "\n")
+        assert False, msg
+
+    # prepare ordered elements of interest and failure criteria for each element
+    criteria_elm = {}
+    for dn in domain_FI:
+        for en in domains[dn]:
+            cr = []
+            for dn_crit in domain_FI[dn][elm_states[en]]:
+                cr.append(criteria.index(dn_crit))
+            criteria_elm[en] = cr
+    sorted_elements = sorted(criteria_elm.keys())  # [en_lowest, ..., en_highest]
+
+    read_mesh = False
+    frd_nodes = {}  # en associated to given node
+    elm_nodes = {}
+    for en in sorted_elements:
+        elm_nodes[en] = []
+    read_stress = False
+    FI_step = []  # list for steps - [{en1: list for criteria FI, en2: [], ...}, {en1: [], en2: [], ...}, next step]
+    for line in f:
+        # reading mesh
+        if line[:6] == "    3C":
+            read_mesh = True
+        elif read_mesh is True:
+            if line[:3] == " -1":
+                en = int(line[3:13])
+                if en == sorted_elements[0]:
+                    sorted_elements.pop(0)
+                    read_elm_nodes = True
+                else:
+                    read_elm_nodes = False
+            elif line[:3] == " -2" and read_elm_nodes is True:
+                associated_nn = list(map(int, line.split()[1:]))
+                elm_nodes[en] += associated_nn
+                for nn in associated_nn:
+                    frd_nodes[nn] = en
+
+        # block end
+        if line[:3] == " -3":
+            if read_mesh is True:
+                read_mesh = False
+                frd_nodes_sorted = sorted(frd_nodes.items())  # [(nn, en), ...]
+            elif read_stress is True:
+                read_stress = False
+                FI_elm = {}
+                for en in elm_nodes:
+                    FI_elm[en] = [[]] * len(criteria)
+                    for FIn in criteria_elm[en]:
+                        for nn in elm_nodes[en]:
+                            FI_elm[en][FIn].append(FI_node[nn][FIn])
+                FI_step.append({})
+                for en in FI_elm:
+                    sn = -1  # last step number
+                    FI_step[sn][en] = []
+                    for FIn in range(len(criteria)):
+                        FI_step[sn][en].append(None)
+                        if FIn in criteria_elm[en]:
+                            if reference_value == "max":
+                                FI_step[sn][en][FIn] = max(FI_elm[en][FIn])
+                            elif reference_value == "average":
+                                FI_step[sn][en][FIn] = np.average(FI_elm[en][FIn])
+
+        # reading stresses
+        elif line[:11] == " -4  STRESS":
+            read_stress = True
+            FI_node = {}
+            for nn in frd_nodes:
+                FI_node[nn] = [[]] * len(criteria)
+            next_node = 0
+        elif read_stress is True:
+            if line[:3] == " -1":
+                nn = int(line[3:13])
+                if nn == frd_nodes_sorted[next_node][0]:
+                    next_node += 1
+                    sxx = float(line[13:25])
+                    syy = float(line[25:37])
+                    szz = float(line[37:49])
+                    sxy = float(line[49:61])
+                    syz = float(line[61:73])
+                    szx = float(line[73:85])
+                    syx = sxy
+                    szy = syz
+                    sxz = szx
+                    en = frd_nodes[nn]
+                    for FIn in criteria_elm[en]:
+                        if criteria[FIn][0] == "stress_von_Mises":
+                            s_allowable = criteria[FIn][1]
+                            FI_node[nn][FIn] = np.sqrt(0.5 * ((sxx - syy) ** 2 + (syy - szz) ** 2 + (szz - sxx) ** 2 +
+                                                                 6 * (sxy ** 2 + syz ** 2 + sxz ** 2))) / s_allowable
+                        elif criteria[FIn][0] == "user_def":
+                            FI_node[nn][FIn] = eval(criteria[FIn][1])
     f.close()
     return FI_step
 
@@ -917,3 +1031,4 @@ def import_inp_state(continue_from, elm_states, number_of_states, file_name):
                     pass
         f.close()
     return elm_states
+
