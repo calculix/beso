@@ -65,8 +65,8 @@ filter_list = [["close sensitivity", 1.5]]  # [[filter type, range, domains or n
 # deprecated filter functions, which work only on all optimization domains together, and work on sensitivity numbers
 r_min = 2.0  # radius for filter_on_sensitivity
 filter_on_sensitivity = 0  # 0 - do not use this filter,
-                # "over nodes" - filter with step over nodes (suffer from boundary sticking?, 2nd order elements need more memory)
-                # "over points" - filter with step over own point mesh (broken?)
+                           # "over nodes" - filter with step over nodes (suffer from boundary sticking?, 2nd order elements need more memory)
+                           # "over points" - filter with step over own point mesh (broken?)
 
 # ADVANCED INPUTS:
 
@@ -74,11 +74,9 @@ cpu_cores = 0  # 0 - use all processor cores, N - will use N number of processor
 
 FI_violated_tolerance = 1  # 0 - do not freeze mass due to high FI,
                            # <positive integer N> - freeze mass if there is N more elements with FI > 1 which cannot be swiched up
-decay_coefficient = -0.2  # exponential decay coefficient to dump mass_additive_ratio and mass_removal_ratio after freezing mass
-                           # exp(-0.22 x) ~ 0.1 x
+decay_coefficient = -0.2  # exponential decay coefficient to dump mass_additive_ratio and mass_removal_ratio after freezing mass, because
+                           # exp(-0.22 x) ~ drops after 10 iterations to 0.1
                            # exp(0 x) = x
-
-##same_state = []  # list of domains which are forced to have same element state over the whole domain (each separately)
 
 max_or_average = "max"  # "max" - maximal value from all int. pt.,
                         # "average" - average value from all int. pt. (do not use for shell elements in bending)
