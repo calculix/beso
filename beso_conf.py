@@ -78,6 +78,8 @@ decay_coefficient = -0.2  # exponential decay coefficient to dump mass_additive_
                            # exp(-0.22 * x) ~ drops after 10 iterations to 0.1
                            # exp(0 * x) ~ no decaying
 
+shells_as_composite = True  # True - use more integration points to catch bending stresses (ccx 2.12 WILL FAIL for other than S4R and S6 shell elements)
+                            # False - use ordinary shell section
 reference_points = "integration points"  # "integration points" - read int. pt values from .dat file,
                                          # "nodes" - optimization will read nodal values from .inp file (model MUST NOT contain shell or beam elements)
 reference_value = "max"  # "max" - maximal value on element,

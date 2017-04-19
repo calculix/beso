@@ -31,6 +31,7 @@ filter_on_sensitivity = None
 cpu_cores = None
 FI_violated_tolerance = None
 decay_coefficient = None
+shells_as_composite = None
 reference_points = None
 reference_value = None
 mass_addition_ratio = None
@@ -93,6 +94,7 @@ msg += ("filter_on_sensitivity   = %s\n" % filter_on_sensitivity)
 msg += ("cpu_cores               = %s\n" % cpu_cores)
 msg += ("FI_violated_tolerance   = %s\n" % FI_violated_tolerance)
 msg += ("decay_coefficient       = %s\n" % decay_coefficient)
+msg += ("shells_as_composite     = %s\n" % shells_as_composite)
 msg += ("reference_points        = %s\n" % reference_points)
 msg += ("reference_value         = %s\n" % reference_value)
 msg += ("mass_addition_ratio     = %s\n" % mass_addition_ratio)
@@ -213,7 +215,7 @@ while True:
     beso_lib.write_inp(file_name, file_nameW, elm_states, number_of_states, domains, domains_from_config,
                        domain_optimized, domain_thickness, domain_offset, domain_material, domain_volumes,
                        domain_shells, plane_strain, plane_stress, axisymmetry, save_iteration_results, i,
-                       reference_points)
+                       reference_points, shells_as_composite)
     # running CalculiX analysis
     subprocess.call(os.path.normpath(path_calculix) + " " + os.path.join(path, file_nameW), shell=True)
 
