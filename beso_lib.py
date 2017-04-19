@@ -402,7 +402,7 @@ def elm_volume_cg(file_name, nodes, Elements):
 # elm_states is a dict of the elements containing 0 for void element or 1 for full element
 def write_inp(file_name, file_nameW, elm_states, number_of_states, domains, domains_from_config, domain_optimized,
               domain_thickness, domain_offset, domain_material, domain_volumes, domain_shells, plane_strain,
-              plane_stress, axisymmetry, save_iteration_results, i, reference_points):
+              plane_stress, axisymmetry, save_iteration_results, i, reference_points, shells_as_composite):
     if reference_points == "nodes":
         fR = open(file_name[:-4] + "_separated.inp", "r")
     else:
@@ -483,6 +483,13 @@ def write_inp(file_name, file_nameW, elm_states, number_of_states, domains, doma
                             fW.write("*SOLID SECTION, ELSET=" + dn + str(sn) + ", MATERIAL=" + dn + str(sn) + "\n")
                         elif axisymmetry.intersection(domain_shells[dn]):
                             msg_error = dn + " domain does not contain only axisymmetry types for 2D elements"
+                        elif shells_as_composite is True:
+                            fW.write("*SHELL SECTION, ELSET=" + dn + str(sn) + ", OFFSET=" + str(domain_offset[dn]) +
+                                     ", COMPOSITE\n")
+                            # 0.1 + 0.8 + 0.1 of thickness, , material name
+                            fW.write(str(0.1 * domain_thickness[dn][sn]) + ",," + dn + str(sn) + "\n")
+                            fW.write(str(0.8 * domain_thickness[dn][sn]) + ",," + dn + str(sn) + "\n")
+                            fW.write(str(0.1 * domain_thickness[dn][sn]) + ",," + dn + str(sn) + "\n")
                         else:
                             fW.write("*SHELL SECTION, ELSET=" + dn + str(sn) + ", MATERIAL=" + dn + str(sn) +
                                      ", OFFSET=" + str(domain_offset[dn]) + "\n")
