@@ -75,12 +75,14 @@ cpu_cores = 0  # 0 - use all processor cores, N - will use N number of processor
 FI_violated_tolerance = 1  # 0 - do not freeze mass due to high FI,
                            # <positive integer N> - freeze mass if there is N more elements with FI > 1 which cannot be swiched up
 decay_coefficient = -0.2  # exponential decay coefficient to dump mass_additive_ratio and mass_removal_ratio after freezing mass, because
-                           # exp(-0.22 x) ~ drops after 10 iterations to 0.1
-                           # exp(0 x) = x
+                           # exp(-0.22 * x) ~ drops after 10 iterations to 0.1
+                           # exp(0 * x) ~ no decaying
 
-max_or_average = "max"  # "max" - maximal value from all int. pt.,
-                        # "average" - average value from all int. pt. (do not use for shell elements in bending)
-sensitivity_averaging = True  # True - averaging sensitivity numbers with previous iteration, False - do not average
+reference_points = "integration points"  # "integration points" - read int. pt values from .dat file,
+                                         # "nodes" - optimization will read nodal values from .inp file (model MUST NOT contain shell or beam elements)
+reference_value = "max"  # "max" - maximal value on element,
+                        # "average" - average value on element (do not use for bended shell elements)
+sensitivity_averaging = False  # True - averaging sensitivity numbers with previous iteration, False - do not average
 
 mass_addition_ratio = 0.01  # mass to be added in each iteration
 mass_removal_ratio = 0.03  # mass to be removed in each iteration
