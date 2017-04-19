@@ -97,7 +97,8 @@ msg += "\n"
 beso_lib.write_to_log(file_name, msg)
 
 # mesh and domains importing
-[nodes, Elements, domains, opt_domains, en_all] = beso_lib.import_inp(file_name, domains_from_config, domain_optimized)
+[nodes, Elements, domains, opt_domains, en_all, plane_strain, plane_stress, axisymmetry] = beso_lib.import_inp(
+    file_name, domains_from_config, domain_optimized)
 domain_shells = {}
 domain_volumes = {}
 for dn in domains_from_config:  # distinguishing shell elements and volume elements
@@ -196,7 +197,7 @@ while True:
     file_nameW = "file" + str(i).zfill(3)
     beso_lib.write_inp(file_name, file_nameW, elm_states, number_of_states, domains, domains_from_config,
                        domain_optimized, domain_thickness, domain_offset, domain_material, domain_volumes,
-                       save_iteration_results, i)
+                       domain_shells, plane_strain, plane_stress, axisymmetry, save_iteration_results, i)
     # running CalculiX analysis
     subprocess.call(os.path.normpath(path_calculix) + " " + os.path.join(path, file_nameW), shell=True)
 

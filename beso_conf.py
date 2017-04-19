@@ -92,4 +92,4 @@ iterations_limit = 0  # 0 - automatic estimate, <integer> - the maximum allowabl
 tolerance = 1e-3  # the maximum relative difference in mean stress in optimization domains between the last 5 iterations needed to finish
 
 save_iteration_results = 10  # every i-th iteration export a resulting mesh and do not delete .frd and .dat, 0 - do not save
-save_iteration_format = "frd"  # "frd" or "inp" format of resulting meshes (each state separately in own mesh file)
+save_iteration_format = "frd" # "frd" or "inp" format of resulting meshes (each state separately in own mesh file)
