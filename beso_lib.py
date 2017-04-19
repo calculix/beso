@@ -43,6 +43,10 @@ def import_inp(file_name, domains_from_config, domain_optimized):
     elm_category = []
     elm_2nd_line = False
     elset_generate = False
+    special_type = ""  # for plane strain, plane stress, or axisymmetry
+    plane_strain = set()
+    plane_stress = set()
+    axisymmetry = set()
 
     f = open(file_name, "r")
     line = "\n"
@@ -123,6 +127,14 @@ def import_inp(file_name, domains_from_config, domain_optimized):
             elif elm_type == "C3D15":
                 elm_category = all_penta15
                 number_of_nodes = 15
+            if elm_type in ["CPE3", "CPE6", "CPE4", "CPE4R", "CPE8", "CPE8R"]:
+                special_type = "plane strain"
+            elif elm_type in ["CPS3", "CPS6", "CPS4", "CPS4R", "CPS8", "CPS8R"]:
+                special_type = "plane stress"
+            elif elm_type in ["CAX3", "CAX6", "CAX4", "CAX4R", "CAX8", "CAX8R"]:
+                special_type = "axisymmetry"
+            else:
+                special_type = ""
 
         elif elm_category != []:
             line_list = line.split(',')
@@ -135,6 +147,12 @@ def import_inp(file_name, domains_from_config, domain_optimized):
                         domains[current_elset].append(en)
                     except KeyError:
                         domains[current_elset] = [en]
+                if special_type == "plane strain":
+                    plane_strain.add(en)
+                elif special_type == "plane stress":
+                    plane_stress.add(en)
+                elif special_type == "axisymmetry":
+                    axisymmetry.add(en)
             else:
                 pos = 0
                 elm_2nd_line = False
@@ -237,7 +255,7 @@ def import_inp(file_name, domains_from_config, domain_optimized):
         write_to_log(file_name, msg)
         assert False, row
 
-    return nodes, Elements, domains, opt_domains, en_all
+    return nodes, Elements, domains, opt_domains, en_all, plane_strain, plane_stress, axisymmetry
 
 
 # function for computing volumes or area (shell elements) and centres of gravity
@@ -382,9 +400,10 @@ def elm_volume_cg(file_name, nodes, Elements):
 
 # function for copying .inp file with additional elsets, materials, solid and shell sections, different output request
 # elm_states is a dict of the elements containing 0 for void element or 1 for full element
-def write_inp(file_nameR, file_nameW, elm_states, number_of_states, domains, domains_from_config, domain_optimized,
-              domain_thickness, domain_offset, domain_material, domain_volumes, save_iteration_results, i):
-    fR = open(file_nameR, "r")
+def write_inp(file_name, file_nameW, elm_states, number_of_states, domains, domains_from_config, domain_optimized,
+              domain_thickness, domain_offset, domain_material, domain_volumes, domain_shells, plane_strain,
+              plane_stress, axisymmetry, save_iteration_results, i):
+    fR = open(file_name, "r")
     fW = open(file_nameW + ".inp", "w")
     elsets_done = 0
     sections_done = 0
@@ -392,6 +411,7 @@ def write_inp(file_nameR, file_nameW, elm_states, number_of_states, domains, dom
     commenting = False
     elset_new = {}
     elsets_used = {}
+    msg_error = ""
 
     # function for writing ELSETs of each state
     def write_elset():
@@ -446,11 +466,28 @@ def write_inp(file_nameR, file_nameW, elm_states, number_of_states, domains, dom
                         fW.write(domain_material[dn][sn] + "\n\n")
                         if domain_volumes[dn]:
                             fW.write("*SOLID SECTION, ELSET=" + dn + str(sn) + ", MATERIAL=" + dn + str(sn) + "\n")
+                        elif len(plane_strain.intersection(domain_shells[dn])) == len(domain_shells[dn]):
+                            fW.write("*SOLID SECTION, ELSET=" + dn + str(sn) + ", MATERIAL=" + dn + str(sn) + "\n")
+                            fW.write(str(domain_thickness[dn][sn]) + "\n")
+                        elif plane_strain.intersection(domain_shells[dn]):
+                            msg_error = dn + " domain does not contain only plane strain types for 2D elements"
+                        elif len(plane_stress.intersection(domain_shells[dn])) == len(domain_shells[dn]):
+                            fW.write("*SOLID SECTION, ELSET=" + dn + str(sn) + ", MATERIAL=" + dn + str(sn) + "\n")
+                            fW.write(str(domain_thickness[dn][sn]) + "\n")
+                        elif plane_stress.intersection(domain_shells[dn]):
+                            msg_error = dn + " domain does not contain only plane stress types for 2D elements"
+                        elif len(axisymmetry.intersection(domain_shells[dn])) == len(domain_shells[dn]):
+                            fW.write("*SOLID SECTION, ELSET=" + dn + str(sn) + ", MATERIAL=" + dn + str(sn) + "\n")
+                        elif axisymmetry.intersection(domain_shells[dn]):
+                            msg_error = dn + " domain does not contain only axisymmetry types for 2D elements"
                         else:
                             fW.write("*SHELL SECTION, ELSET=" + dn + str(sn) + ", MATERIAL=" + dn + str(sn) +
                                      ", OFFSET=" + str(domain_offset[dn]) + "\n")
                             fW.write(str(domain_thickness[dn][sn]) + "\n")
                         fW.write(" \n")
+                        if msg_error:
+                            write_to_log(file_name, "ERROR: " + msg_error + "\n")
+                            raise Exception(msg_error)
             sections_done = 1
 
         if line[:5].upper() == "*STEP":
