@@ -807,7 +807,7 @@ def export_inp(file_name, nodes, Elements, elm_states, number_of_states):
 
     def write_elements_of_type(elm_type, elm_type_inp):
         if elm_type:
-            f.write("*ELEMENT, TYPE=" + elm_type_inp + "\n")
+            f.write("*ELEMENT, TYPE=" + elm_type_inp + ", ELSET=state" + str(state) + "\n")
             for en, nod in elm_type.items():
                 if elm_states[en] == state:
                     f.write(str(en))

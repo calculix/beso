@@ -30,7 +30,6 @@ filter_on_sensitivity = None
 cpu_cores = None
 FI_violated_tolerance = None
 decay_coefficient = None
-same_state = None
 max_or_average = None
 mass_addition_ratio = None
 mass_removal_ratio = None
@@ -56,7 +55,15 @@ for dn in domains_from_config:
     number_of_states = max(number_of_states, len(domain_density[dn]))
 
 if iterations_limit == 0:  # automatic setting
-    iterations_limit = int((1 - mass_goal_ratio) / abs(mass_removal_ratio - mass_addition_ratio) + 25)
+    if ratio_type == "absolute":
+        iterations_limit = int((1 - mass_goal_ratio) / abs(mass_removal_ratio - mass_addition_ratio) + 25)
+    elif ratio_type == "relative":
+        m = 1
+        it = 0
+        while m > mass_goal_ratio:
+            m -= m * abs(mass_removal_ratio - mass_addition_ratio)
+            it += 1
+        iterations_limit = it + 25
     print("iterations_limit set to %s" % iterations_limit)
 
 # set an environmental variable driving number of cpu cores to be used by CalculiX
@@ -84,7 +91,6 @@ msg += ("filter_on_sensitivity   = %s\n" % filter_on_sensitivity)
 msg += ("cpu_cores               = %s\n" % cpu_cores)
 msg += ("FI_violated_tolerance   = %s\n" % FI_violated_tolerance)
 msg += ("decay_coefficient       = %s\n" % decay_coefficient)
-msg += ("same_state              = %s\n" % same_state)
 msg += ("mass_addition_ratio     = %s\n" % mass_addition_ratio)
 msg += ("mass_removal_ratio      = %s\n" % mass_removal_ratio)
 msg += ("ratio_type              = %s\n" % ratio_type)
@@ -140,18 +146,19 @@ print("initial optimization domains mass " + str(mass[0]))
 weight_factor2 = {}
 near_elm = {}
 for ft in filter_list:
-    f_range = ft[1]
-    if len(ft) == 2:
-        domains_to_filter = list(opt_domains)
-    else:
-        domains_to_filter = []
-        for dn in ft[2:]:
-            domains_to_filter += domains[dn]
-    if ft[0] == "simple":
-        [weight_factor2, near_elm] = beso_filters.prepare2s(cg, cg_min, cg_max, f_range, domains_to_filter,
-                                                            weight_factor2, near_elm)
-    elif ft[0].split()[0] in ["erode", "dilate", "open", "close", "open-close", "close-open", "combine"]:
-        near_elm = beso_filters.prepare_morphology(cg, cg_min, cg_max, f_range, domains_to_filter, near_elm)
+    if ft[0] and ft[1]:
+        f_range = ft[1]
+        if len(ft) == 2:
+            domains_to_filter = list(opt_domains)
+        else:
+            domains_to_filter = []
+            for dn in ft[2:]:
+                domains_to_filter += domains[dn]
+        if ft[0] == "simple":
+            [weight_factor2, near_elm] = beso_filters.prepare2s(cg, cg_min, cg_max, f_range, domains_to_filter,
+                                                                weight_factor2, near_elm)
+        elif ft[0].split()[0] in ["erode", "dilate", "open", "close", "open-close", "close-open", "combine"]:
+            near_elm = beso_filters.prepare_morphology(cg, cg_min, cg_max, f_range, domains_to_filter, near_elm)
 
 if filter_on_sensitivity == "over nodes":
     [weight_factor_node, M, weight_factor_distance, near_nodes] = beso_filters.prepare1s(nodes, Elements, cg, r_min,
@@ -170,12 +177,12 @@ msg += "\niteration              mass FI_violated_0)"
 for dno in range(len(domains_from_config) - 1):
     msg += (" " + str(dno + 1)).rjust(4, " ") + ")"
 if len(domains_from_config) > 1:
-    msg += "  all)"
+    msg += " all)"
 msg += "          FI_mean    _without_state0         FI_max 0)"
 for dno in range(len(domains_from_config) - 1):
-    msg += str(dno + 1).rjust(18, " ") + ")"
+    msg += str(dno + 1).rjust(17, " ") + ")"
 if len(domains_from_config) > 1:
-    msg += "all".rjust(18, " ") + ")"
+    msg += "all".rjust(17, " ") + ")"
 msg += "\n"
 beso_lib.write_to_log(file_name, msg)
 
@@ -248,25 +255,26 @@ while True:
 
     # filtering sensitivity number
     for ft in filter_list:
-        if len(ft) == 2:
-            domains_to_filter = list(opt_domains)
-        else:
-            domains_to_filter = []
-            for dn in ft[2:]:
-                domains_to_filter += domains[dn]
-        if ft[0] == "simple":
-            sensitivity_number = beso_filters.run2(file_name, sensitivity_number, weight_factor2, near_elm,
-                                                   domains_to_filter)
-        elif ft[0].split()[0] in ["erode", "dilate", "open", "close", "open-close", "close-open", "combine"]:
-            if ft[0].split()[1] == "sensitivity":
-                domains_en_in_state = [[]] * number_of_states
-                for en in domains_to_filter:
-                    sn = elm_states[en]
-                    domains_en_in_state[sn].append(en)
-                for sn in range(number_of_states):
-                    if domains_en_in_state[sn]:
-                        sensitivity_number = beso_filters.run_morphology(sensitivity_number, near_elm,
-                                                                         domains_en_in_state[sn], ft[0].split()[0])
+        if ft[0] and ft[1]:
+            if len(ft) == 2:
+                domains_to_filter = list(opt_domains)
+            else:
+                domains_to_filter = []
+                for dn in ft[2:]:
+                    domains_to_filter += domains[dn]
+            if ft[0] == "simple":
+                sensitivity_number = beso_filters.run2(file_name, sensitivity_number, weight_factor2, near_elm,
+                                                       domains_to_filter)
+            elif ft[0].split()[0] in ["erode", "dilate", "open", "close", "open-close", "close-open", "combine"]:
+                if ft[0].split()[1] == "sensitivity":
+                    domains_en_in_state = [[]] * number_of_states
+                    for en in domains_to_filter:
+                        sn = elm_states[en]
+                        domains_en_in_state[sn].append(en)
+                    for sn in range(number_of_states):
+                        if domains_en_in_state[sn]:
+                            sensitivity_number = beso_filters.run_morphology(sensitivity_number, near_elm,
+                                                                             domains_en_in_state[sn], ft[0].split()[0])
     if filter_on_sensitivity == "over nodes":
         sensitivity_number = beso_filters.run1(file_name, sensitivity_number, weight_factor_node, M,
                                                weight_factor_distance, near_nodes, nodes, opt_domains)
@@ -306,9 +314,9 @@ while True:
     # writing log table row
     msg = str(i).rjust(9, " ") + " " + str(mass[i]).rjust(17, " ") + " " + str(FI_violated[i][0]).rjust(13, " ")
     for dno in range(len(domains_from_config) - 1):
-        msg += " " + str(FI_violated[i][dno + 1]).rjust(3, " ")
+        msg += " " + str(FI_violated[i][dno + 1]).rjust(4, " ")
     if len(domains_from_config) > 1:
-        msg += " " + str(sum(FI_violated[i])).rjust(3, " ")
+        msg += " " + str(sum(FI_violated[i])).rjust(4, " ")
     msg += " " + str(FI_mean[i]).rjust(17, " ") + " " + str(FI_mean_without_state0[i]).rjust(18, " ")
     for dn in domains_from_config:
         msg += " " + str(FI_max[i][dn]).rjust(17, " ")
@@ -354,6 +362,11 @@ while True:
         if not i_violated:
             i_violated = i  # to start decaying
             check_tolerance = True
+        try:
+            mass_goal_i
+        except NameError:
+            msg = "ERROR: mass goal is lower than initial mass. Check mass_goal_ratio"
+            beso_lib.write_to_log(file_name, msg + "\n")
     else:
         mass_goal_i = mass_goal_ratio * mass_full
 
@@ -379,33 +392,34 @@ while True:
 
     # filtering state
     for ft in filter_list:
-        if len(ft) == 2:
-            domains_to_filter = list(opt_domains)
-        else:
-            domains_to_filter = []
-            for dn in ft[2:]:
-                domains_to_filter += domains[dn]
+        if ft[0] and ft[1]:
+            if len(ft) == 2:
+                domains_to_filter = list(opt_domains)
+            else:
+                domains_to_filter = []
+                for dn in ft[2:]:
+                    domains_to_filter += domains[dn]
 
-        if ft[0].split()[0] in ["erode", "dilate", "open", "close", "open-close", "close-open", "combine"]:
-            if ft[0].split()[1] == "state":
-                # the same filter as for sensitivity numbers
-                elm_states_filtered = beso_filters.run_morphology(elm_states, near_elm, opt_domains, ft[0].split()[0])
-                # compute mass difference
-                for dn in domains_from_config:
-                    if domain_optimized[dn] is True:
-                        for en in domain_shells[dn]:
-                            if elm_states[en] != elm_states_filtered[en]:
-                                mass[i] += area_elm[en] * (
-                                    domain_density[dn][elm_states_filtered[en]] * domain_thickness[dn][
+            if ft[0].split()[0] in ["erode", "dilate", "open", "close", "open-close", "close-open", "combine"]:
+                if ft[0].split()[1] == "state":
+                    # the same filter as for sensitivity numbers
+                    elm_states_filtered = beso_filters.run_morphology(elm_states, near_elm, opt_domains, ft[0].split()[0])
+                    # compute mass difference
+                    for dn in domains_from_config:
+                        if domain_optimized[dn] is True:
+                            for en in domain_shells[dn]:
+                                if elm_states[en] != elm_states_filtered[en]:
+                                    mass[i] += area_elm[en] * (
+                                        domain_density[dn][elm_states_filtered[en]] * domain_thickness[dn][
                                                                                                 elm_states_filtered[en]]
-                                    - domain_density[dn][elm_states[en]] * domain_thickness[dn][elm_states[en]])
-                                elm_states[en] = elm_states_filtered[en]
-                        for en in domain_volumes[dn]:
-                            if elm_states[en] != elm_states_filtered[en]:
-                                mass[i] += volume_elm[en] * (
-                                    domain_density[dn][elm_states_filtered[en]] - domain_density[dn][elm_states[en]])
-                                elm_states[en] = elm_states_filtered[en]
-    print("mass = " +str(mass[i]))
+                                        - domain_density[dn][elm_states[en]] * domain_thickness[dn][elm_states[en]])
+                                    elm_states[en] = elm_states_filtered[en]
+                            for en in domain_volumes[dn]:
+                                if elm_states[en] != elm_states_filtered[en]:
+                                    mass[i] += volume_elm[en] * (
+                                        domain_density[dn][elm_states_filtered[en]] - domain_density[dn][elm_states[en]])
+                                    elm_states[en] = elm_states_filtered[en]
+    print("mass = " + str(mass[i]))
 
 # export the resulting mesh
 if "frd" in save_iteration_format:
