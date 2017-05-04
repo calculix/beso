@@ -110,7 +110,7 @@ beso_lib.write_to_log(file_name, msg)
 
 # mesh and domains importing
 [nodes, Elements, domains, opt_domains, en_all, plane_strain, plane_stress, axisymmetry] = beso_lib.import_inp(
-    file_name, domains_from_config, domain_optimized)
+    file_name, domains_from_config, domain_optimized, shells_as_composite)
 domain_shells = {}
 domain_volumes = {}
 for dn in domains_from_config:  # distinguishing shell elements and volume elements

@@ -10,7 +10,7 @@ def write_to_log(file_name, msg):
 
 
 # function importing a mesh consisting of nodes, volume and shell elements
-def import_inp(file_name, domains_from_config, domain_optimized):
+def import_inp(file_name, domains_from_config, domain_optimized, shells_as_composite):
     nodes = {}  # dict with nodes position
 
     class Elements():
@@ -135,6 +135,11 @@ def import_inp(file_name, domains_from_config, domain_optimized):
                 special_type = "axisymmetry"
             else:
                 special_type = ""
+                if (shells_as_composite is True) and (elm_type in ["S3", "S4", "S4R", "S8"]):
+                    msg = ("ERROR: " + elm_type + "element type found. CalculiX might need S6 or S8R elements for "
+                                                  "composite\n")
+                    print(msg)
+                    write_to_log(file_name, msg)
 
         elif elm_category != []:
             line_list = line.split(',')
@@ -407,7 +412,12 @@ def write_inp(file_name, file_nameW, elm_states, number_of_states, domains, doma
         fR = open(file_name[:-4] + "_separated.inp", "r")
     else:
         fR = open(file_name, "r")
-    fW = open(file_nameW + ".inp", "w")
+    check_line_endings = False
+    try:
+        fW = open(file_nameW + ".inp", "w", newline="\n")
+    except TypeError:  # python 2.x do not have newline argument
+        fW = open(file_nameW + ".inp", "w")
+        check_line_endings = True
 
     # function for writing ELSETs of each state
     def write_elset():
@@ -528,6 +538,14 @@ def write_inp(file_name, file_nameW, elm_states, number_of_states, domains, doma
         fW.write(line)
     fR.close()
     fW.close()
+    if check_line_endings:
+        fW = open(file_nameW + ".inp", "rb")
+        content = fW.read().replace("\r\n", "\n")
+        fW.close()
+        fW = open(file_nameW + ".inp", "wb")
+        fW.write(content)
+        fW.close()
+
 
 
 # function for importing results from .dat file
