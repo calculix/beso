@@ -332,10 +332,12 @@ while True:
     if len(domains_from_config) > 1:
         msg += " " + str(sum(FI_violated[i])).rjust(4, " ")
     msg += " " + str(FI_mean[i]).rjust(17, " ") + " " + str(FI_mean_without_state0[i]).rjust(18, " ")
+    FI_max_all = 0
     for dn in domains_from_config:
         msg += " " + str(FI_max[i][dn]).rjust(17, " ")
+        FI_max_all = max(FI_max_all, FI_max[i][dn])
     if len(domains_from_config) > 1:
-        msg += " " + str(max(FI_max[i])).rjust(17, " ")
+        msg += " " + str(FI_max_all).rjust(17, " ")
     msg += "\n"
     beso_lib.write_to_log(file_name, msg)
 
