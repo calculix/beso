@@ -20,6 +20,7 @@ domain_thickness = {}
 domain_offset = {}  # TODO read offset from .inp file
 domain_FI = {}
 domain_material = {}
+domain_same_state = {}
 path = None
 path_calculix = None
 file_name = None
@@ -86,6 +87,7 @@ for dn in domain_optimized:
     msg += ("domain_thickness        = %s\n" % domain_thickness[dn])
     msg += ("domain_FI               = %s\n" % domain_FI[dn])
     msg += ("domain_material         = %s\n" % domain_material[dn])
+    msg += ("domain_same_state       = %s\n" % domain_same_state)
     msg += "\n"
 msg += ("mass_goal_ratio         = %s\n" % mass_goal_ratio)
 msg += ("filter_list             = %s\n" % filter_list)
@@ -155,10 +157,14 @@ for ft in filter_list:
         f_range = ft[1]
         if len(ft) == 2:
             domains_to_filter = list(opt_domains)
+            beso_filters.check_same_state(domain_same_state, domains_from_config, file_name)
         else:
             domains_to_filter = []
+            filtered_dn = []
             for dn in ft[2:]:
                 domains_to_filter += domains[dn]
+                filtered_dn.append(dn)
+            beso_filters.check_same_state(domain_same_state, filtered_dn, file_name)
         if ft[0] == "simple":
             [weight_factor2, near_elm] = beso_filters.prepare2s(cg, cg_min, cg_max, f_range, domains_to_filter,
                                                                 weight_factor2, near_elm)
@@ -166,9 +172,11 @@ for ft in filter_list:
             near_elm = beso_filters.prepare_morphology(cg, cg_min, cg_max, f_range, domains_to_filter, near_elm)
 
 if filter_on_sensitivity == "over nodes":
+    beso_filters.check_same_state(domain_same_state, domains_from_config, file_name)
     [weight_factor_node, M, weight_factor_distance, near_nodes] = beso_filters.prepare1s(nodes, Elements, cg, r_min,
                                                                                          opt_domains)
 elif filter_on_sensitivity == "over points":
+    beso_filters.check_same_state(domain_same_state, domains_from_config, file_name)
     [weight_factor3, near_elm3, near_points] = beso_filters.prepare3(file_name, cg, cg_min, r_min, opt_domains)
 
 # separating elements for reading nodal input
@@ -395,7 +403,7 @@ while True:
                                             domain_density, domain_thickness, domain_shells, area_elm, volume_elm,
                                             sensitivity_number, mass, mass_referential, mass_addition_ratio,
                                             mass_removal_ratio, decay_coefficient, FI_violated, i_violated, i,
-                                            mass_goal_i)
+                                            mass_goal_i, domain_same_state)
 
     # check for oscillation state
     if elm_states_before_last == elm_states:  # oscillating state
