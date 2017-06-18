@@ -588,6 +588,9 @@ def import_FI_int_pt(reference_value, file_nameW, domains, criteria, domain_FI, 
                                                      6 * (sxy ** 2 + syz ** 2 + sxz ** 2))) / s_allowable)
             elif criteria[FIn][0] == "user_def":
                 FI_int_pt[FIn].append(eval(criteria[FIn][1]))
+            else:
+                msg = "Error: failure criterion " + str(criteria[FIn]) + " not recognised.\n"
+                write_to_log(file_name, msg)
 
     def save_FI():
         FI_step[step_number][en_last] = []
@@ -728,6 +731,9 @@ def import_FI_node(reference_value, file_nameW, domains, criteria, domain_FI, fi
                                                                  6 * (sxy ** 2 + syz ** 2 + sxz ** 2))) / s_allowable
                         elif criteria[FIn][0] == "user_def":
                             FI_node[nn][FIn] = eval(criteria[FIn][1])
+                        else:
+                            msg = "Error: failure criterion " + str(criteria[FIn]) + " not recognised.\n"
+                            write_to_log(file_name, msg)
     f.close()
     return FI_step
 

@@ -79,5 +79,6 @@ ratio_type = "relative"  # "relative" - ratios of actual mass, "absolute" - rati
 iterations_limit = 0  # 0 - automatic estimate, <integer> - the maximum allowable number of iterations
 tolerance = 1e-3  # the maximum relative difference in mean stress in optimization domains between the last 5 iterations needed to finish
 
-save_iteration_results = 10  # every i-th iteration export a resulting mesh and do not delete .frd and .dat, 0 - do not save
-save_iteration_format = "inp" # "frd" or "inp" format of resulting meshes (each state separately in own mesh file)
+save_iteration_results = 10  # every i-th iteration save temporary results, 0 - save only final results
+save_solver_files = ""  # not removed outputs from the solver, e.g. "inp frd dat cvg sta" will preserve all outputs in iterations defined by save_iteration_results
+save_resulting_format = "inp" # "frd" or "inp" format of resulting meshes (each state separately in own mesh file)

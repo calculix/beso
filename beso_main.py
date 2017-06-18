@@ -42,7 +42,8 @@ sensitivity_averaging = None
 iterations_limit = None
 tolerance = None
 save_iteration_results = None
-save_iteration_format = None
+save_solver_files = None
+save_resulting_format = None
 
 # read configuration file to fill variables listed above
 exec(open("beso_conf.py").read())
@@ -90,6 +91,7 @@ for dn in domain_optimized:
     msg += ("domain_same_state       = %s\n" % domain_same_state)
     msg += "\n"
 msg += ("mass_goal_ratio         = %s\n" % mass_goal_ratio)
+msg += ("continue_from           = %s\n" % continue_from)
 msg += ("filter_list             = %s\n" % filter_list)
 msg += ("r_min                   = %s\n" % r_min)
 msg += ("filter_on_sensitivity   = %s\n" % filter_on_sensitivity)
@@ -106,7 +108,8 @@ msg += ("sensitivity_averaging   = %s\n" % sensitivity_averaging)
 msg += ("iterations_limit        = %s\n" % iterations_limit)
 msg += ("tolerance               = %s\n" % tolerance)
 msg += ("save_iteration_results  = %s\n" % save_iteration_results)
-msg += ("save_iteration_format   = %s\n" % save_iteration_format)
+msg += ("save_solver_files       = %s\n" % save_solver_files)
+msg += ("save_resulting_format   = %s\n" % save_resulting_format)
 msg += "\n"
 beso_lib.write_to_log(file_name, msg)
 
@@ -217,7 +220,7 @@ elm_states_before_last = {}
 elm_states_last = elm_states
 
 while True:
-    # creating a new .inp file for CalculiX
+    # creating the new .inp file for CalculiX
     file_nameW = "file" + str(i).zfill(3)
     beso_lib.write_inp(file_name, file_nameW, elm_states, number_of_states, domains, domains_from_config,
                        domain_optimized, domain_thickness, domain_offset, domain_material, domain_volumes,
@@ -233,12 +236,6 @@ while True:
     elif reference_points == "nodes":  # from .frd file
         FI_step = beso_lib.import_FI_node(reference_value, file_nameW, domains, criteria, domain_FI, file_name,
                                           elm_states)
-    os.remove(file_nameW + ".inp")
-    if not save_iteration_results or np.mod(float(i - 1), save_iteration_results) != 0:
-        os.remove(file_nameW + ".dat")
-        os.remove(file_nameW + ".frd")
-    os.remove(file_nameW + ".sta")
-    os.remove(file_nameW + ".cvg")
     FI_max.append({})
     for dn in domains_from_config:
         FI_max[i][dn] = 0
@@ -365,13 +362,6 @@ while True:
     # start of the new iteration or finish of the iteration process
     if continue_iterations is False or i >= iterations_limit:
         break
-    else:
-        # export the present mesh
-        if save_iteration_results and np.mod(float(i - 1), save_iteration_results) == 0:
-            if "frd" in save_iteration_format:
-                beso_lib.export_frd("file" + str(i), nodes, Elements, elm_states, number_of_states)
-            if "inp" in save_iteration_format:
-                beso_lib.export_inp("file" + str(i), nodes, Elements, elm_states, number_of_states)
     i += 1  # iteration number
     print("\n----------- new iteration number %d ----------" % i)
 
@@ -404,15 +394,6 @@ while True:
                                             mass_removal_ratio, decay_coefficient, FI_violated, i_violated, i,
                                             mass_goal_i, domain_same_state)
 
-    # check for oscillation state
-    if elm_states_before_last == elm_states:  # oscillating state
-        msg = "OSCILLATION: model turns back to " + str(i - 2) + "th iteration\n"
-        beso_lib.write_to_log(file_name, msg)
-        print(msg)
-        continue_iterations = False
-    elm_states_before_last = elm_states_last.copy()
-    elm_states_last = elm_states.copy()
-
     # filtering state
     for ft in filter_list:
         if ft[0] and ft[1]:
@@ -443,15 +424,63 @@ while True:
                                         domain_density[dn][elm_states_filtered[en]] - domain_density[dn][elm_states[en]])
                                     elm_states[en] = elm_states_filtered[en]
     print("mass = {}" .format(mass[i]))
+    # export the present mesh
+    if save_iteration_results and np.mod(float(i), save_iteration_results) == 0:
+        if "frd" in save_resulting_format:
+            beso_lib.export_frd("file" + str(i), nodes, Elements, elm_states, number_of_states)
+        if "inp" in save_resulting_format:
+            beso_lib.export_inp("file" + str(i), nodes, Elements, elm_states, number_of_states)
+
+    # check for oscillation state
+    if elm_states_before_last == elm_states:  # oscillating state
+        msg = "OSCILLATION: model turns back to " + str(i - 2) + "th iteration\n"
+        beso_lib.write_to_log(file_name, msg)
+        print(msg)
+        break
+    elm_states_before_last = elm_states_last.copy()
+    elm_states_last = elm_states.copy()
+
+    # removing solver files
+    if save_iteration_results and np.mod(float(i - 1), save_iteration_results) == 0:
+        if "inp" not in save_solver_files:
+            os.remove(file_nameW + ".inp")
+        if "dat" not in save_solver_files:
+            os.remove(file_nameW + ".dat")
+        if "frd" not in save_solver_files:
+            os.remove(file_nameW + ".frd")
+        if "sta" not in save_solver_files:
+            os.remove(file_nameW + ".sta")
+        if "cvg" not in save_solver_files:
+            os.remove(file_nameW + ".cvg")
+    else:
+        os.remove(file_nameW + ".inp")
+        os.remove(file_nameW + ".dat")
+        os.remove(file_nameW + ".frd")
+        os.remove(file_nameW + ".sta")
+        os.remove(file_nameW + ".cvg")
 
 # export the resulting mesh
-if "frd" in save_iteration_format:
-    beso_lib.export_frd(file_name, nodes, Elements, elm_states, number_of_states)
-if "inp" in save_iteration_format:
-    beso_lib.export_inp(file_name, nodes, Elements, elm_states, number_of_states)
+if not (save_iteration_results and np.mod(float(i), save_iteration_results) == 0):
+    if "frd" in save_resulting_format:
+        beso_lib.export_frd("file" + str(i), nodes, Elements, elm_states, number_of_states)
+    if "inp" in save_resulting_format:
+        beso_lib.export_inp("file" + str(i), nodes, Elements, elm_states, number_of_states)
 
-if reference_points == "nodes":
-    os.remove(file_name[:-4] + "_separated.inp")
+# removing solver files
+if "inp" not in save_solver_files:
+    os.remove(file_nameW + ".inp")
+    if reference_points == "nodes":
+        os.remove(file_name[:-4] + "_separated.inp")
+if "dat" not in save_solver_files:
+    os.remove(file_nameW + ".dat")
+if "frd" not in save_solver_files:
+    os.remove(file_nameW + ".frd")
+if "sta" not in save_solver_files:
+    os.remove(file_nameW + ".sta")
+if "cvg" not in save_solver_files:
+    os.remove(file_nameW + ".cvg")
+
+
 
 msg = "\n"
 msg += ("Finish at                          " + time.ctime() + "\n")
