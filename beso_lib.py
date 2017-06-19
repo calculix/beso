@@ -609,7 +609,7 @@ def import_FI_int_pt(reference_value, file_nameW, domains, criteria, domain_FI, 
             if read_stresses == 1:
                 save_FI()
             read_stresses -= 1
-            FI_int_pt = [[]] * len(criteria)
+            FI_int_pt = [[] for _ in range(len(criteria))]
             en_last = None
         elif line[:9] == " stresses":
             if line.split()[-4] in map(lambda x: x.upper(), domains_from_config):  # TODO upper already on user input
@@ -623,7 +623,7 @@ def import_FI_int_pt(reference_value, file_nameW, domains, criteria, domain_FI, 
             if en_last != en:
                 if en_last:
                     save_FI()
-                    FI_int_pt = [[]] * len(criteria)
+                    FI_int_pt = [[] for _ in range(len(criteria))]
                 en_last = en
             compute_FI()
     if read_stresses == 1:
@@ -686,7 +686,7 @@ def import_FI_node(reference_value, file_nameW, domains, criteria, domain_FI, fi
                 read_stress = False
                 FI_elm = {}
                 for en in elm_nodes:
-                    FI_elm[en] = [[]] * len(criteria)
+                    FI_elm[en] = [[] for _ in range(len(criteria))]
                     for FIn in criteria_elm[en]:
                         for nn in elm_nodes[en]:
                             FI_elm[en][FIn].append(FI_node[nn][FIn])
@@ -707,7 +707,7 @@ def import_FI_node(reference_value, file_nameW, domains, criteria, domain_FI, fi
             read_stress = True
             FI_node = {}
             for nn in frd_nodes:
-                FI_node[nn] = [[]] * len(criteria)
+                FI_node[nn] = [[] for _ in range(len(criteria))]
             next_node = 0
         elif read_stress is True:
             if line[:3] == " -1":
@@ -1080,6 +1080,45 @@ def export_inp(file_name, nodes, Elements, elm_states, number_of_states):
     print("%i files with resulting meshes have been created" % number_of_states)
 
 
+# function for exporting element values to csv file for displaying in Paraview, output format:
+# element_number, cg_x, cg_y, cg_z, element_state, sensitivity_number, failure indices 1, 2,..., maximal failure index
+# only elements found by import_inp function are taken into account
+def export_csv(domains_from_config, domains, criteria, FI_step, file_nameW, cg, elm_states, sensitivity_number):
+    # associate FI to each element and get maximums
+    FI_criteria = {}  # list of FI on each element
+    for dn in domains_from_config:
+        for en in domains[dn]:
+            FI_criteria[en] = [None for _ in range(len(criteria))]
+            for sn in range(len(FI_step)):
+                for FIn in range(len(criteria)):
+                    if FI_step[sn][en][FIn]:
+                        if FI_criteria[en][FIn]:
+                            FI_criteria[en][FIn] = max(FI_criteria[en][FIn], FI_step[sn][en][FIn])
+                        else:
+                            FI_criteria[en][FIn] = FI_step[sn][en][FIn]
+
+    # write element values to the csv file
+    f = open(file_nameW + ".csv", "w")
+    line = "element_number, cg_x, cg_y, cg_z, element_state, sensitivity_number, "
+    for FIn in range(len(criteria)):
+        line += "FI_" + str(FIn) + ", "
+    line += "FI_max\n"
+    f.write(line)
+    for dn in domains_from_config:
+        for en in domains[dn]:
+            line = str(en) + ", " + str(cg[en][0]) + ", " + str(cg[en][1]) + ", " + str(cg[en][2]) + ", " + \
+                   str(elm_states[en]) + ", " + str(sensitivity_number[en]) + ", "
+            for FIn in range(len(criteria)):
+                if FI_criteria[en][FIn]:
+                    value = FI_criteria[en][FIn]
+                else:
+                    value = 0  # since Paraview do not recognise None value
+                line += str(value) + ", "
+            line += str(max(list(filter(lambda a: a is not None, FI_criteria[en])))) + "\n"
+            f.write(line)
+    f.close()
+
+
 # function for importing elm_states state from .frd file which was previously created as a resulting mesh
 # it is done via element numbers only; in case of the wrong mesh, no error is recognised
 def import_frd_state(continue_from, elm_states, number_of_states, file_name):
@@ -1130,3 +1169,23 @@ def import_inp_state(continue_from, elm_states, number_of_states, file_name):
         f.close()
     return elm_states
 
+
+# function for importing elm_states state from .csv file
+def import_csv_state(continue_from, elm_states, file_name):
+    try:
+        f = open(continue_from, "r")
+    except IOError:
+        msg = continue_from + " file not found. Check your inputs."
+        write_to_log(file_name, "ERROR: " + msg + "\n")
+        assert False, msg
+
+    headers = f.readline().split(",")
+    pos_en = [x.strip() for x in headers].index("element_number")
+    pos_state = [x.strip() for x in headers].index("element_state")
+    for line in f:
+        en = int(line.split(",")[pos_en])
+        state = int(line.split(",")[pos_state])
+        elm_states[en] = state
+
+    f.close()
+    return elm_states

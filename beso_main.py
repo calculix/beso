@@ -130,6 +130,8 @@ if continue_from[-4:] == ".frd":
     elm_states = beso_lib.import_frd_state(continue_from, elm_states, number_of_states, file_name)
 elif continue_from[-4:] == ".inp":
     elm_states = beso_lib.import_inp_state(continue_from, elm_states, number_of_states, file_name)
+elif continue_from[-4:] == ".csv":
+    elm_states = beso_lib.import_csv_state(continue_from, elm_states, file_name)
 else:
     for dn in domains_from_config:
         for en in domains[dn]:
@@ -205,6 +207,17 @@ if len(domains_from_config) > 1:
     msg += "all".rjust(17, " ") + ")"
 msg += "\n"
 beso_lib.write_to_log(file_name, msg)
+
+# write csv file header to separate file
+if "csv" in save_resulting_format:
+    msg = ("Failure Index ordering\n")
+    cn = 0
+    for cr in criteria:
+        msg += ("FI_" + str(cn) + ", " + str(cr) + "\n")
+        cn += 1
+    f = open("FI_order.csv", "w")
+    f.write(msg)
+    f.close()
 
 # ITERATION CYCLE
 sensitivity_number = {}
@@ -286,7 +299,7 @@ while True:
                                                        domains_to_filter)
             elif ft[0].split()[0] in ["erode", "dilate", "open", "close", "open-close", "close-open", "combine"]:
                 if ft[0].split()[1] == "sensitivity":
-                    domains_en_in_state = [[]] * number_of_states
+                    domains_en_in_state = [[] for _ in range(len(number_of_states))]
                     for en in domains_to_filter:
                         sn = elm_states[en]
                         domains_en_in_state[sn].append(en)
@@ -346,6 +359,12 @@ while True:
     msg += "\n"
     beso_lib.write_to_log(file_name, msg)
 
+    # export element values
+    if save_iteration_results and np.mod(float(i), save_iteration_results) == 0:
+        if "csv" in save_resulting_format:
+            beso_lib.export_csv(domains_from_config, domains, criteria, FI_step, file_nameW, cg, elm_states,
+                                sensitivity_number)
+
     # relative difference in a mean stress for the last 5 iterations must be < tolerance
     if len(FI_mean) > 5:
         difference_last = []
@@ -360,8 +379,12 @@ while True:
             continue_iterations = False
             print("FI_mean[i] == FI_mean[i-1] == FI_mean[i-2]")
 
-    # start of the new iteration or finish of the iteration process
+    # finish or start new iteration
     if continue_iterations is False or i >= iterations_limit:
+        if not(save_iteration_results and np.mod(float(i), save_iteration_results) == 0):
+            if "csv" in save_resulting_format:
+                beso_lib.export_csv(domains_from_config, domains, criteria, FI_step, file_nameW, cg, elm_states,
+                                    sensitivity_number)
         break
     i += 1  # iteration number
     print("\n----------- new iteration number %d ----------" % i)
