@@ -31,8 +31,9 @@ domain_same_state[elset_name] = False  # False - element states can differ, True
 
 mass_goal_ratio = 0.4  # the goal mass as a fragment of the optimized domains full mass
 
-continue_from = ""  # if not "", optimization will load full elements from the given files,
-                              #  use 0th file name e.g. "file051_res_mesh0.frd" or "file051_res_mesh0.inp"
+continue_from = ""  # if not "", optimization will load element states from the given files,
+                              # for previously generated csv file use "file_name.csv"
+                              # for inp or frd meshes use 0th file name e.g. "file051_res_mesh0.frd" or "file051_res_mesh0.inp"
 
 filter_list = [["simple", 2]]  # [[filter type, range, domains or nothing for all domains], [next filter type, range, "domain1", "domain2"], ...]
                             # filter types:
@@ -81,4 +82,5 @@ tolerance = 1e-3  # the maximum relative difference in mean stress in optimizati
 
 save_iteration_results = 10  # every i-th iteration save temporary results, 0 - save only final results
 save_solver_files = ""  # not removed outputs from the solver, e.g. "inp frd dat cvg sta" will preserve all outputs in iterations defined by save_iteration_results
-save_resulting_format = "inp" # "frd" or "inp" format of resulting meshes (each state separately in own mesh file)
+save_resulting_format = "inp csv" # "frd" or "inp" format of resulting meshes (each state separately in own mesh file)
+                                  # "csv" output for openning point cloud in Paraview (element centres of gravity, states, sensitivity numbers, failure indices)
