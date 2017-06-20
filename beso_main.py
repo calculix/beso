@@ -18,6 +18,7 @@ domain_optimized = {}
 domain_density = {}
 domain_thickness = {}
 domain_offset = {}  # TODO read offset from .inp file
+domain_orientation = {}
 domain_FI = {}
 domain_material = {}
 domain_same_state = {}
@@ -237,9 +238,9 @@ while True:
     # creating the new .inp file for CalculiX
     file_nameW = "file" + str(i).zfill(3)
     beso_lib.write_inp(file_name, file_nameW, elm_states, number_of_states, domains, domains_from_config,
-                       domain_optimized, domain_thickness, domain_offset, domain_material, domain_volumes,
-                       domain_shells, plane_strain, plane_stress, axisymmetry, save_iteration_results, i,
-                       reference_points, shells_as_composite)
+                       domain_optimized, domain_thickness, domain_offset, domain_orientation, domain_material,
+                       domain_volumes, domain_shells, plane_strain, plane_stress, axisymmetry, save_iteration_results,
+                       i, reference_points, shells_as_composite)
     # running CalculiX analysis
     subprocess.call(os.path.normpath(path_calculix) + " " + os.path.join(path, file_nameW), shell=True)
 
