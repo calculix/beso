@@ -406,8 +406,8 @@ def elm_volume_cg(file_name, nodes, Elements):
 # function for copying .inp file with additional elsets, materials, solid and shell sections, different output request
 # elm_states is a dict of the elements containing 0 for void element or 1 for full element
 def write_inp(file_name, file_nameW, elm_states, number_of_states, domains, domains_from_config, domain_optimized,
-              domain_thickness, domain_offset, domain_material, domain_volumes, domain_shells, plane_strain,
-              plane_stress, axisymmetry, save_iteration_results, i, reference_points, shells_as_composite):
+              domain_thickness, domain_offset, domain_orientation, domain_material, domain_volumes, domain_shells,
+              plane_strain, plane_stress, axisymmetry, save_iteration_results, i, reference_points, shells_as_composite):
     if reference_points == "nodes":
         fR = open(file_name[:-4] + "_separated.inp", "r")
     else:
@@ -447,6 +447,13 @@ def write_inp(file_name, file_nameW, elm_states, number_of_states, domains, doma
                         fW.write("\n")
         fW.write(" \n")
 
+    # function to add orientation to solid or shell section
+    def add_orientation():
+        try:
+            fW.write(", ORIENTATION=" + domain_orientation[dn][sn] + "\n")
+        except (KeyError, IndexError):
+            fW.write("\n")
+
     elsets_done = 0
     sections_done = 0
     outputs_done = 1
@@ -476,33 +483,39 @@ def write_inp(file_name, file_nameW, elm_states, number_of_states, domains, doma
                 if domain_optimized[dn]:
                     for sn in elsets_used[dn]:
                         fW.write("*MATERIAL, NAME=" + dn + str(sn) + "\n")
-                        fW.write(domain_material[dn][sn] + "\n\n")
+                        fW.write(domain_material[dn][sn] + "\n")
                         if domain_volumes[dn]:
-                            fW.write("*SOLID SECTION, ELSET=" + dn + str(sn) + ", MATERIAL=" + dn + str(sn) + "\n")
+                            fW.write("*SOLID SECTION, ELSET=" + dn + str(sn) + ", MATERIAL=" + dn + str(sn))
+                            add_orientation()
                         elif len(plane_strain.intersection(domain_shells[dn])) == len(domain_shells[dn]):
-                            fW.write("*SOLID SECTION, ELSET=" + dn + str(sn) + ", MATERIAL=" + dn + str(sn) + "\n")
+                            fW.write("*SOLID SECTION, ELSET=" + dn + str(sn) + ", MATERIAL=" + dn + str(sn))
+                            add_orientation()
                             fW.write(str(domain_thickness[dn][sn]) + "\n")
                         elif plane_strain.intersection(domain_shells[dn]):
                             msg_error = dn + " domain does not contain only plane strain types for 2D elements"
                         elif len(plane_stress.intersection(domain_shells[dn])) == len(domain_shells[dn]):
-                            fW.write("*SOLID SECTION, ELSET=" + dn + str(sn) + ", MATERIAL=" + dn + str(sn) + "\n")
+                            fW.write("*SOLID SECTION, ELSET=" + dn + str(sn) + ", MATERIAL=" + dn + str(sn))
+                            add_orientation()
                             fW.write(str(domain_thickness[dn][sn]) + "\n")
                         elif plane_stress.intersection(domain_shells[dn]):
                             msg_error = dn + " domain does not contain only plane stress types for 2D elements"
                         elif len(axisymmetry.intersection(domain_shells[dn])) == len(domain_shells[dn]):
-                            fW.write("*SOLID SECTION, ELSET=" + dn + str(sn) + ", MATERIAL=" + dn + str(sn) + "\n")
+                            fW.write("*SOLID SECTION, ELSET=" + dn + str(sn) + ", MATERIAL=" + dn + str(sn))
+                            add_orientation()
                         elif axisymmetry.intersection(domain_shells[dn]):
                             msg_error = dn + " domain does not contain only axisymmetry types for 2D elements"
                         elif shells_as_composite is True:
                             fW.write("*SHELL SECTION, ELSET=" + dn + str(sn) + ", OFFSET=" + str(domain_offset[dn]) +
-                                     ", COMPOSITE\n")
+                                     ", COMPOSITE")
+                            add_orientation()
                             # 0.1 + 0.8 + 0.1 of thickness, , material name
                             fW.write(str(0.1 * domain_thickness[dn][sn]) + ",," + dn + str(sn) + "\n")
                             fW.write(str(0.8 * domain_thickness[dn][sn]) + ",," + dn + str(sn) + "\n")
                             fW.write(str(0.1 * domain_thickness[dn][sn]) + ",," + dn + str(sn) + "\n")
                         else:
                             fW.write("*SHELL SECTION, ELSET=" + dn + str(sn) + ", MATERIAL=" + dn + str(sn) +
-                                     ", OFFSET=" + str(domain_offset[dn]) + "\n")
+                                     ", OFFSET=" + str(domain_offset[dn]))
+                            add_orientation()
                             fW.write(str(domain_thickness[dn][sn]) + "\n")
                         fW.write(" \n")
                         if msg_error:
@@ -524,7 +537,7 @@ def write_inp(file_name, file_nameW, elm_states, number_of_states, domains, doma
                         fW.write("*EL PRINT, " + "ELSET=" + dn + "\n")
                         fW.write("S\n")
                 elif reference_points == "nodes":
-                    fW.write("*EL FILE\n")
+                    fW.write("*EL FILE, GLOBAL=NO\n")
                     fW.write("S\n")
                 fW.write(" \n")
                 outputs_done += 1
@@ -545,7 +558,6 @@ def write_inp(file_name, file_nameW, elm_states, number_of_states, domains, doma
         fW = open(file_nameW + ".inp", "wb")
         fW.write(content)
         fW.close()
-
 
 
 # function for importing results from .dat file
