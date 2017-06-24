@@ -31,11 +31,13 @@ domain_material[elset_name] = ["*ELASTIC \n210000e-6,  0.3",  # material definit
 domain_same_state[elset_name] = False  # False - element states can differ, True - all domain elements have common state
 # copy this block for defining properties of the next domain
 
-mass_goal_ratio = 0.4  # the goal mass as a fragment of the optimized domains full mass
+mass_goal_ratio = 0.4  # the goal mass as a fragment of the initial mass of optimized domains,
+                       # i.e. fragment of mass evaluated from effective density and volumes for beginning states of all optimized elements
 
 continue_from = ""  # if not "", optimization will load element states from the given files,
                               # for previously generated csv file use "file_name.csv"
-                              # for inp or frd meshes use 0th file name e.g. "file051_res_mesh0.frd" or "file051_res_mesh0.inp"
+                              # for inp or frd meshes use 0th file name e.g. "file051_res_mesh0.inp" or "file051_res_mesh0.frd"
+                              # or use number N without apostrophes to start each element from state N (numbered from 0)
 
 filter_list = [["simple", 2]]  # [[filter type, range, domains or nothing for all domains], [next filter type, range, "domain1", "domain2"], ...]
                             # filter types:
@@ -61,11 +63,11 @@ filter_on_sensitivity = 0  # 0 - do not use this filter,
 
 cpu_cores = 0  # 0 - use all processor cores, N - will use N number of processor cores
 
-FI_violated_tolerance = 1  # 0 - do not freeze mass due to high FI,
-                           # <positive integer N> - freeze mass if there is N more elements with FI > 1 which cannot be swiched up
-decay_coefficient = -0.2  # exponential decay coefficient to dump mass_additive_ratio and mass_removal_ratio after freezing mass, because
-                           # exp(-0.22 * x) ~ drops after 10 iterations to 0.1
-                           # exp(0 * x) ~ no decaying
+FI_violated_tolerance = 1  # N - freeze mass if, compared to initial state, there is N more elements with FI >= 1
+decay_coefficient = -0.2  # k - exponential decay coefficient to dump mass_additive_ratio and mass_removal_ratio after freezing mass
+                          # fits to equation: exp(k * i), where i is iteration number from triggering by exceeding FI_violated_tolerance
+                          # k = -0.2 ~ after 10 iterations slows down approximately 10 times
+                          # k = 0 ~ no decaying
 
 shells_as_composite = False  # True - use more integration points to catch bending stresses (ccx 2.12 WILL FAIL for other than S8R and S6 shell elements)
                             # False - use ordinary shell section

@@ -136,7 +136,7 @@ def import_inp(file_name, domains_from_config, domain_optimized, shells_as_compo
             else:
                 special_type = ""
                 if (shells_as_composite is True) and (elm_type in ["S3", "S4", "S4R", "S8"]):
-                    msg = ("ERROR: " + elm_type + "element type found. CalculiX might need S6 or S8R elements for "
+                    msg = ("\nERROR: " + elm_type + "element type found. CalculiX might need S6 or S8R elements for "
                                                   "composite\n")
                     print(msg)
                     write_to_log(file_name, msg)
@@ -256,7 +256,7 @@ def import_inp(file_name, domains_from_config, domain_optimized, shells_as_compo
 
     if not opt_domains:
         row = "None optimized domain has been found. Check your inputs."
-        msg += ("ERROR: " + row + "\n")
+        msg += ("\nERROR: " + row + "\n")
         write_to_log(file_name, msg)
         assert False, row
 
@@ -297,8 +297,8 @@ def elm_volume_cg(file_name, nodes, Elements):
         cg_tetra = [x_cg, y_cg, z_cg]
         return volume_tetra, cg_tetra
 
-    def second_order_warning(elm_type):
-        msg = "WARNING: areas and centres of gravity of " + elm_type.upper() + " elements ignore mid-nodes' positions\n"
+    def second_order_info(elm_type):
+        msg = "\nINFO: areas and centres of gravity of " + elm_type.upper() + " elements ignore mid-nodes' positions\n"
         print(msg)
         write_to_log(file_name, msg)
 
@@ -311,7 +311,7 @@ def elm_volume_cg(file_name, nodes, Elements):
         [area_elm[en], cg[en]] = tria_area_cg(nod)
 
     if Elements.tria6:
-        second_order_warning("tria6")
+        second_order_info("tria6")
     for en, nod in Elements.tria6.items():  # copy from tria3
         [area_elm[en], cg[en]] = tria_area_cg(nod)
 
@@ -324,7 +324,7 @@ def elm_volume_cg(file_name, nodes, Elements):
             cg[en][k] = (a1 * cg1[k] + a2 * cg2[k]) / area_elm[en]
 
     if Elements.quad8:
-        second_order_warning("quad8")
+        second_order_info("quad8")
     for en, nod in Elements.quad8.items():  # copy from quad4
         [a1, cg1] = tria_area_cg(nod[0:3])
         [a2, cg2] = tria_area_cg(nod[0:1] + nod[2:4])
@@ -337,7 +337,7 @@ def elm_volume_cg(file_name, nodes, Elements):
         [volume_elm[en], cg[en]] = tetra_volume_cg(nod)
 
     if Elements.tetra10:
-        second_order_warning("tetra10")
+        second_order_info("tetra10")
     for en, nod in Elements.tetra10.items():  # copy from tetra4
         [volume_elm[en], cg[en]] = tetra_volume_cg(nod)
 
@@ -355,7 +355,7 @@ def elm_volume_cg(file_name, nodes, Elements):
                          ) / volume_elm[en]
 
     if Elements.hexa20:
-        second_order_warning("hexa20")
+        second_order_info("hexa20")
     for en, nod in Elements.hexa20.items():  # copy from hexa8
         [v1, cg1] = tetra_volume_cg(nod[0:3] + nod[5:6])
         [v2, cg2] = tetra_volume_cg(nod[0:1] + nod[2:3] + nod[4:6])
@@ -379,7 +379,7 @@ def elm_volume_cg(file_name, nodes, Elements):
             cg[en][k] = (v1 * cg1[k] + v2 * cg2[k] + v3 * cg3[k]) / volume_elm[en]
 
     if Elements.penta15:
-        second_order_warning("penta15")  # copy from penta6
+        second_order_info("penta15")  # copy from penta6
     for en, nod in Elements.penta15.items():
         [v1, cg1] = tetra_volume_cg(nod[0:4])
         [v2, cg2] = tetra_volume_cg(nod[1:5])
@@ -519,7 +519,7 @@ def write_inp(file_name, file_nameW, elm_states, number_of_states, domains, doma
                             fW.write(str(domain_thickness[dn][sn]) + "\n")
                         fW.write(" \n")
                         if msg_error:
-                            write_to_log(file_name, "ERROR: " + msg_error + "\n")
+                            write_to_log(file_name, "\nERROR: " + msg_error + "\n")
                             raise Exception(msg_error)
             sections_done = 1
 
@@ -567,8 +567,8 @@ def import_FI_int_pt(reference_value, file_nameW, domains, criteria, domain_FI, 
     try:
         f = open(file_nameW + ".dat", "r")
     except IOError:
-        msg = "CalculiX results not found, check your inputs"
-        write_to_log(file_name, "ERROR: " + msg + "\n")
+        msg = "CalculiX result file not found, check your inputs"
+        write_to_log(file_name, "\nERROR: " + msg + "\n")
         assert False, msg
     last_time = "initial"  # TODO solve how to read a new step which differs in time
     step_number = -1
@@ -601,7 +601,7 @@ def import_FI_int_pt(reference_value, file_nameW, domains, criteria, domain_FI, 
             elif criteria[FIn][0] == "user_def":
                 FI_int_pt[FIn].append(eval(criteria[FIn][1]))
             else:
-                msg = "Error: failure criterion " + str(criteria[FIn]) + " not recognised.\n"
+                msg = "\nError: failure criterion " + str(criteria[FIn]) + " not recognised.\n"
                 write_to_log(file_name, msg)
 
     def save_FI():
@@ -650,8 +650,8 @@ def import_FI_node(reference_value, file_nameW, domains, criteria, domain_FI, fi
     try:
         f = open(file_nameW + ".frd", "r")
     except IOError:
-        msg = "CalculiX results not found, check your inputs"
-        write_to_log(file_name, "ERROR: " + msg + "\n")
+        msg = "CalculiX result file not found, check your inputs"
+        write_to_log(file_name, "\nERROR: " + msg + "\n")
         assert False, msg
 
     # prepare ordered elements of interest and failure criteria for each element
@@ -744,7 +744,7 @@ def import_FI_node(reference_value, file_nameW, domains, criteria, domain_FI, fi
                         elif criteria[FIn][0] == "user_def":
                             FI_node[nn][FIn] = eval(criteria[FIn][1])
                         else:
-                            msg = "Error: failure criterion " + str(criteria[FIn]) + " not recognised.\n"
+                            msg = "\nError: failure criterion " + str(criteria[FIn]) + " not recognised.\n"
                             write_to_log(file_name, msg)
     f.close()
     return FI_step
@@ -1014,10 +1014,8 @@ def export_frd(file_name, nodes, Elements, elm_states, number_of_states):
         write_elm(Elements.penta15, "5")
         write_elm(Elements.hexa8, "1")
         write_elm(Elements.hexa20, "4")
-
         f.write(" -3\n")
         f.close()
-    print("%i files with resulting meshes have been created" % number_of_states)
 
 
 # function for exporting the resulting mesh in separate files for each state of elm_states
@@ -1087,9 +1085,7 @@ def export_inp(file_name, nodes, Elements, elm_states, number_of_states):
                 for nn in nod[15:]:
                     f.write(", " + str(nn))
                 f.write("\n")
-
         f.close()
-    print("%i files with resulting meshes have been created" % number_of_states)
 
 
 # function for exporting element values to csv file for displaying in Paraview, output format:
@@ -1139,7 +1135,7 @@ def import_frd_state(continue_from, elm_states, number_of_states, file_name):
             f = open(continue_from[:-5] + str(state) + ".frd", "r")
         except IOError:
             msg = continue_from[:-5] + str(state) + ".frd" + " file not found. Check your inputs."
-            write_to_log(file_name, "ERROR: " + msg + "\n")
+            write_to_log(file_name, "\nERROR: " + msg + "\n")
             assert False, msg
 
         read_elm = False
@@ -1163,7 +1159,7 @@ def import_inp_state(continue_from, elm_states, number_of_states, file_name):
             f = open(continue_from[:-5] + str(state) + ".inp", "r")
         except IOError:
             msg = continue_from[:-5] + str(state) + ".inp" + " file not found. Check your inputs."
-            write_to_log(file_name, "ERROR: " + msg + "\n")
+            write_to_log(file_name, "\nERROR: " + msg + "\n")
             assert False, msg
 
         read_elm = False
@@ -1188,7 +1184,7 @@ def import_csv_state(continue_from, elm_states, file_name):
         f = open(continue_from, "r")
     except IOError:
         msg = continue_from + " file not found. Check your inputs."
-        write_to_log(file_name, "ERROR: " + msg + "\n")
+        write_to_log(file_name, "\nERROR: " + msg + "\n")
         assert False, msg
 
     headers = f.readline().split(",")

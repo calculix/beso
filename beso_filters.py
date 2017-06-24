@@ -18,12 +18,13 @@ def check_same_state(domain_same_state, filtered_dn, file_name):
     filtered_dn_set = set(filtered_dn)
     domains_to_check = set()
     for dn in domain_same_state:
-        domains_to_check.add(dn)
+        if domain_same_state[dn]:
+            domains_to_check.add(dn)
     if domains_to_check.intersection(filtered_dn_set):
         wrong_domains = True
 
     if wrong_domains is True:
-        msg = "ERROR: Filtering is used on domain with prescribed same state. It is recommended to exclude this domain" \
+        msg = "\nERROR: Filtering is used on domain with prescribed same state. It is recommended to exclude this domain" \
               " from filtering.\n"
         beso_lib.write_to_log(file_name, msg)
         print(msg)
@@ -273,7 +274,8 @@ def run1(file_name, sensitivity_number, weight_factor_node, M, weight_factor_dis
         if denominator != 0:
             sensitivity_number_filtered[en] = numerator / denominator
         else:
-            msg = "WARNING: filter1 failed due to division by 0. Some element CG has not a node in distance <= r_min.\n"
+            msg = "\nERROR: filter over nodes failed due to division by 0." \
+                  "Some element CG has not a node in distance <= r_min.\n"
             print(msg)
             beso_lib.write_to_log(file_name, msg)
             filter_on_sensitivity = 0
@@ -383,7 +385,7 @@ def prepare2s(cg, cg_min, cg_max, r_min, opt_domains, weight_factor2, near_elm):
 # function to filter sensitivity number to suppress checkerboard
 # simplified version: makes weighted average of sensitivity numbers from near elements
 def run2(file_name, sensitivity_number, weight_factor2, near_elm, opt_domains):
-    sensitivity_number_filtered = {}  # sensitivity number of each element after filtering
+    sensitivity_number_filtered = sensitivity_number.copy()  # sensitivity number of each element after filtering
     for en in opt_domains:
         numerator = 0
         denominator = 0
@@ -394,7 +396,7 @@ def run2(file_name, sensitivity_number, weight_factor2, near_elm, opt_domains):
         if denominator != 0:
             sensitivity_number_filtered[en] = numerator / denominator
         else:
-            msg = "WARNING: filter2 failed due to division by 0." \
+            msg = "\nERROR: simple filter failed due to division by 0." \
                   "Some element has not a near element in distance <= r_min.\n"
             print(msg)
             beso_lib.write_to_log(file_name, msg)
