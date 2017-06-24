@@ -89,7 +89,7 @@ for dn in domain_optimized:
     msg += ("domain_thickness        = %s\n" % domain_thickness[dn])
     msg += ("domain_FI               = %s\n" % domain_FI[dn])
     msg += ("domain_material         = %s\n" % domain_material[dn])
-    msg += ("domain_same_state       = %s\n" % domain_same_state)
+    msg += ("domain_same_state       = %s\n" % domain_same_state[dn])
     msg += "\n"
 msg += ("mass_goal_ratio         = %s\n" % mass_goal_ratio)
 msg += ("continue_from           = %s\n" % continue_from)
@@ -126,8 +126,20 @@ for dn in domains_from_config:  # distinguishing shell elements and volume eleme
                                                        list(Elements.hexa8.keys()) + list(Elements.hexa20.keys()) +
                                                        list(Elements.penta6.keys()) + list(Elements.penta15.keys()))
 
-elm_states = {}  # initial element state
-if continue_from[-4:] == ".frd":
+# initialize element states
+elm_states = {}
+if isinstance(continue_from, int):
+    for dn in domains_from_config:
+        if (len(domain_density[dn]) - 1) <= continue_from:
+            sn = len(domain_density[dn]) - 1
+            msg = "\nINFO: elements from the domain " + dn + " were set to the highest state.\n"
+            beso_lib.write_to_log(file_name, msg)
+            print(msg)
+        else:
+            sn = continue_from
+        for en in domains[dn]:
+            elm_states[en] = sn
+elif continue_from[-4:] == ".frd":
     elm_states = beso_lib.import_frd_state(continue_from, elm_states, number_of_states, file_name)
 elif continue_from[-4:] == ".inp":
     elm_states = beso_lib.import_inp_state(continue_from, elm_states, number_of_states, file_name)
@@ -141,7 +153,7 @@ else:
 # computing volume or area, and centre of gravity of each element
 [cg, cg_min, cg_max, volume_elm, area_elm] = beso_lib.elm_volume_cg(file_name, nodes, Elements)
 mass = [0.0]
-mass_full = 0  # sum from 0th list position TODO make it independent on starting elm_states?
+mass_full = 0  # sum from initial states TODO make it independent on starting elm_states?
 
 for dn in domains_from_config:
     if domain_optimized[dn] is True:
@@ -201,7 +213,7 @@ for dno in range(len(domains_from_config) - 1):
     msg += (" " + str(dno + 1)).rjust(4, " ") + ")"
 if len(domains_from_config) > 1:
     msg += " all)"
-msg += "          FI_mean    _without_state0         FI_max 0)"
+msg += "          FI_mean    _without_state0         FI_max_0)"
 for dno in range(len(domains_from_config) - 1):
     msg += str(dno + 1).rjust(17, " ") + ")"
 if len(domains_from_config) > 1:
@@ -251,6 +263,11 @@ while True:
     elif reference_points == "nodes":  # from .frd file
         FI_step = beso_lib.import_FI_node(reference_value, file_nameW, domains, criteria, domain_FI, file_name,
                                           elm_states)
+    if not FI_step:
+        msg = "CalculiX results not found, check CalculiX for errors."
+        beso_lib.write_to_log(file_name, "\nERROR: " + msg + "\n")
+        assert False, msg
+
     FI_max.append({})
     for dn in domains_from_config:
         FI_max[i][dn] = 0
@@ -261,13 +278,13 @@ while True:
                     FI_max[i][dn] = max(FI_max[i][dn], max(FI_step_en))
                 except ValueError:
                     msg = "FI_max computing failed. Check if each domain contains at least one failure criterion."
-                    beso_lib.write_to_log(file_name, "ERROR: " + msg + "\n")
+                    beso_lib.write_to_log(file_name, "\nERROR: " + msg + "\n")
                     raise Exception(msg)
                 except KeyError:
                     msg = "Some result values are missing. Check available disk space."
-                    beso_lib.write_to_log(file_name, "ERROR: " + msg + "\n")
+                    beso_lib.write_to_log(file_name, "\nERROR: " + msg + "\n")
                     raise Exception(msg)
-    print("domain ordered \nFI_max and number of violated elements")
+    print("FI_max, number of violated elements, domain name")
 
     # handling with more steps
     FI_step_max = {}  # maximal FI over all steps for each element in this iteration
@@ -283,7 +300,7 @@ while True:
             sensitivity_number[en] = FI_step_max[en] / domain_density[dn][elm_states[en]]
             if FI_step_max[en] >= 1:
                 FI_violated[i][dno] += 1
-        print(str(FI_max[i][dn]).rjust(15) + " " + str(FI_violated[i][dno]).rjust(4))
+        print(str(FI_max[i][dn]).rjust(15) + " " + str(FI_violated[i][dno]).rjust(4) + "   " + dn)
         dno += 1
 
     # filtering sensitivity number
@@ -300,10 +317,10 @@ while True:
                                                        domains_to_filter)
             elif ft[0].split()[0] in ["erode", "dilate", "open", "close", "open-close", "close-open", "combine"]:
                 if ft[0].split()[1] == "sensitivity":
-                    domains_en_in_state = [[] for _ in range(len(number_of_states))]
+                    domains_en_in_state = [[] for _ in range(number_of_states)]
                     for en in domains_to_filter:
                         sn = elm_states[en]
-                        domains_en_in_state[sn].append(en)
+                        domains_en_in_state[sn].append(en)  # filter only elements shearing state
                     for sn in range(number_of_states):
                         if domains_en_in_state[sn]:
                             sensitivity_number = beso_filters.run_morphology(sensitivity_number, near_elm,
@@ -392,18 +409,21 @@ while True:
 
     # check for number of violated elements
     if sum(FI_violated[i - 1]) > sum(FI_violated[0]) + FI_violated_tolerance:
-        mass_goal_i = mass[i - 1]  # use mass_new from previous iteration
+        if mass[i - 1] >= mass_goal_ratio * mass_full:
+            mass_goal_i = mass[i - 1]  # use mass_new from previous iteration
+        else:  # not to drop below goal mass
+            mass_goal_i = mass_goal_ratio * mass_full
         if i_violated == 0:
             i_violated = i
             check_tolerance = True
-    elif mass[i - 1] <= mass_goal_ratio * mass_full:  # goal volume achieved
+    elif mass[i - 1] <= mass_goal_ratio * mass_full:  # goal mass achieved
         if not i_violated:
             i_violated = i  # to start decaying
             check_tolerance = True
         try:
             mass_goal_i
         except NameError:
-            msg = "ERROR: mass goal is lower than initial mass. Check mass_goal_ratio"
+            msg = "\nWARNING: mass goal is lower than initial mass. Check mass_goal_ratio."
             beso_lib.write_to_log(file_name, msg + "\n")
     else:
         mass_goal_i = mass_goal_ratio * mass_full
@@ -432,7 +452,8 @@ while True:
             if ft[0].split()[0] in ["erode", "dilate", "open", "close", "open-close", "close-open", "combine"]:
                 if ft[0].split()[1] == "state":
                     # the same filter as for sensitivity numbers
-                    elm_states_filtered = beso_filters.run_morphology(elm_states, near_elm, opt_domains, ft[0].split()[0])
+                    elm_states_filtered = beso_filters.run_morphology(elm_states, near_elm, domains_to_filter,
+                                                                      ft[0].split()[0])
                     # compute mass difference
                     for dn in domains_from_config:
                         if domain_optimized[dn] is True:
@@ -458,7 +479,7 @@ while True:
 
     # check for oscillation state
     if elm_states_before_last == elm_states:  # oscillating state
-        msg = "OSCILLATION: model turns back to " + str(i - 2) + "th iteration\n"
+        msg = "\nOSCILLATION: model turns back to " + str(i - 2) + "th iteration.\n"
         beso_lib.write_to_log(file_name, msg)
         print(msg)
         break
