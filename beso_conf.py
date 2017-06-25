@@ -81,10 +81,10 @@ mass_addition_ratio = 0.01  # mass to be added in each iteration
 mass_removal_ratio = 0.03  # mass to be removed in each iteration
 ratio_type = "relative"  # "relative" - ratios of actual mass, "absolute" - ratios of maximal mass
 
-iterations_limit = 0  # 0 - automatic estimate, <integer> - the maximum allowable number of iterations
+iterations_limit = 1  # 0 - automatic estimate, <integer> - the maximum allowable number of iterations
 tolerance = 1e-3  # the maximum relative difference in mean stress in optimization domains between the last 5 iterations needed to finish
 
-save_iteration_results = 10  # every i-th iteration save temporary results, 0 - save only final results
+save_iteration_results = 0  # every i-th iteration save temporary results, 0 - save only final results
 save_solver_files = ""  # not removed outputs from the solver, e.g. "inp frd dat cvg sta" will preserve all outputs in iterations defined by save_iteration_results
 save_resulting_format = "inp csv" # "frd" or "inp" format of resulting meshes (each state separately in own mesh file)
                                   # "csv" output for openning point cloud in Paraview (element centres of gravity, states, sensitivity numbers, failure indices)
