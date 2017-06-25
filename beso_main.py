@@ -13,38 +13,38 @@ import beso_separate
 plt.close("all")
 start_time = time.time()
 
-# initialization of variables
+# initialization of variables - default values
 domain_optimized = {}
 domain_density = {}
 domain_thickness = {}
-domain_offset = {}  # TODO read offset from .inp file
+domain_offset = {}
 domain_orientation = {}
 domain_FI = {}
 domain_material = {}
 domain_same_state = {}
-path = None
-path_calculix = None
-file_name = None
-mass_goal_ratio = None
-continue_from = None
-filter_list = None
-r_min = None
-filter_on_sensitivity = None
-cpu_cores = None
-FI_violated_tolerance = None
-decay_coefficient = None
-shells_as_composite = None
-reference_points = None
-reference_value = None
-mass_addition_ratio = None
-mass_removal_ratio = None
-ratio_type = None
-sensitivity_averaging = None
-iterations_limit = None
-tolerance = None
-save_iteration_results = None
-save_solver_files = None
-save_resulting_format = None
+path = "."
+path_calculix = ""
+file_name = "Plane_Mesh.inp"
+mass_goal_ratio = 0.4
+continue_from = ""
+filter_list = [["simple", 0]]
+r_min = 0.0
+filter_on_sensitivity = 0
+cpu_cores = 0
+FI_violated_tolerance = 1
+decay_coefficient = -0.2
+shells_as_composite = False
+reference_points = "integration points"
+reference_value = "max"
+sensitivity_averaging = False
+mass_addition_ratio = 0.01
+mass_removal_ratio = 0.03
+ratio_type = "relative"
+iterations_limit = 0
+tolerance = 1e-3
+save_iteration_results = 0
+save_solver_files = ""
+save_resulting_format = "inp csv"
 
 # read configuration file to fill variables listed above
 exec(open("beso_conf.py").read())
@@ -55,6 +55,25 @@ for dn in domain_FI:  # extracting each type of criteria
         for dn_crit in domain_FI[dn][state]:
             if dn_crit not in criteria:
                 criteria.append(dn_crit)
+
+# default values if not defined by user
+for dn in domain_optimized:
+    try:
+        domain_thickness[dn]
+    except KeyError:
+        domain_thickness[dn] = []
+    try:
+        domain_offset[dn]
+    except KeyError:
+        domain_offset[dn] = 0.0
+    try:
+        domain_orientation[dn]
+    except KeyError:
+        domain_orientation[dn] = []
+    try:
+        domain_same_state[dn]
+    except KeyError:
+        domain_same_state[dn] = False
 
 number_of_states = 0  # find number of states possible in elm_states
 for dn in domains_from_config:
@@ -87,6 +106,8 @@ for dn in domain_optimized:
     msg += ("domain_optimized        = %s\n" % domain_optimized[dn])
     msg += ("domain_density          = %s\n" % domain_density[dn])
     msg += ("domain_thickness        = %s\n" % domain_thickness[dn])
+    msg += ("domain_offset           = %s\n" % domain_offset[dn])
+    msg += ("domain_orientation      = %s\n" % domain_orientation[dn])
     msg += ("domain_FI               = %s\n" % domain_FI[dn])
     msg += ("domain_material         = %s\n" % domain_material[dn])
     msg += ("domain_same_state       = %s\n" % domain_same_state[dn])
@@ -223,7 +244,7 @@ beso_lib.write_to_log(file_name, msg)
 
 # write csv file header to separate file
 if "csv" in save_resulting_format:
-    msg = ("Failure Index ordering\n")
+    msg = "Failure Index ordering\n"
     cn = 0
     for cr in criteria:
         msg += ("FI_" + str(cn) + ", " + str(cr) + "\n")
@@ -245,6 +266,7 @@ continue_iterations = True
 check_tolerance = False
 elm_states_before_last = {}
 elm_states_last = elm_states
+oscillations = False
 
 while True:
     # creating the new .inp file for CalculiX
@@ -317,14 +339,8 @@ while True:
                                                        domains_to_filter)
             elif ft[0].split()[0] in ["erode", "dilate", "open", "close", "open-close", "close-open", "combine"]:
                 if ft[0].split()[1] == "sensitivity":
-                    domains_en_in_state = [[] for _ in range(number_of_states)]
-                    for en in domains_to_filter:
-                        sn = elm_states[en]
-                        domains_en_in_state[sn].append(en)  # filter only elements shearing state
-                    for sn in range(number_of_states):
-                        if domains_en_in_state[sn]:
-                            sensitivity_number = beso_filters.run_morphology(sensitivity_number, near_elm,
-                                                                             domains_en_in_state[sn], ft[0].split()[0])
+                    sensitivity_number = beso_filters.run_morphology(sensitivity_number, near_elm, domains_to_filter,
+                                                                     ft[0].split()[0])
     if filter_on_sensitivity == "over nodes":
         sensitivity_number = beso_filters.run1(file_name, sensitivity_number, weight_factor_node, M,
                                                weight_factor_distance, near_nodes, nodes, opt_domains)
@@ -482,6 +498,7 @@ while True:
         msg = "\nOSCILLATION: model turns back to " + str(i - 2) + "th iteration.\n"
         beso_lib.write_to_log(file_name, msg)
         print(msg)
+        oscillations = True
         break
     elm_states_before_last = elm_states_last.copy()
     elm_states_last = elm_states.copy()
@@ -543,6 +560,9 @@ plt.xlabel("Iteration")
 plt.ylabel("Mass")
 plt.grid()
 plt.savefig("Mass", dpi=100)
+
+if oscillations == True:
+    i -= 1  # because other values for i-th iteration are not evaluated
 
 # plot number of elements with FI > 1
 plt.figure(2)
