@@ -753,7 +753,8 @@ def import_FI_node(reference_value, file_nameW, domains, criteria, domain_FI, fi
 # function for switch element states
 def switching(elm_states, domains_from_config, domain_optimized, domains, FI_step_max, domain_density, domain_thickness,
               domain_shells, area_elm, volume_elm, sensitivity_number, mass, mass_referential, mass_addition_ratio,
-              mass_removal_ratio, decay_coefficient, FI_violated, i_violated, i, mass_goal_i, domain_same_state):
+              mass_removal_ratio, compensate_state_filter, mass_excess, decay_coefficient, FI_violated, i_violated, i,
+              mass_goal_i, domain_same_state):
 
     def compute_difference(failing=False):
         if en in domain_shells[dn]:  # shells mass difference
@@ -862,6 +863,11 @@ def switching(elm_states, domains_from_config, domain_optimized, domains, FI_ste
     else:
         mass_to_add = mass_addition_ratio * mass_referential
         mass_to_remove = mass_removal_ratio * mass_referential
+    if compensate_state_filter is True:
+        if mass_excess > 0:
+            mass_to_remove += mass_excess
+        else:  # compensate by adding more mass
+            mass_to_add -= mass_excess
     mass_added = mass_overloaded
     mass_removed = 0.0
     # if mass_goal_i < mass[i - 1]:  # going from bigger mass to lower

@@ -40,6 +40,7 @@ sensitivity_averaging = False
 mass_addition_ratio = 0.01
 mass_removal_ratio = 0.03
 ratio_type = "relative"
+compensate_state_filter = False
 iterations_limit = 0
 tolerance = 1e-3
 save_iteration_results = 0
@@ -126,6 +127,7 @@ msg += ("reference_value         = %s\n" % reference_value)
 msg += ("mass_addition_ratio     = %s\n" % mass_addition_ratio)
 msg += ("mass_removal_ratio      = %s\n" % mass_removal_ratio)
 msg += ("ratio_type              = %s\n" % ratio_type)
+msg += ("compensate_state_filter = %s\n" % compensate_state_filter)
 msg += ("sensitivity_averaging   = %s\n" % sensitivity_averaging)
 msg += ("iterations_limit        = %s\n" % iterations_limit)
 msg += ("tolerance               = %s\n" % tolerance)
@@ -264,6 +266,7 @@ i = 0
 i_violated = 0
 continue_iterations = True
 check_tolerance = False
+mass_excess = 0.0
 elm_states_before_last = {}
 elm_states_last = elm_states
 oscillations = False
@@ -423,7 +426,7 @@ while True:
     i += 1  # iteration number
     print("\n----------- new iteration number %d ----------" % i)
 
-    # check for number of violated elements
+    # set mass_goal for i-th iteration, check for number of violated elements
     if sum(FI_violated[i - 1]) > sum(FI_violated[0]) + FI_violated_tolerance:
         if mass[i - 1] >= mass_goal_ratio * mass_full:
             mass_goal_i = mass[i - 1]  # use mass_new from previous iteration
@@ -452,10 +455,11 @@ while True:
     [elm_states, mass] = beso_lib.switching(elm_states, domains_from_config, domain_optimized, domains, FI_step_max,
                                             domain_density, domain_thickness, domain_shells, area_elm, volume_elm,
                                             sensitivity_number, mass, mass_referential, mass_addition_ratio,
-                                            mass_removal_ratio, decay_coefficient, FI_violated, i_violated, i,
-                                            mass_goal_i, domain_same_state)
+                                            mass_removal_ratio, compensate_state_filter, mass_excess, decay_coefficient,
+                                            FI_violated, i_violated, i, mass_goal_i, domain_same_state)
 
     # filtering state
+    mass_not_filtered = mass[i]  # use variable to store the "right" mass
     for ft in filter_list:
         if ft[0] and ft[1]:
             if len(ft) == 2:
@@ -486,6 +490,8 @@ while True:
                                         domain_density[dn][elm_states_filtered[en]] - domain_density[dn][elm_states[en]])
                                     elm_states[en] = elm_states_filtered[en]
     print("mass = " + str(mass[i]))
+    mass_excess = mass[i] - mass_not_filtered
+
     # export the present mesh
     if save_iteration_results and np.mod(float(i), save_iteration_results) == 0:
         if "frd" in save_resulting_format:
@@ -542,8 +548,6 @@ if "sta" not in save_solver_files:
     os.remove(file_nameW + ".sta")
 if "cvg" not in save_solver_files:
     os.remove(file_nameW + ".cvg")
-
-
 
 msg = "\n"
 msg += ("Finish at                          " + time.ctime() + "\n")
