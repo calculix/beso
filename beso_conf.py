@@ -6,7 +6,7 @@ path = "."  # path to the working directory where the initial file is located
 #path = "."  # example - in the current working directory
 #path = "~/tmp/beso/"  # Linux example
 #path = "D:\\tmp\\"  # Windows example
-path_calculix = "d:\\soft\FreeCad\\FreeCAD_0.17.10993_x64_dev_win\\bin\\ccx"  # path to the CalculiX solver
+path_calculix = "d:\\soft\\FreeCad\\FreeCAD_0.17.10993_x64_dev_win\\bin\\ccx"  # path to the CalculiX solver
 #path_calculix = "/usr/bin/ccx"  # Linux example, may help shell command: which ccx
 #path_calculix = "d:\\soft\FreeCad\\FreeCAD_0.17.8264_x64_dev_win\\bin\\ccx"  # Windows example
 
@@ -80,8 +80,10 @@ sensitivity_averaging = False  # True - averaging sensitivity numbers with previ
 mass_addition_ratio = 0.01  # mass to be added in each iteration
 mass_removal_ratio = 0.03  # mass to be removed in each iteration
 ratio_type = "relative"  # "relative" - ratios of actual mass, "absolute" - ratios of maximal mass
+compensate_state_filter = True  # True - if state filter changes iteration mass, next iteration will compensate it
+                                 # False - do nothing
 
-iterations_limit = 1  # 0 - automatic estimate, <integer> - the maximum allowable number of iterations
+iterations_limit = 0  # 0 - automatic estimate, <integer> - the maximum allowable number of iterations
 tolerance = 1e-3  # the maximum relative difference in mean stress in optimization domains between the last 5 iterations needed to finish
 
 save_iteration_results = 0  # every i-th iteration save temporary results, 0 - save only final results
