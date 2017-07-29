@@ -31,8 +31,8 @@ domain_material[elset_name] = ["*ELASTIC \n210000e-6,  0.3",  # material definit
 domain_same_state[elset_name] = False  # False - element states can differ, True - all domain elements have common state
 # copy this block for defining properties of the next domain
 
-mass_goal_ratio = 0.4  # the goal mass as a fragment of the initial mass of optimized domains,
-                       # i.e. fragment of mass evaluated from effective density and volumes for beginning states of all optimized elements
+mass_goal_ratio = 0.4  # the goal mass as a fragment of the full mass of optimized domains,
+                       # i.e. fragment of mass evaluated from effective density and volumes of optimized elements in the highest state
 
 continue_from = ""  # if not "", optimization will load element states from the given files,
                               # for previously generated csv file use "file_name.csv"
@@ -83,7 +83,14 @@ ratio_type = "relative"  # "relative" - ratios of actual mass, "absolute" - rati
 compensate_state_filter = True  # True - if state filter changes iteration mass, next iteration will compensate it
                                  # False - do nothing
 
-iterations_limit = 0  # 0 - automatic estimate, <integer> - the maximum allowable number of iterations
+steps_superposition = []  # make linear superposition of stress tensors from different steps to save time for evaluation of new load cases,
+                          # [] - do not superpose
+                          # exammple for 2 new load cases:
+                          # [[(0.5, 1), (0.2, 2)], [(-1.5, 3)]]
+                          # first superposition is from the first step (i.e. step 1) with stress tensor multiplied by 0.5 plus stress tensor from step 2 multiplied by 0.2,
+                          # second superposition is only from step 3 but with stress tensor multiplied by -1.5
+
+iterations_limit = "auto"  # "auto" - automatic estimate, <integer> - the maximum allowable number of iterations
 tolerance = 1e-3  # the maximum relative difference in mean stress in optimization domains between the last 5 iterations needed to finish
 
 save_iteration_results = 0  # every i-th iteration save temporary results, 0 - save only final results

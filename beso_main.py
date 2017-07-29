@@ -41,7 +41,8 @@ mass_addition_ratio = 0.01
 mass_removal_ratio = 0.03
 ratio_type = "relative"
 compensate_state_filter = False
-iterations_limit = 0
+steps_superposition = []
+iterations_limit = "auto"
 tolerance = 1e-3
 save_iteration_results = 0
 save_solver_files = ""
@@ -80,18 +81,6 @@ number_of_states = 0  # find number of states possible in elm_states
 for dn in domains_from_config:
     number_of_states = max(number_of_states, len(domain_density[dn]))
 
-if iterations_limit == 0:  # automatic setting
-    if ratio_type == "absolute":
-        iterations_limit = int((1 - mass_goal_ratio) / abs(mass_removal_ratio - mass_addition_ratio) + 25)
-    elif ratio_type == "relative":
-        m = 1
-        it = 0
-        while m > mass_goal_ratio:
-            m -= m * abs(mass_removal_ratio - mass_addition_ratio)
-            it += 1
-        iterations_limit = it + 25
-    print("iterations_limit set to %s" % iterations_limit)
-
 # set an environmental variable driving number of cpu cores to be used by CalculiX
 if cpu_cores == 0:  # use all processor cores
     cpu_cores = multiprocessing.cpu_count()
@@ -129,6 +118,7 @@ msg += ("mass_removal_ratio      = %s\n" % mass_removal_ratio)
 msg += ("ratio_type              = %s\n" % ratio_type)
 msg += ("compensate_state_filter = %s\n" % compensate_state_filter)
 msg += ("sensitivity_averaging   = %s\n" % sensitivity_averaging)
+msg += ("steps_superposition     = %s\n" % steps_superposition)
 msg += ("iterations_limit        = %s\n" % iterations_limit)
 msg += ("tolerance               = %s\n" % tolerance)
 msg += ("save_iteration_results  = %s\n" % save_iteration_results)
@@ -189,6 +179,20 @@ for dn in domains_from_config:
             mass_full += domain_density[dn][len(domain_density[dn]) - 1] * volume_elm[en]
 print("initial optimization domains mass {}" .format(mass[0]))
 
+if iterations_limit == "auto":  # automatic setting
+    if ratio_type == "absolute":
+        iterations_limit = int((1 - mass_goal_ratio) / abs(mass_removal_ratio - mass_addition_ratio) + 25)
+    elif ratio_type == "relative":
+        m = mass[0] / mass_full
+        it = 0
+        while m > mass_goal_ratio:
+            m -= m * abs(mass_removal_ratio - mass_addition_ratio)
+            it += 1
+        iterations_limit = it + 25
+    print("\niterations_limit set automatically to %s" % iterations_limit)
+    msg = ("\niterations_limit        = %s\n" % iterations_limit)
+    beso_lib.write_to_log(file_name, msg)
+
 # preparing parameters for filtering sensitivity numbers
 weight_factor2 = {}
 near_elm = {}
@@ -230,7 +234,7 @@ dorder = 0
 for dn in domains_from_config:
     msg += str(dorder) + ") " + dn + "\n"
     dorder += 1
-msg += "\niteration              mass FI_violated_0)"
+msg += "\n   i              mass FI_violated_0)"
 for dno in range(len(domains_from_config) - 1):
     msg += (" " + str(dno + 1)).rjust(4, " ") + ")"
 if len(domains_from_config) > 1:
@@ -283,10 +287,10 @@ while True:
     # reading results and computing failure indeces
     if reference_points == "integration points":  # from .dat file
         FI_step = beso_lib.import_FI_int_pt(reference_value, file_nameW, domains, criteria, domain_FI, file_name,
-                                            elm_states, domains_from_config)
+                                            elm_states, domains_from_config, steps_superposition)
     elif reference_points == "nodes":  # from .frd file
         FI_step = beso_lib.import_FI_node(reference_value, file_nameW, domains, criteria, domain_FI, file_name,
-                                          elm_states)
+                                          elm_states, steps_superposition)
     if not FI_step:
         msg = "CalculiX results not found, check CalculiX for errors."
         beso_lib.write_to_log(file_name, "\nERROR: " + msg + "\n")
@@ -380,7 +384,7 @@ while True:
     print("FI_mean_without_state0 = {}".format(FI_mean_without_state0[i]))
 
     # writing log table row
-    msg = str(i).rjust(9, " ") + " " + str(mass[i]).rjust(17, " ") + " " + str(FI_violated[i][0]).rjust(13, " ")
+    msg = str(i).rjust(4, " ") + " " + str(mass[i]).rjust(17, " ") + " " + str(FI_violated[i][0]).rjust(13, " ")
     for dno in range(len(domains_from_config) - 1):
         msg += " " + str(FI_violated[i][dno + 1]).rjust(4, " ")
     if len(domains_from_config) > 1:
@@ -494,9 +498,9 @@ while True:
     # export the present mesh
     if save_iteration_results and np.mod(float(i), save_iteration_results) == 0:
         if "frd" in save_resulting_format:
-            beso_lib.export_frd("file" + str(i), nodes, Elements, elm_states, number_of_states)
+            beso_lib.export_frd(file_nameW, nodes, Elements, elm_states, number_of_states)
         if "inp" in save_resulting_format:
-            beso_lib.export_inp("file" + str(i), nodes, Elements, elm_states, number_of_states)
+            beso_lib.export_inp(file_nameW, nodes, Elements, elm_states, number_of_states)
 
     # check for oscillation state
     if elm_states_before_last == elm_states:  # oscillating state
@@ -530,9 +534,12 @@ while True:
 # export the resulting mesh
 if not (save_iteration_results and np.mod(float(i), save_iteration_results) == 0):
     if "frd" in save_resulting_format:
-        beso_lib.export_frd("file" + str(i), nodes, Elements, elm_states, number_of_states)
+        beso_lib.export_frd(file_nameW, nodes, Elements, elm_states, number_of_states)
     if "inp" in save_resulting_format:
-        beso_lib.export_inp("file" + str(i), nodes, Elements, elm_states, number_of_states)
+        beso_lib.export_inp(file_nameW, nodes, Elements, elm_states, number_of_states)
+    if "csv" in save_resulting_format:
+        beso_lib.export_csv(domains_from_config, domains, criteria, FI_step, file_nameW, cg, elm_states,
+                            sensitivity_number)
 
 # removing solver files
 if "inp" not in save_solver_files:
@@ -548,12 +555,17 @@ if "sta" not in save_solver_files:
 if "cvg" not in save_solver_files:
     os.remove(file_nameW + ".cvg")
 
+# print total time
+total_time = time.time() - start_time
+total_time_h = int(total_time / 3600.0)
+total_time_min = int((total_time % 3600) / 60.0)
+total_time_s = int(round(total_time % 60))
 msg = "\n"
-msg += ("Finish at                          " + time.ctime() + "\n")
-msg += ("Total time                         " + str(time.time() - start_time) + " s\n")
+msg += ("Finished at  " + time.ctime() + "\n")
+msg += ("Total time   " + str(total_time_h) + " h " + str(total_time_min) + " min " + str(total_time_s) + " s\n")
 msg += "\n"
 beso_lib.write_to_log(file_name, msg)
-print("total time: " + str(time.time() - start_time) + " s")
+print("total time: " + str(total_time_h) + " h " + str(total_time_min) + " min " + str(total_time_s) + " s")
 
 # plot mass
 plt.figure(1)
