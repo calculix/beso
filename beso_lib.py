@@ -48,7 +48,12 @@ def import_inp(file_name, domains_from_config, domain_optimized, shells_as_compo
     plane_stress = set()
     axisymmetry = set()
 
-    f = open(file_name, "r")
+    try:
+        f = open(file_name, "r")
+    except IOError:
+        msg = ("CalculiX input file " + file_name + " not found. Check your inputs.")
+        write_to_log(file_name, "\nERROR: " + msg + "\n")
+        raise Exception(msg)
     line = "\n"
     include = ""
     while line != "":
@@ -563,7 +568,7 @@ def write_inp(file_name, file_nameW, elm_states, number_of_states, domains, doma
 # function for importing results from .dat file
 # Failure Indices are computed at each integration point and maximum or average above each element is returned
 def import_FI_int_pt(reference_value, file_nameW, domains, criteria, domain_FI, file_name, elm_states,
-                     domains_from_config):
+                     domains_from_config, steps_superposition):
     try:
         f = open(file_nameW + ".dat", "r")
     except IOError:
@@ -575,6 +580,15 @@ def import_FI_int_pt(reference_value, file_nameW, domains, criteria, domain_FI, 
     criteria_elm = {}  # {en1: numbers of applied criteria, en2: [], ...}
     FI_step = []  # list for steps - [{en1: list for criteria FI, en2: [], ...}, {en1: [], en2: [], ...}, next step]
 
+    memorized_steps = set()  # steps to use in superposition
+    if steps_superposition:
+        step_stress = {}  #{sn: {en: [sxx, syy, szz, sxy, sxz, syz], next element with int. pt. stresses}, next step, ...}
+        for LCn in range(len(steps_superposition)):
+            for (scale, sn) in steps_superposition[LCn]:
+                sn -= 1  # step numbering in CalculiX is from 1, but we have it 0 based
+                memorized_steps.add(sn)
+                step_stress[sn] = {}
+
     # prepare FI dict from failure criteria
     for dn in domain_FI:
         for en in domains[dn]:
@@ -584,15 +598,6 @@ def import_FI_int_pt(reference_value, file_nameW, domains, criteria, domain_FI, 
             criteria_elm[en] = cr
 
     def compute_FI():  # for the actual integration point
-        sxx = float(line_split[2])
-        syy = float(line_split[3])
-        szz = float(line_split[4])
-        sxy = float(line_split[5])
-        sxz = float(line_split[6])
-        syz = float(line_split[7])
-        syx = sxy
-        szx = sxz
-        szy = syz
         for FIn in criteria_elm[en]:
             if criteria[FIn][0] == "stress_von_Mises":
                 s_allowable = criteria[FIn][1]
@@ -604,22 +609,22 @@ def import_FI_int_pt(reference_value, file_nameW, domains, criteria, domain_FI, 
                 msg = "\nError: failure criterion " + str(criteria[FIn]) + " not recognised.\n"
                 write_to_log(file_name, msg)
 
-    def save_FI():
-        FI_step[step_number][en_last] = []
+    def save_FI(sn, en):
+        FI_step[sn][en] = []
         for FIn in range(len(criteria)):
-            FI_step[step_number][en_last].append(None)
-            if FIn in criteria_elm[en_last]:
+            FI_step[sn][en].append(None)
+            if FIn in criteria_elm[en]:
                 if reference_value == "max":
-                    FI_step[step_number][en_last][FIn] = max(FI_int_pt[FIn])
+                    FI_step[sn][en][FIn] = max(FI_int_pt[FIn])
                 elif reference_value == "average":
-                    FI_step[step_number][en_last][FIn] = np.average(FI_int_pt[FIn])
+                    FI_step[sn][en][FIn] = np.average(FI_int_pt[FIn])
 
     read_stresses = 0
     for line in f:
         line_split = line.split()
         if line == "\n":
             if read_stresses == 1:
-                save_FI()
+                save_FI(step_number, en_last)
             read_stresses -= 1
             FI_int_pt = [[] for _ in range(len(criteria))]
             en_last = None
@@ -634,25 +639,92 @@ def import_FI_int_pt(reference_value, file_nameW, domains, criteria, domain_FI, 
             en = int(line_split[0])
             if en_last != en:
                 if en_last:
-                    save_FI()
+                    save_FI(step_number, en_last)
                     FI_int_pt = [[] for _ in range(len(criteria))]
                 en_last = en
+            sxx = float(line_split[2])
+            syy = float(line_split[3])
+            szz = float(line_split[4])
+            sxy = float(line_split[5])
+            sxz = float(line_split[6])
+            syz = float(line_split[7])
+            syx = sxy
+            szx = sxz
+            szy = syz
             compute_FI()
+
+            if step_number in memorized_steps:
+                try:
+                    step_stress[step_number][en]
+                except KeyError:
+                    step_stress[step_number][en] = []
+                step_stress[step_number][en].append([sxx, syy, szz, sxy, sxz, syz])
     if read_stresses == 1:
-        save_FI()
+        save_FI(step_number, en_last)
     f.close()
+
+    # superposed steps
+    # step_stress = {sn: {en: [[sxx, syy, szz, sxy, sxz, syz], next integration point], next element with int. pt. stresses}, next step, ...}
+    # steps_superposition = [[(sn, scale), next scaled step to add, ...], next superposed step]
+    for LCn in range(len(steps_superposition)):
+        FI_step.append({})
+
+        # sum scaled stress components at each integration point
+        superposition_stress = {}
+        for (scale, sn) in steps_superposition[LCn]:
+            sn -= 1  # step numbering in CalculiX is from 1, but we have it 0 based
+            for en in step_stress[sn]:
+                try:
+                    superposition_stress[en]
+                except KeyError:
+                    superposition_stress[en] = []  # list of integration points
+                for ip in range(len(step_stress[sn][en])):
+                    try:
+                        superposition_stress[en][ip]
+                    except IndexError:
+                        superposition_stress[en].append([0, 0, 0, 0, 0, 0])  # components of stress
+                    for component in range(6):
+                        superposition_stress[en][ip][component] += scale * step_stress[sn][en][ip][component]
+
+        # compute FI in each element at superposed step
+        for en in superposition_stress:
+            for ip in range(len(superposition_stress[en])):
+                FI_int_pt = [[] for _ in range(len(criteria))]
+                sxx = superposition_stress[en][ip][0]
+                syy = superposition_stress[en][ip][1]
+                szz = superposition_stress[en][ip][2]
+                sxy = superposition_stress[en][ip][3]
+                sxz = superposition_stress[en][ip][4]
+                syz = superposition_stress[en][ip][5]
+                syx = sxy
+                szx = sxz
+                szy = syz
+                compute_FI()  # fill FI_int_pt
+            sn = -1  # last step number
+            save_FI(sn, en)  # save value to FI_step for given en
+
     return FI_step
 
 
 # function for importing results from .frd file
 # Failure Indices are computed at each node and maximum or average above each element is returned
-def import_FI_node(reference_value, file_nameW, domains, criteria, domain_FI, file_name, elm_states):
+def import_FI_node(reference_value, file_nameW, domains, criteria, domain_FI, file_name, elm_states,
+                   steps_superposition):
     try:
         f = open(file_nameW + ".frd", "r")
     except IOError:
         msg = "CalculiX result file not found, check your inputs"
         write_to_log(file_name, "\nERROR: " + msg + "\n")
         assert False, msg
+
+    memorized_steps = set()  # steps to use in superposition
+    if steps_superposition:
+        step_stress = {}  #{sn: {en: [sxx, syy, szz, sxy, sxz, syz], next element with int. pt. stresses}, next step, ...}
+        for LCn in range(len(steps_superposition)):
+            for (scale, sn) in steps_superposition[LCn]:
+                sn -= 1  # step numbering in CalculiX is from 1, but we have it 0 based
+                memorized_steps.add(sn)
+                step_stress[sn] = {}
 
     # prepare ordered elements of interest and failure criteria for each element
     criteria_elm = {}
@@ -664,12 +736,35 @@ def import_FI_node(reference_value, file_nameW, domains, criteria, domain_FI, fi
             criteria_elm[en] = cr
     sorted_elements = sorted(criteria_elm.keys())  # [en_lowest, ..., en_highest]
 
+    def compute_FI():  # for the actual node
+        for FIn in criteria_elm[en]:
+            if criteria[FIn][0] == "stress_von_Mises":
+                s_allowable = criteria[FIn][1]
+                FI_node[nn][FIn] = np.sqrt(0.5 * ((sxx - syy) ** 2 + (syy - szz) ** 2 + (szz - sxx) ** 2 +
+                                                  6 * (sxy ** 2 + syz ** 2 + sxz ** 2))) / s_allowable
+            elif criteria[FIn][0] == "user_def":
+                FI_node[nn][FIn] = eval(criteria[FIn][1])
+            else:
+                msg = "\nError: failure criterion " + str(criteria[FIn]) + " not recognised.\n"
+                write_to_log(file_name, msg)
+
+    def save_FI(sn, en):
+        FI_step[sn][en] = []
+        for FIn in range(len(criteria)):
+            FI_step[sn][en].append(None)
+            if FIn in criteria_elm[en]:
+                if reference_value == "max":
+                    FI_step[sn][en][FIn] = max(FI_elm[en][FIn])
+                elif reference_value == "average":
+                    FI_step[sn][en][FIn] = np.average(FI_elm[en][FIn])
+
     read_mesh = False
     frd_nodes = {}  # en associated to given node
     elm_nodes = {}
     for en in sorted_elements:
         elm_nodes[en] = []
     read_stress = False
+    sn = -1
     FI_step = []  # list for steps - [{en1: list for criteria FI, en2: [], ...}, {en1: [], en2: [], ...}, next step]
     for line in f:
         # reading mesh
@@ -704,19 +799,12 @@ def import_FI_node(reference_value, file_nameW, domains, criteria, domain_FI, fi
                             FI_elm[en][FIn].append(FI_node[nn][FIn])
                 FI_step.append({})
                 for en in FI_elm:
-                    sn = -1  # last step number
-                    FI_step[sn][en] = []
-                    for FIn in range(len(criteria)):
-                        FI_step[sn][en].append(None)
-                        if FIn in criteria_elm[en]:
-                            if reference_value == "max":
-                                FI_step[sn][en][FIn] = max(FI_elm[en][FIn])
-                            elif reference_value == "average":
-                                FI_step[sn][en][FIn] = np.average(FI_elm[en][FIn])
+                    save_FI(sn, en)
 
         # reading stresses
         elif line[:11] == " -4  STRESS":
             read_stress = True
+            sn += 1
             FI_node = {}
             for nn in frd_nodes:
                 FI_node[nn] = [[] for _ in range(len(criteria))]
@@ -736,17 +824,60 @@ def import_FI_node(reference_value, file_nameW, domains, criteria, domain_FI, fi
                     szy = syz
                     sxz = szx
                     en = frd_nodes[nn]
-                    for FIn in criteria_elm[en]:
-                        if criteria[FIn][0] == "stress_von_Mises":
-                            s_allowable = criteria[FIn][1]
-                            FI_node[nn][FIn] = np.sqrt(0.5 * ((sxx - syy) ** 2 + (syy - szz) ** 2 + (szz - sxx) ** 2 +
-                                                                 6 * (sxy ** 2 + syz ** 2 + sxz ** 2))) / s_allowable
-                        elif criteria[FIn][0] == "user_def":
-                            FI_node[nn][FIn] = eval(criteria[FIn][1])
-                        else:
-                            msg = "\nError: failure criterion " + str(criteria[FIn]) + " not recognised.\n"
-                            write_to_log(file_name, msg)
+                    compute_FI()
+                    if sn in memorized_steps:
+                        try:
+                            step_stress[sn][en]
+                        except KeyError:
+                            step_stress[sn][en] = {}
+                        step_stress[sn][en][nn] = [sxx, syy, szz, sxy, sxz, syz]
     f.close()
+
+    # superposed steps
+    # step_stress = {sn: {en: [[sxx, syy, szz, sxy, sxz, syz], next node], next element with nodal stresses}, next step, ...}
+    # steps_superposition = [[(sn, scale), next scaled step to add, ...], next superposed step]
+    for LCn in range(len(steps_superposition)):
+        FI_step.append({})
+
+        # sum scaled stress components at each integration node
+        superposition_stress = {}
+        for (scale, sn) in steps_superposition[LCn]:
+            sn -= 1  # step numbering in CalculiX is from 1, but we have it 0 based
+            for en in step_stress[sn]:
+                try:
+                    superposition_stress[en]
+                except KeyError:
+                    superposition_stress[en] = {}  # for nodes
+                for nn in elm_nodes[en]:
+                    try:
+                        superposition_stress[en][nn]
+                    except KeyError:
+                        superposition_stress[en][nn] = [0, 0, 0, 0, 0, 0]  # components of stress
+                    for component in range(6):
+                        superposition_stress[en][nn][component] += scale * step_stress[sn][en][nn][component]
+
+        # compute FI in each element at superposed step
+        for en in superposition_stress:
+            FI_node = {}
+            for nn in elm_nodes[en]:
+                FI_node[nn] = [[] for _ in range(len(criteria))]
+                sxx = superposition_stress[en][nn][0]
+                syy = superposition_stress[en][nn][1]
+                szz = superposition_stress[en][nn][2]
+                sxy = superposition_stress[en][nn][3]
+                sxz = superposition_stress[en][nn][4]
+                syz = superposition_stress[en][nn][5]
+                syx = sxy
+                szx = sxz
+                szy = syz
+                compute_FI()  # fill FI_node
+            FI_elm[en] = [[] for _ in range(len(criteria))]
+            for FIn in criteria_elm[en]:
+                for nn in elm_nodes[en]:
+                    FI_elm[en][FIn].append(FI_node[nn][FIn])
+            sn = -1  # last step number
+            save_FI(sn, en)  # save value to FI_step for given en
+
     return FI_step
 
 
@@ -938,7 +1069,7 @@ def switching(elm_states, domains_from_config, domain_optimized, domains, FI_ste
 
 # function for exporting the resulting mesh in separate files for each state of elm_states
 # only elements found by import_inp function are taken into account
-def export_frd(file_name, nodes, Elements, elm_states, number_of_states):
+def export_frd(file_nameW, nodes, Elements, elm_states, number_of_states):
 
     def get_associated_nodes(elm_category):
         for en in elm_category:
@@ -978,11 +1109,7 @@ def export_frd(file_name, nodes, Elements, elm_states, number_of_states):
 
     # find all possible states in elm_states and run separately for each of them
     for state in range(number_of_states):
-        if file_name[-4:] == ".inp":
-            new_name = file_name[:-4] + "_res_mesh" + str(state) + ".frd"
-        else:
-            new_name = file_name + "_res_mesh" + str(state) + ".frd"
-        f = open(new_name, "w")
+        f = open(file_nameW + "_state" + str(state) + ".frd", "w")
 
         # print nodes
         associated_nodes = []
@@ -1026,7 +1153,7 @@ def export_frd(file_name, nodes, Elements, elm_states, number_of_states):
 
 # function for exporting the resulting mesh in separate files for each state of elm_states
 # only elements found by import_inp function are taken into account
-def export_inp(file_name, nodes, Elements, elm_states, number_of_states):
+def export_inp(file_nameW, nodes, Elements, elm_states, number_of_states):
 
     def get_associated_nodes(elm_category):
         for en in elm_category:
@@ -1045,11 +1172,7 @@ def export_inp(file_name, nodes, Elements, elm_states, number_of_states):
 
     # find all possible states in elm_states and run separately for each of them
     for state in range(number_of_states):
-        if file_name[-4:] == ".inp":
-            new_name = file_name[:-4] + "_res_mesh" + str(state) + ".inp"
-        else:
-            new_name = file_name + "_res_mesh" + str(state) + ".inp"
-        f = open(new_name, "w")
+        f = open(file_nameW + "_state" + str(state) + ".inp", "w")
 
         # print nodes
         associated_nodes = []
