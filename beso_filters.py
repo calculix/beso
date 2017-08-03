@@ -261,7 +261,7 @@ def run1(file_name, sensitivity_number, weight_factor_node, M, weight_factor_dis
             sensitivity_number_node[nn] = 0
             for en in M[nn]:
                 sensitivity_number_node[nn] += weight_factor_node[nn][en] * sensitivity_number[en]
-    sensitivity_number_filtered = {}  # sensitivity number of each element after filtering
+    sensitivity_number_filtered = sensitivity_number.copy()  # sensitivity number of each element after filtering
     for en in opt_domains:
         numerator = 0
         denominator = 0
@@ -407,7 +407,8 @@ def run2(file_name, sensitivity_number, weight_factor2, near_elm, opt_domains):
 
 # function preparing values for filtering element sensitivity number using own point mesh
 # currently set to work only with elements in opt_domains
-def prepare3(file_name, cg, cg_min, r_min, opt_domains):
+# does not work?!
+def prepare3_ortho_grid(file_name, cg, cg_min, r_min, opt_domains):
     weight_factor3 = {}
     near_points = {}
     near_elm = {}
@@ -474,9 +475,67 @@ def prepare3(file_name, cg, cg_min, r_min, opt_domains):
                 hist_near_points.append(0)
         hist_near_points[le] += 1
     msg = "\nfilter3 statistics:\n"
-    msg += "histogram - number of near elements (list position) vs. number of points (value)\n"
+    msg += "histogram - number of near elements (list index) vs. number of points (value)\n"
     msg += str(hist_near_elm) + "\n"
-    msg += "histogram - number of near points (list position) vs. number of elements (value)\n"
+    msg += "histogram - number of near points (list index) vs. number of elements (value)\n"
+    msg += str(hist_near_points) + "\n"
+    beso_lib.write_to_log(file_name, msg)
+    return weight_factor3, near_elm, near_points
+
+
+# function preparing values for filtering element sensitivity number using own point mesh of tetrahedrons
+# currently set to work only with elements in opt_domains
+def prepare3_tetra_grid(file_name, cg, r_min, opt_domains):
+    weight_factor3 = {}
+    near_points = {}
+    near_elm = {}
+    grid = 1.0 * r_min  # ranges of xyz cycles should be set according to preset coefficient
+
+    # searching for near points of each element
+    for en in opt_domains:  # domain to take elements for filtering
+        x_elm, y_elm, z_elm = cg[en]
+
+        # set starting point of the cell
+        # grid is the length of tetrahedral edge, which is also cell x size
+        x_en_cell = x_elm - x_elm % grid
+        # v = grid * np.sqrt(3) / 2 is the high of triangle, which is the half of cell y size
+        v = grid * 0.8660
+        y_en_cell = y_elm - y_elm % (2 * v)
+        # h = grid * np.sqrt(2 / 3.0)  is the high of tetrahedron, which is the half of cell z size
+        h = grid * 0.8165
+        z_en_cell = z_elm - z_elm % (2 * h)
+
+        near_points[en] = []
+        # comparing distance in cells around element en
+        for x_cell in [x_en_cell - grid, x_en_cell, x_en_cell + grid]:
+            for y_cell in [y_en_cell - 2 * v, y_en_cell, y_en_cell + 2 * v]:
+                for z_cell in [z_en_cell - 2 * h, z_en_cell, z_en_cell + 2 * h]:
+                    for [x, y, z] in [[x_cell, y_cell, z_cell],
+                                               [x_cell + grid / 2.0, y_cell + v, z_cell],
+                                               [x_cell + grid / 2.0, y_cell + v / 3.0, z_cell + h],
+                                               [x_cell, y_cell + 4 / 3.0 * v, z_cell + h]]:  # grid point coordinates
+                        distance = ((x_elm - x) ** 2 + (y_elm - y) ** 2 + (z_elm - z) ** 2) ** 0.5
+                        if distance < r_min:
+                            weight_factor3[(en, (x, y, z))] = r_min - distance
+                            near_points[en].append((x, y, z))
+                            try:
+                                near_elm[(x, y, z)].append(en)
+                            except KeyError:
+                                near_elm[(x, y, z)] = [en]
+
+    # summarize histogram of near elements
+    hist_near_points = list(np.zeros(10))
+    for en in near_points:
+        if isinstance(near_points[en], int):
+            le = 1
+        else:
+            le = len(near_points[en])
+        if le >= len(hist_near_points):
+            while len(hist_near_points) <= le:
+                hist_near_points.append(0)
+        hist_near_points[le] += 1
+    msg = "\nfilter over points statistics:\n"
+    msg += "histogram - number of near points (list index) vs. number of elements (value)\n"
     msg += str(hist_near_points) + "\n"
     beso_lib.write_to_log(file_name, msg)
     return weight_factor3, near_elm, near_points
@@ -485,7 +544,7 @@ def prepare3(file_name, cg, cg_min, r_min, opt_domains):
 # function for filtering element sensitivity number using own point mesh
 # currently works only with elements in opt_domains
 def run3(sensitivity_number, weight_factor3, near_elm, near_points):
-    sensitivity_number_filtered = {}  # sensitivity number of each element after filtering
+    sensitivity_number_filtered = sensitivity_number.copy()  # sensitivity number of each element after filtering
     point_sensitivity = {}
 
     # weighted averaging of sensitivity number from elements to points
