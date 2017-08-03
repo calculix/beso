@@ -28,8 +28,6 @@ file_name = "Plane_Mesh.inp"
 mass_goal_ratio = 0.4
 continue_from = ""
 filter_list = [["simple", 0]]
-r_min = 0.0
-filter_on_sensitivity = 0
 cpu_cores = 0
 FI_violated_tolerance = 1
 decay_coefficient = -0.2
@@ -105,8 +103,6 @@ for dn in domain_optimized:
 msg += ("mass_goal_ratio         = %s\n" % mass_goal_ratio)
 msg += ("continue_from           = %s\n" % continue_from)
 msg += ("filter_list             = %s\n" % filter_list)
-msg += ("r_min                   = %s\n" % r_min)
-msg += ("filter_on_sensitivity   = %s\n" % filter_on_sensitivity)
 msg += ("cpu_cores               = %s\n" % cpu_cores)
 msg += ("FI_violated_tolerance   = %s\n" % FI_violated_tolerance)
 msg += ("decay_coefficient       = %s\n" % decay_coefficient)
@@ -196,6 +192,13 @@ if iterations_limit == "auto":  # automatic setting
 # preparing parameters for filtering sensitivity numbers
 weight_factor2 = {}
 near_elm = {}
+weight_factor3 = []
+near_elm3 = []
+near_points = []
+weight_factor_node = []
+M = []
+weight_factor_distance = []
+near_nodes = []
 for ft in filter_list:
     if ft[0] and ft[1]:
         f_range = ft[1]
@@ -209,19 +212,24 @@ for ft in filter_list:
                 domains_to_filter += domains[dn]
                 filtered_dn.append(dn)
             beso_filters.check_same_state(domain_same_state, filtered_dn, file_name)
-        if ft[0] == "simple":
+        if ft[0] == "over points":
+            beso_filters.check_same_state(domain_same_state, domains_from_config, file_name)
+            [w_f3, n_e3, n_p] = beso_filters.prepare3_tetra_grid(file_name, cg, f_range, domains_to_filter)
+            weight_factor3.append(w_f3)
+            near_elm3.append(n_e3)
+            near_points.append(n_p)
+        elif  ft[0] == "over nodes":
+            beso_filters.check_same_state(domain_same_state, domains_from_config, file_name)
+            [w_f_n, M_, w_f_d, n_n] = beso_filters.prepare1s(nodes, Elements, cg, f_range, domains_to_filter)
+            weight_factor_node.append(w_f_n)
+            M.append(M_)
+            weight_factor_distance.append(w_f_d)
+            near_nodes.append(n_n)
+        elif ft[0] == "simple":
             [weight_factor2, near_elm] = beso_filters.prepare2s(cg, cg_min, cg_max, f_range, domains_to_filter,
                                                                 weight_factor2, near_elm)
         elif ft[0].split()[0] in ["erode", "dilate", "open", "close", "open-close", "close-open", "combine"]:
             near_elm = beso_filters.prepare_morphology(cg, cg_min, cg_max, f_range, domains_to_filter, near_elm)
-
-if filter_on_sensitivity == "over nodes":
-    beso_filters.check_same_state(domain_same_state, domains_from_config, file_name)
-    [weight_factor_node, M, weight_factor_distance, near_nodes] = beso_filters.prepare1s(nodes, Elements, cg, r_min,
-                                                                                         opt_domains)
-elif filter_on_sensitivity == "over points":
-    beso_filters.check_same_state(domain_same_state, domains_from_config, file_name)
-    [weight_factor3, near_elm3, near_points] = beso_filters.prepare3(file_name, cg, cg_min, r_min, opt_domains)
 
 # separating elements for reading nodal input
 if reference_points == "nodes":
@@ -332,6 +340,8 @@ while True:
         dno += 1
 
     # filtering sensitivity number
+    kp = 0
+    kn = 0
     for ft in filter_list:
         if ft[0] and ft[1]:
             if len(ft) == 2:
@@ -340,18 +350,22 @@ while True:
                 domains_to_filter = []
                 for dn in ft[2:]:
                     domains_to_filter += domains[dn]
-            if ft[0] == "simple":
+            if ft[0] == "over points":
+                sensitivity_number = beso_filters.run3(sensitivity_number, weight_factor3[kp], near_elm3[kp],
+                                                       near_points[kp])
+                kp += 1
+            elif ft[0] == "over nodes":
+                sensitivity_number = beso_filters.run1(file_name, sensitivity_number, weight_factor_node[kn], M[kn],
+                                                       weight_factor_distance[kn], near_nodes[kn], nodes,
+                                                       domains_to_filter)
+                kn += 1
+            elif ft[0] == "simple":
                 sensitivity_number = beso_filters.run2(file_name, sensitivity_number, weight_factor2, near_elm,
                                                        domains_to_filter)
             elif ft[0].split()[0] in ["erode", "dilate", "open", "close", "open-close", "close-open", "combine"]:
                 if ft[0].split()[1] == "sensitivity":
                     sensitivity_number = beso_filters.run_morphology(sensitivity_number, near_elm, domains_to_filter,
                                                                      ft[0].split()[0])
-    if filter_on_sensitivity == "over nodes":
-        sensitivity_number = beso_filters.run1(file_name, sensitivity_number, weight_factor_node, M,
-                                               weight_factor_distance, near_nodes, nodes, opt_domains)
-    elif filter_on_sensitivity == "over points":
-        sensitivity_number = beso_filters.run3(sensitivity_number, weight_factor3, near_elm3, near_points)
 
     if sensitivity_averaging:
         for en in opt_domains:
@@ -496,11 +510,12 @@ while True:
     mass_excess = mass[i] - mass_not_filtered
 
     # export the present mesh
+    file_nameW2 = "file" + str(i).zfill(3)
     if save_iteration_results and np.mod(float(i), save_iteration_results) == 0:
         if "frd" in save_resulting_format:
-            beso_lib.export_frd(file_nameW, nodes, Elements, elm_states, number_of_states)
+            beso_lib.export_frd(file_nameW2, nodes, Elements, elm_states, number_of_states)
         if "inp" in save_resulting_format:
-            beso_lib.export_inp(file_nameW, nodes, Elements, elm_states, number_of_states)
+            beso_lib.export_inp(file_nameW2, nodes, Elements, elm_states, number_of_states)
 
     # check for oscillation state
     if elm_states_before_last == elm_states:  # oscillating state

@@ -39,8 +39,10 @@ continue_from = ""  # if not "", optimization will load element states from the 
                               # for inp or frd meshes use 0th file name e.g. "file051_res_mesh0.inp" or "file051_res_mesh0.frd"
                               # or use number N without apostrophes to start each element from state N (numbered from 0)
 
-filter_list = [["simple", 2]]  # [[filter type, range, domains or nothing for all domains], [next filter type, range, "domain1", "domain2"], ...]
+filter_list = [["over points", 2]]  # [[filter type, range, domains or nothing for all domains], [next filter type, range, "domain1", "domain2"], ...]
                             # filter types:
+                            # "over points" - filter with step over own point mesh, works on sensitivities
+                            # "over nodes" - filter with step over nodes (suffer from boundary sticking?, 2nd order elements need more memory), works on sensitivities
                             # "simple" - averages sensitivity number with surroundings (suffer from boundary sticking?), works on sensitivities
                             # morphology based filters:
                             # "erode sensitivity" - use minimum sensitivity number in radius range
@@ -52,12 +54,6 @@ filter_list = [["simple", 2]]  # [[filter type, range, domains or nothing for al
                             # "combine sensitivity" - average of erode and delate (i.e. simplified/dirty "open-close" or "close-open" filter)
 
                             # replace "sensitivity" by "state" to use filter on element states instead of sensitivities
-
-# deprecated filter functions, which work only on all optimization domains together, and work on sensitivity numbers
-r_min = 2.0  # radius for filter_on_sensitivity
-filter_on_sensitivity = 0  # 0 - do not use this filter,
-                           # "over nodes" - filter with step over nodes (suffer from boundary sticking?, 2nd order elements need more memory)
-                           # "over points" - filter with step over own point mesh (broken?)
 
 # ADVANCED INPUTS:
 
