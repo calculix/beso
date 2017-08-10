@@ -44,7 +44,7 @@ iterations_limit = "auto"
 tolerance = 1e-3
 save_iteration_results = 0
 save_solver_files = ""
-save_resulting_format = "inp csv"
+save_resulting_format = "inp vtk"
 
 # read configuration file to fill variables listed above
 exec(open("beso_conf.py").read())
@@ -255,17 +255,6 @@ if len(domains_from_config) > 1:
 msg += "\n"
 beso_lib.write_to_log(file_name, msg)
 
-# write csv file header to separate file
-if "csv" in save_resulting_format:
-    msg = "Failure Index ordering\n"
-    cn = 0
-    for cr in criteria:
-        msg += ("FI_" + str(cn) + ", " + str(cr) + "\n")
-        cn += 1
-    f = open("FI_order.csv", "w")
-    f.write(msg)
-    f.close()
-
 # ITERATION CYCLE
 sensitivity_number = {}
 sensitivity_number_old = {}
@@ -418,6 +407,8 @@ while True:
         if "csv" in save_resulting_format:
             beso_lib.export_csv(domains_from_config, domains, criteria, FI_step, file_nameW, cg, elm_states,
                                 sensitivity_number)
+        if "vtk" in save_resulting_format:
+            beso_lib.export_vtk(file_nameW, nodes, Elements, i, elm_states, sensitivity_number, criteria, FI_step)
 
     # relative difference in a mean stress for the last 5 iterations must be < tolerance
     if len(FI_mean) > 5:
@@ -439,6 +430,8 @@ while True:
             if "csv" in save_resulting_format:
                 beso_lib.export_csv(domains_from_config, domains, criteria, FI_step, file_nameW, cg, elm_states,
                                     sensitivity_number)
+            if "vtk" in save_resulting_format:
+                beso_lib.export_vtk(file_nameW, nodes, Elements, i, elm_states, sensitivity_number, criteria, FI_step)
         break
     i += 1  # iteration number
     print("\n----------- new iteration number %d ----------" % i)
@@ -552,9 +545,6 @@ if not (save_iteration_results and np.mod(float(i), save_iteration_results) == 0
         beso_lib.export_frd(file_nameW, nodes, Elements, elm_states, number_of_states)
     if "inp" in save_resulting_format:
         beso_lib.export_inp(file_nameW, nodes, Elements, elm_states, number_of_states)
-    if "csv" in save_resulting_format:
-        beso_lib.export_csv(domains_from_config, domains, criteria, FI_step, file_nameW, cg, elm_states,
-                            sensitivity_number)
 
 # removing solver files
 if "inp" not in save_solver_files:

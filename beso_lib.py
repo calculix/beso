@@ -1217,6 +1217,124 @@ def export_inp(file_nameW, nodes, Elements, elm_states, number_of_states):
         f.close()
 
 
+# function for exporting result in the legacy vtk format
+# nodes and elements are renumbered from 0 not to jump over values
+def export_vtk(file_nameW, nodes, Elements, i, elm_states, sensitivity_number, criteria, FI_step):
+    f = open(file_nameW + ".vtk", "w")
+    f.write("# vtk DataFile Version 3.0\n")
+    f.write("Results from optimization in the iteration " + str(i).zfill(3) + "\n")
+    f.write("ASCII\n")
+    f.write("DATASET UNSTRUCTURED_GRID\n")
+
+    # nodes
+    associated_nodes = set()
+    for nn_lists in Elements.tria3.values() + Elements.tria6.values() + Elements.quad4.values() + \
+                    Elements.quad8.values() + Elements.tetra4.values() + Elements.tetra10.values() + \
+                    Elements.penta6.values() + Elements.penta15.values() + Elements.hexa8.values() + \
+                    Elements.hexa20.values():
+        associated_nodes.update(nn_lists)
+    associated_nodes = sorted(associated_nodes)
+    # node renumbering table for vtk format which does not jump over node numbers and contains only associated nodes
+    nodes_vtk = [None for _ in range(max(nodes.keys()) + 1)]
+    nn_vtk = 0
+    for nn in associated_nodes:
+        nodes_vtk[nn] = nn_vtk
+        nn_vtk += 1
+
+    f.write("\nPOINTS " + str(len(associated_nodes)) + " float\n")
+    for nn in associated_nodes:
+        f.write("{} {} {}\n".format(nodes[nn][0], nodes[nn][1], nodes[nn][2]))
+
+    # elements
+    number_of_elements = len(Elements.tria3) + len(Elements.tria6) + len(Elements.quad4) + len(Elements.quad8) + \
+                         len(Elements.tetra4) + len(Elements.tetra10) + len(Elements.penta6) + len(Elements.penta15) + \
+                         len(Elements.hexa8) + len(Elements.hexa20)
+    en_all = Elements.tria3.keys() + Elements.tria6.keys() + Elements.quad4.keys() + Elements.quad8.keys() + \
+             Elements.tetra4.keys() + Elements.tetra10.keys() + Elements.penta6.keys() + Elements.penta15.keys() + \
+             Elements.hexa8.keys() + Elements.hexa20.keys()  # defines vtk element numbering from 0
+
+    size_of_cells = 4 * len(Elements.tria3) + 7 * len(Elements.tria6) + 5 * len(Elements.quad4) + \
+                    9 * len(Elements.quad8) + 5 * len(Elements.tetra4) + 9 * len(Elements.tetra10) + \
+                    7 * len(Elements.penta6) + 7 * len(Elements.penta15) + 9 * len(Elements.hexa8) + \
+                    21 * len(Elements.hexa20)  # quadratic wedge not supported
+    f.write("\nCELLS " + str(number_of_elements) + " " + str(size_of_cells)+ "\n")
+
+    def write_elm(elm_category, node_length):
+        for en in elm_category:
+            f.write(node_length)
+            for nn in elm_category[en]:
+                f.write(" " + str(nodes_vtk[nn]))
+            f.write("\n")
+
+    write_elm(Elements.tria3, "3")
+    write_elm(Elements.tria6, "6")
+    write_elm(Elements.quad4, "4")
+    write_elm(Elements.quad8, "8")
+    write_elm(Elements.tetra4, "4")
+    write_elm(Elements.tetra10, "10")
+    write_elm(Elements.penta6, "6")
+    write_elm(Elements.penta15, "6")  # quadratic wedge not supported
+    write_elm(Elements.hexa8, "8")
+    write_elm(Elements.hexa20, "20")
+
+    f.write("\nCELL_TYPES " + str(number_of_elements) + "\n")
+    f.write("5\n" * len(Elements.tria3))
+    f.write("22\n" * len(Elements.tria6))
+    f.write("9\n" * len(Elements.quad4))
+    f.write("23\n" * len(Elements.quad8))
+    f.write("10\n" * len(Elements.tetra4))
+    f.write("24\n" * len(Elements.tetra10))
+    f.write("13\n" * len(Elements.penta6))
+    f.write("13\n" * len(Elements.penta15))  # quadratic wedge not supported
+    f.write("12\n" * len(Elements.hexa8))
+    f.write("25\n" * len(Elements.hexa20))
+
+    # element state
+    f.write("\nCELL_DATA " + str(number_of_elements) + "\n")
+    f.write("\nSCALARS element_states float\n")
+    f.write("LOOKUP_TABLE default\n")
+    for en in en_all:
+        f.write(str(elm_states[en]) + "\n")
+
+    # sensitivity number
+    f.write("\nSCALARS sensitivity_number float\n")
+    f.write("LOOKUP_TABLE default\n")
+    for en in en_all:
+        f.write(str(sensitivity_number[en]) + "\n")
+
+    # FI
+    FI_criteria = {}  # list of FI on each element
+    for en in en_all:
+        FI_criteria[en] = [None for _ in range(len(criteria))]
+        for sn in range(len(FI_step)):
+            for FIn in range(len(criteria)):
+                if FI_step[sn][en][FIn]:
+                    if FI_criteria[en][FIn]:
+                        FI_criteria[en][FIn] = max(FI_criteria[en][FIn], FI_step[sn][en][FIn])
+                    else:
+                        FI_criteria[en][FIn] = FI_step[sn][en][FIn]
+
+    for FIn in range(len(criteria)):
+        if criteria[FIn][0] == "stress_von_Mises":
+            f.write("\nSCALARS FI=stress_von_Mises/" + str(criteria[FIn][1]).strip() + " float\n")
+        elif criteria[FIn][0] == "user_def":
+            f.write("SCALARS FI=" + criteria[FIn][1].replace(" ", "") + " float\n")
+        f.write("LOOKUP_TABLE default\n")
+        for en in en_all:
+            if FI_criteria[en][FIn]:
+                f.write(str(FI_criteria[en][FIn]) + "\n")
+            else:
+                f.write("0\n")  # since Paraview do not recognise None value
+
+    # FI_max
+    f.write("\nSCALARS FI_max float\n")
+    f.write("LOOKUP_TABLE default\n")
+    for en in en_all:
+        f.write(str(max(FI_criteria[en])) + "\n")
+
+    f.close()
+
+
 # function for exporting element values to csv file for displaying in Paraview, output format:
 # element_number, cg_x, cg_y, cg_z, element_state, sensitivity_number, failure indices 1, 2,..., maximal failure index
 # only elements found by import_inp function are taken into account
@@ -1237,8 +1355,11 @@ def export_csv(domains_from_config, domains, criteria, FI_step, file_nameW, cg, 
     # write element values to the csv file
     f = open(file_nameW + ".csv", "w")
     line = "element_number, cg_x, cg_y, cg_z, element_state, sensitivity_number, "
-    for FIn in range(len(criteria)):
-        line += "FI_" + str(FIn) + ", "
+    for cr in criteria:
+        if cr[0] == "stress_von_Mises":
+            line += "FI=stress_von_Mises/" + str(cr[1]).strip() + ", "
+        else:
+            line += "FI=" + cr[1].replace(" ", "") + ", "
     line += "FI_max\n"
     f.write(line)
     for dn in domains_from_config:

@@ -38,6 +38,7 @@ continue_from = ""  # if not "", optimization will load element states from the 
                               # for previously generated csv file use "file_name.csv"
                               # for inp or frd meshes use 0th file name e.g. "file051_res_mesh0.inp" or "file051_res_mesh0.frd"
                               # or use number N without apostrophes to start each element from state N (numbered from 0)
+                              # (continuing from vtk result file is not supported)
 
 filter_list = [["over points", 2]]  # [[filter type, range, domains or nothing for all domains], [next filter type, range, "domain1", "domain2"], ...]
                             # filter types:
@@ -91,5 +92,6 @@ tolerance = 1e-3  # the maximum relative difference in mean stress in optimizati
 
 save_iteration_results = 0  # every i-th iteration save temporary results, 0 - save only final results
 save_solver_files = ""  # not removed outputs from the solver, e.g. "inp frd dat cvg sta" will preserve all outputs in iterations defined by save_iteration_results
-save_resulting_format = "inp csv" # "frd" or "inp" format of resulting meshes (each state separately in own mesh file)
-                                  # "csv" output for openning point cloud in Paraview (element centres of gravity, states, sensitivity numbers, failure indices)
+save_resulting_format = "inp vtk" # "frd" or "inp" format of resulting meshes (each state separately in own mesh file)
+                                  # "vtk" output for viewing in Paraview (renumbered mesh, states, sensitivity numbers, failure indices)
+                                  # "csv" simple tabelized data - also possible to import into Paraview (element centres of gravity, states, sensitivity numbers, failure indices)
