@@ -1219,7 +1219,7 @@ def export_inp(file_nameW, nodes, Elements, elm_states, number_of_states):
 
 # function for exporting result in the legacy vtk format
 # nodes and elements are renumbered from 0 not to jump over values
-def export_vtk(file_nameW, nodes, Elements, i, elm_states, sensitivity_number, criteria, FI_step):
+def export_vtk(file_nameW, nodes, Elements, i, elm_states, sensitivity_number, criteria, FI_step, FI_step_max):
     f = open(file_nameW + ".vtk", "w")
     f.write("# vtk DataFile Version 3.0\n")
     f.write("Results from optimization in the iteration " + str(i).zfill(3) + "\n")
@@ -1228,10 +1228,10 @@ def export_vtk(file_nameW, nodes, Elements, i, elm_states, sensitivity_number, c
 
     # nodes
     associated_nodes = set()
-    for nn_lists in Elements.tria3.values() + Elements.tria6.values() + Elements.quad4.values() + \
-                    Elements.quad8.values() + Elements.tetra4.values() + Elements.tetra10.values() + \
-                    Elements.penta6.values() + Elements.penta15.values() + Elements.hexa8.values() + \
-                    Elements.hexa20.values():
+    for nn_lists in list(Elements.tria3.values()) + list(Elements.tria6.values()) + list(Elements.quad4.values()) + \
+                    list(Elements.quad8.values()) + list(Elements.tetra4.values()) + list(Elements.tetra10.values()) + \
+                    list(Elements.penta6.values()) + list(Elements.penta15.values()) + list(Elements.hexa8.values()) + \
+                    list(Elements.hexa20.values()):
         associated_nodes.update(nn_lists)
     associated_nodes = sorted(associated_nodes)
     # node renumbering table for vtk format which does not jump over node numbers and contains only associated nodes
@@ -1249,9 +1249,10 @@ def export_vtk(file_nameW, nodes, Elements, i, elm_states, sensitivity_number, c
     number_of_elements = len(Elements.tria3) + len(Elements.tria6) + len(Elements.quad4) + len(Elements.quad8) + \
                          len(Elements.tetra4) + len(Elements.tetra10) + len(Elements.penta6) + len(Elements.penta15) + \
                          len(Elements.hexa8) + len(Elements.hexa20)
-    en_all = Elements.tria3.keys() + Elements.tria6.keys() + Elements.quad4.keys() + Elements.quad8.keys() + \
-             Elements.tetra4.keys() + Elements.tetra10.keys() + Elements.penta6.keys() + Elements.penta15.keys() + \
-             Elements.hexa8.keys() + Elements.hexa20.keys()  # defines vtk element numbering from 0
+    en_all = list(Elements.tria3.keys()) + list(Elements.tria6.keys()) + list(Elements.quad4.keys()) + \
+             list(Elements.quad8.keys()) + list(Elements.tetra4.keys()) + list(Elements.tetra10.keys()) + \
+             list(Elements.penta6.keys()) + list(Elements.penta15.keys()) + list(Elements.hexa8.keys()) + \
+             list(Elements.hexa20.keys())  # defines vtk element numbering from 0
 
     size_of_cells = 4 * len(Elements.tria3) + 7 * len(Elements.tria6) + 5 * len(Elements.quad4) + \
                     9 * len(Elements.quad8) + 5 * len(Elements.tetra4) + 9 * len(Elements.tetra10) + \
@@ -1330,7 +1331,7 @@ def export_vtk(file_nameW, nodes, Elements, i, elm_states, sensitivity_number, c
     f.write("\nSCALARS FI_max float\n")
     f.write("LOOKUP_TABLE default\n")
     for en in en_all:
-        f.write(str(max(FI_criteria[en])) + "\n")
+        f.write(str(FI_step_max[en]) + "\n")
 
     f.close()
 
@@ -1338,7 +1339,8 @@ def export_vtk(file_nameW, nodes, Elements, i, elm_states, sensitivity_number, c
 # function for exporting element values to csv file for displaying in Paraview, output format:
 # element_number, cg_x, cg_y, cg_z, element_state, sensitivity_number, failure indices 1, 2,..., maximal failure index
 # only elements found by import_inp function are taken into account
-def export_csv(domains_from_config, domains, criteria, FI_step, file_nameW, cg, elm_states, sensitivity_number):
+def export_csv(domains_from_config, domains, criteria, FI_step, FI_step_max, file_nameW, cg, elm_states,
+               sensitivity_number):
     # associate FI to each element and get maximums
     FI_criteria = {}  # list of FI on each element
     for dn in domains_from_config:
@@ -1372,7 +1374,7 @@ def export_csv(domains_from_config, domains, criteria, FI_step, file_nameW, cg, 
                 else:
                     value = 0  # since Paraview do not recognise None value
                 line += str(value) + ", "
-            line += str(max(list(filter(lambda a: a is not None, FI_criteria[en])))) + "\n"
+            line += str(FI_step_max[en]) + "\n"
             f.write(line)
     f.close()
 
