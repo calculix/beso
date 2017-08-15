@@ -306,7 +306,7 @@ while True:
                     beso_lib.write_to_log(file_name, "\nERROR: " + msg + "\n")
                     raise Exception(msg)
                 except KeyError:
-                    msg = "Some result values are missing. Check available disk space."
+                    msg = "Some result values are missing. Check available disk space or steps_superposition settings"
                     beso_lib.write_to_log(file_name, "\nERROR: " + msg + "\n")
                     raise Exception(msg)
     print("FI_max, number of violated elements, domain name")
@@ -405,10 +405,11 @@ while True:
     # export element values
     if save_iteration_results and np.mod(float(i), save_iteration_results) == 0:
         if "csv" in save_resulting_format:
-            beso_lib.export_csv(domains_from_config, domains, criteria, FI_step, file_nameW, cg, elm_states,
-                                sensitivity_number)
+            beso_lib.export_csv(domains_from_config, domains, criteria, FI_step, FI_step_max, file_nameW, cg,
+                                elm_states, sensitivity_number)
         if "vtk" in save_resulting_format:
-            beso_lib.export_vtk(file_nameW, nodes, Elements, i, elm_states, sensitivity_number, criteria, FI_step)
+            beso_lib.export_vtk(file_nameW, nodes, Elements, i, elm_states, sensitivity_number, criteria, FI_step,
+                                FI_step_max)
 
     # relative difference in a mean stress for the last 5 iterations must be < tolerance
     if len(FI_mean) > 5:
@@ -428,10 +429,11 @@ while True:
     if continue_iterations is False or i >= iterations_limit:
         if not(save_iteration_results and np.mod(float(i), save_iteration_results) == 0):
             if "csv" in save_resulting_format:
-                beso_lib.export_csv(domains_from_config, domains, criteria, FI_step, file_nameW, cg, elm_states,
-                                    sensitivity_number)
+                beso_lib.export_csv(domains_from_config, domains, criteria, FI_step, FI_step_max, file_nameW, cg,
+                                    elm_states, sensitivity_number)
             if "vtk" in save_resulting_format:
-                beso_lib.export_vtk(file_nameW, nodes, Elements, i, elm_states, sensitivity_number, criteria, FI_step)
+                beso_lib.export_vtk(file_nameW, nodes, Elements, i, elm_states, sensitivity_number, criteria, FI_step,
+                                    FI_step_max)
         break
     i += 1  # iteration number
     print("\n----------- new iteration number %d ----------" % i)
@@ -483,7 +485,7 @@ while True:
                 if ft[0].split()[1] == "state":
                     # the same filter as for sensitivity numbers
                     elm_states_filtered = beso_filters.run_morphology(elm_states, near_elm, domains_to_filter,
-                                                                      ft[0].split()[0])
+                                                                      ft[0].split()[0], FI_step_max)
                     # compute mass difference
                     for dn in domains_from_config:
                         if domain_optimized[dn] is True:

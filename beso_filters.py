@@ -665,7 +665,7 @@ def prepare_morphology(cg, cg_min, cg_max, r_min, opt_domains, near_elm):
 
 
 # morphology based filtering (erode, dilate, open, close, open-close, close-open, combine)
-def run_morphology(sensitivity_number, near_elm, opt_domains, filter_type):
+def run_morphology(sensitivity_number, near_elm, opt_domains, filter_type, FI_step_max=None):
 
     def filter(filter_type, sensitivity_number, near_elm, opt_domains):
         sensitivity_number_subtype = sensitivity_number.copy()
@@ -674,7 +674,13 @@ def run_morphology(sensitivity_number, near_elm, opt_domains, filter_type):
             for en2 in near_elm[en]:
                 sensitivity_number_near.append(sensitivity_number[en2])
             if filter_type == "erode":
-                sensitivity_number_subtype[en] = min(sensitivity_number_near)
+                if FI_step_max:
+                    if FI_step_max[en] >= 1:  # if failing, do not switch down
+                        pass
+                    else:
+                        sensitivity_number_subtype[en] = min(sensitivity_number_near)
+                else:
+                    sensitivity_number_subtype[en] = min(sensitivity_number_near)
             elif filter_type == "dilate":
                 sensitivity_number_subtype[en] = max(sensitivity_number_near)
         return sensitivity_number_subtype
