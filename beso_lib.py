@@ -1243,7 +1243,7 @@ def export_vtk(file_nameW, nodes, Elements, i, elm_states, sensitivity_number, c
 
     f.write("\nPOINTS " + str(len(associated_nodes)) + " float\n")
     for nn in associated_nodes:
-        f.write("{} {} {}\n".format(nodes[nn][0], nodes[nn][1], nodes[nn][2]))
+        f.write(str(nodes[nn][0]) + str(nodes[nn][1]) + str(nodes[nn][2]) + "\n")
 
     # elements
     number_of_elements = len(Elements.tria3) + len(Elements.tria6) + len(Elements.quad4) + len(Elements.quad8) + \
