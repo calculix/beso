@@ -622,7 +622,7 @@ def import_FI_int_pt(reference_value, file_nameW, domains, criteria, domain_FI, 
     read_stresses = 0
     for line in f:
         line_split = line.split()
-        if line == "\n":
+        if line.replace(" ", "") == "\n":
             if read_stresses == 1:
                 save_FI(step_number, en_last)
             read_stresses -= 1
@@ -1217,21 +1217,20 @@ def export_inp(file_nameW, nodes, Elements, elm_states, number_of_states):
         f.close()
 
 
-# function for exporting result in the legacy vtk format
-# nodes and elements are renumbered from 0 not to jump over values
-def export_vtk(file_nameW, nodes, Elements, i, elm_states, sensitivity_number, criteria, FI_step, FI_step_max):
+# sub-function to write vth mesh
+def vtk_mesh(file_nameW, nodes, Elements):
     f = open(file_nameW + ".vtk", "w")
     f.write("# vtk DataFile Version 3.0\n")
-    f.write("Results from optimization in the iteration " + str(i).zfill(3) + "\n")
+    f.write("Results from optimization\n")
     f.write("ASCII\n")
     f.write("DATASET UNSTRUCTURED_GRID\n")
 
     # nodes
     associated_nodes = set()
     for nn_lists in list(Elements.tria3.values()) + list(Elements.tria6.values()) + list(Elements.quad4.values()) + \
-                    list(Elements.quad8.values()) + list(Elements.tetra4.values()) + list(Elements.tetra10.values()) + \
-                    list(Elements.penta6.values()) + list(Elements.penta15.values()) + list(Elements.hexa8.values()) + \
-                    list(Elements.hexa20.values()):
+            list(Elements.quad8.values()) + list(Elements.tetra4.values()) + list(Elements.tetra10.values()) + \
+            list(Elements.penta6.values()) + list(Elements.penta15.values()) + list(Elements.hexa8.values()) + \
+            list(Elements.hexa20.values()):
         associated_nodes.update(nn_lists)
     associated_nodes = sorted(associated_nodes)
     # node renumbering table for vtk format which does not jump over node numbers and contains only associated nodes
@@ -1258,7 +1257,7 @@ def export_vtk(file_nameW, nodes, Elements, i, elm_states, sensitivity_number, c
                     9 * len(Elements.quad8) + 5 * len(Elements.tetra4) + 9 * len(Elements.tetra10) + \
                     7 * len(Elements.penta6) + 7 * len(Elements.penta15) + 9 * len(Elements.hexa8) + \
                     21 * len(Elements.hexa20)  # quadratic wedge not supported
-    f.write("\nCELLS " + str(number_of_elements) + " " + str(size_of_cells)+ "\n")
+    f.write("\nCELLS " + str(number_of_elements) + " " + str(size_of_cells) + "\n")
 
     def write_elm(elm_category, node_length):
         for en in elm_category:
@@ -1290,8 +1289,30 @@ def export_vtk(file_nameW, nodes, Elements, i, elm_states, sensitivity_number, c
     f.write("12\n" * len(Elements.hexa8))
     f.write("25\n" * len(Elements.hexa20))
 
-    # element state
     f.write("\nCELL_DATA " + str(number_of_elements) + "\n")
+
+    f.close()
+    return en_all
+
+
+def append_vtk_states(file_nameW, i, en_all, elm_states):
+    f = open(file_nameW + ".vtk", "a")
+
+    # element state
+    f.write("\nSCALARS element_states" + str(i).zfill(3) + " float\n")
+    f.write("LOOKUP_TABLE default\n")
+    for en in en_all:
+        f.write(str(elm_states[en]) + "\n")
+
+    f.close()
+
+# function for exporting result in the legacy vtk format
+# nodes and elements are renumbered from 0 not to jump over values
+def export_vtk(file_nameW, nodes, Elements, elm_states, sensitivity_number, criteria, FI_step, FI_step_max):
+    en_all = vtk_mesh(file_nameW, nodes, Elements)
+    f = open(file_nameW + ".vtk", "a")
+
+    # element state
     f.write("\nSCALARS element_states float\n")
     f.write("LOOKUP_TABLE default\n")
     for en in en_all:
