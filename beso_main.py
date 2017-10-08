@@ -256,6 +256,10 @@ if len(domains_from_config) > 1:
 msg += "\n"
 beso_lib.write_to_log(file_name, msg)
 
+# preparing for writing quick results
+file_name_resulting_states = "resulting_states"
+en_all_vtk = beso_lib.vtk_mesh(file_name_resulting_states, nodes, Elements)
+
 # ITERATION CYCLE
 sensitivity_number = {}
 sensitivity_number_old = {}
@@ -409,7 +413,7 @@ while True:
             beso_lib.export_csv(domains_from_config, domains, criteria, FI_step, FI_step_max, file_nameW, cg,
                                 elm_states, sensitivity_number)
         if "vtk" in save_resulting_format:
-            beso_lib.export_vtk(file_nameW, nodes, Elements, i, elm_states, sensitivity_number, criteria, FI_step,
+            beso_lib.export_vtk(file_nameW, nodes, Elements, elm_states, sensitivity_number, criteria, FI_step,
                                 FI_step_max)
 
     # relative difference in a mean stress for the last 5 iterations must be < tolerance
@@ -433,7 +437,7 @@ while True:
                 beso_lib.export_csv(domains_from_config, domains, criteria, FI_step, FI_step_max, file_nameW, cg,
                                     elm_states, sensitivity_number)
             if "vtk" in save_resulting_format:
-                beso_lib.export_vtk(file_nameW, nodes, Elements, i, elm_states, sensitivity_number, criteria, FI_step,
+                beso_lib.export_vtk(file_nameW, nodes, Elements, elm_states, sensitivity_number, criteria, FI_step,
                                     FI_step_max)
         break
     i += 1  # iteration number
@@ -506,6 +510,8 @@ while True:
     mass_excess = mass[i] - mass_not_filtered
 
     # export the present mesh
+    beso_lib.append_vtk_states(file_name_resulting_states, i, en_all_vtk, elm_states)
+
     file_nameW2 = "file" + str(i).zfill(3)
     if save_iteration_results and np.mod(float(i), save_iteration_results) == 0:
         if "frd" in save_resulting_format:
