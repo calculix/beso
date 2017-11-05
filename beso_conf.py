@@ -40,7 +40,7 @@ continue_from = ""  # if not "", optimization will load element states from the 
                               # or use number N without apostrophes to start each element from state N (numbered from 0)
                               # (continuing from vtk result file is not supported)
 
-filter_list = [["over points", 2]]  # [[filter type, range, domains or nothing for all domains], [next filter type, range, "domain1", "domain2"], ...]
+filter_list = [["simple", 2]]  # [[filter type, range, domains or nothing for all domains], [next filter type, range, "domain1", "domain2"], ...]
                             # filter types:
                             # "over points" - filter with step over own point mesh, works on sensitivities
                             # "over nodes" - filter with step over nodes (suffer from boundary sticking?, 2nd order elements need more memory), works on sensitivities
@@ -58,6 +58,9 @@ filter_list = [["over points", 2]]  # [[filter type, range, domains or nothing f
 
 # ADVANCED INPUTS:
 
+optimization_base = "stiffness"  # "stiffness" - maximization of stiffness (minimization of compliance), reference_points must be set to "integration points"
+                                 # "failure_index" sensitivity number is given by FI/density
+
 cpu_cores = 0  # 0 - use all processor cores, N - will use N number of processor cores
 
 FI_violated_tolerance = 1  # N - freeze mass if, compared to initial state, there is N more elements with FI >= 1
@@ -68,13 +71,13 @@ decay_coefficient = -0.2  # k - exponential decay coefficient to dump mass_addit
 
 shells_as_composite = False  # True - use more integration points to catch bending stresses (ccx 2.12 WILL FAIL for other than S8R and S6 shell elements)
                             # False - use ordinary shell section
-reference_points = "integration points"  # "integration points" - read int. pt values from .dat file,
-                                         # "nodes" - optimization will read nodal values from .inp file (model MUST NOT contain shell nor beam elements)
+reference_points = "integration points"  # "integration points" - read int. pt values (stresses) from .dat file,
+                                         # "nodes" - optimization will read nodal values (stresses) from .inp file (model MUST NOT contain shell nor beam elements)
 reference_value = "max"  # "max" - maximal value on element,
                         # "average" - average value on element (do not use for bended shell elements)
 sensitivity_averaging = False  # True - averaging sensitivity numbers with previous iteration, False - do not average
 
-mass_addition_ratio = 0.01  # mass to be added in each iteration
+mass_addition_ratio = 0.015  # mass to be added in each iteration
 mass_removal_ratio = 0.03  # mass to be removed in each iteration
 ratio_type = "relative"  # "relative" - ratios of actual mass, "absolute" - ratios of maximal mass
 compensate_state_filter = True  # True - if state filter changes iteration mass, next iteration will compensate it
@@ -90,7 +93,7 @@ steps_superposition = []  # make linear superposition of stress tensors from dif
 iterations_limit = "auto"  # "auto" - automatic estimate, <integer> - the maximum allowable number of iterations
 tolerance = 1e-3  # the maximum relative difference in mean stress in optimization domains between the last 5 iterations needed to finish
 
-save_iteration_results = 0  # every i-th iteration save temporary results, 0 - save only final results
+save_iteration_results = 1  # every i-th iteration save temporary results, 0 - save only final results
 save_solver_files = ""  # not removed outputs from the solver, e.g. "inp frd dat cvg sta" will preserve all outputs in iterations defined by save_iteration_results
 save_resulting_format = "inp vtk" # "frd" or "inp" format of resulting meshes (each state separately in own mesh file)
                                   # "vtk" output for viewing in Paraview (renumbered mesh, states, sensitivity numbers, failure indices)

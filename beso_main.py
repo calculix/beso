@@ -28,6 +28,7 @@ file_name = "Plane_Mesh.inp"
 mass_goal_ratio = 0.4
 continue_from = ""
 filter_list = [["simple", 0]]
+optimization_base = "stiffness"
 cpu_cores = 0
 FI_violated_tolerance = 1
 decay_coefficient = -0.2
@@ -103,6 +104,7 @@ for dn in domain_optimized:
 msg += ("mass_goal_ratio         = %s\n" % mass_goal_ratio)
 msg += ("continue_from           = %s\n" % continue_from)
 msg += ("filter_list             = %s\n" % filter_list)
+msg += ("optimization_base       = %s\n" % optimization_base)
 msg += ("cpu_cores               = %s\n" % cpu_cores)
 msg += ("FI_violated_tolerance   = %s\n" % FI_violated_tolerance)
 msg += ("decay_coefficient       = %s\n" % decay_coefficient)
@@ -122,6 +124,11 @@ msg += ("save_solver_files       = %s\n" % save_solver_files)
 msg += ("save_resulting_format   = %s\n" % save_resulting_format)
 msg += "\n"
 beso_lib.write_to_log(file_name, msg)
+
+if optimization_base == "stiffness" and reference_points == "nodes":
+    msg = "reference_points set to 'nodes' is not supported for optimization_base as 'stiffness'"
+    beso_lib.write_to_log(file_name, "\nERROR: " + msg + "\n")
+    assert False, msg
 
 # mesh and domains importing
 [nodes, Elements, domains, opt_domains, en_all, plane_strain, plane_stress, axisymmetry] = beso_lib.import_inp(
@@ -281,14 +288,15 @@ while True:
     beso_lib.write_inp(file_name, file_nameW, elm_states, number_of_states, domains, domains_from_config,
                        domain_optimized, domain_thickness, domain_offset, domain_orientation, domain_material,
                        domain_volumes, domain_shells, plane_strain, plane_stress, axisymmetry, save_iteration_results,
-                       i, reference_points, shells_as_composite)
+                       i, reference_points, shells_as_composite, optimization_base)
     # running CalculiX analysis
     subprocess.call(os.path.normpath(path_calculix) + " " + os.path.join(path, file_nameW), shell=True)
 
     # reading results and computing failure indeces
     if reference_points == "integration points":  # from .dat file
-        FI_step = beso_lib.import_FI_int_pt(reference_value, file_nameW, domains, criteria, domain_FI, file_name,
-                                            elm_states, domains_from_config, steps_superposition)
+        [FI_step, energy_density_step] = beso_lib.import_FI_int_pt(reference_value, file_nameW, domains, criteria,
+                                                                   domain_FI, file_name, elm_states,
+                                                                   domains_from_config, steps_superposition)
     elif reference_points == "nodes":  # from .frd file
         FI_step = beso_lib.import_FI_node(reference_value, file_nameW, domains, criteria, domain_FI, file_name,
                                           elm_states, steps_superposition)
@@ -317,16 +325,24 @@ while True:
 
     # handling with more steps
     FI_step_max = {}  # maximal FI over all steps for each element in this iteration
+    energy_density_enlist = {}   # {en1: [energy from sn1, energy from sn2, ...], en2: [], ...}
     FI_violated.append([])
     dno = 0
     for dn in domains_from_config:
         FI_violated[i].append(0)
         for en in domains[dn]:
             FI_step_max[en] = 0
+            if optimization_base == "stiffness":
+                energy_density_enlist[en] = []
             for sn in range(len(FI_step)):
                 FI_step_en = list(filter(lambda a: a is not None, FI_step[sn][en]))  # drop None FI
                 FI_step_max[en] = max(FI_step_max[en], max(FI_step_en))
-            sensitivity_number[en] = FI_step_max[en] / domain_density[dn][elm_states[en]]
+                if optimization_base == "stiffness":
+                    energy_density_enlist[en].append(energy_density_step[sn][en])
+            if optimization_base == "stiffness":
+                sensitivity_number[en] = max(energy_density_enlist[en])
+            elif optimization_base == "failure_index":
+                sensitivity_number[en] = FI_step_max[en] / domain_density[dn][elm_states[en]]
             if FI_step_max[en] >= 1:
                 FI_violated[i][dno] += 1
         print(str(FI_max[i][dn]).rjust(15) + " " + str(FI_violated[i][dno]).rjust(4) + "   " + dn)
