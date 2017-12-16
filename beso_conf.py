@@ -42,7 +42,7 @@ continue_from = ""  # if not "", optimization will load element states from the 
 
 filter_list = [["simple", 2]]  # [[filter type, range, domains or nothing for all domains], [next filter type, range, "domain1", "domain2"], ...]
                             # filter types:
-                            # "over points" - filter with step over own point mesh, works on sensitivities
+                            # "over points" - filter with step over own point mesh, works on sensitivities TODO does not work correctly, need a fix
                             # "over nodes" - filter with step over nodes (suffer from boundary sticking?, 2nd order elements need more memory), works on sensitivities
                             # "simple" - averages sensitivity number with surroundings (suffer from boundary sticking?), works on sensitivities
                             # morphology based filters:

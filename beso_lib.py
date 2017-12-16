@@ -102,16 +102,16 @@ def import_inp(file_name, domains_from_config, domain_optimized, shells_as_compo
                 elif line_part.split('=')[0].strip() == "ELSET":
                     current_elset = line_part.split('=')[1].strip().upper()
 
-            if elm_type in ["S3", "CPS3", "CPE3", "CAX3"]:
+            if elm_type in ["S3", "CPS3", "CPE3", "CAX3", "M3D3"]:
                 elm_category = all_tria3
                 number_of_nodes = 3
-            elif elm_type in ["S6", "CPS6", "CPE6", "CAX6"]:
+            elif elm_type in ["S6", "CPS6", "CPE6", "CAX6", "M3D6"]:
                 elm_category = all_tria6
                 number_of_nodes = 6
-            elif elm_type in ["S4", "S4R", "CPS4", "CPS4R", "CPE4", "CPE4R", "CAX4", "CAX4R"]:
+            elif elm_type in ["S4", "S4R", "CPS4", "CPS4R", "CPE4", "CPE4R", "CAX4", "CAX4R", "M3D4", "M3D4R"]:
                 elm_category = all_quad4
                 number_of_nodes = 4
-            elif elm_type in ["S8", "S8R", "CPS8", "CPS8R", "CPE8", "CPE8R", "CAX8", "CAX8R"]:
+            elif elm_type in ["S8", "S8R", "CPS8", "CPS8R", "CPE8", "CPE8R", "CAX8", "CAX8R", "M3D8", "M3D8R"]:
                 elm_category = all_quad8
                 number_of_nodes = 8
             elif elm_type == "C3D4":
