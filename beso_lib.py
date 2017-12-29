@@ -1306,7 +1306,7 @@ def vtk_mesh(file_nameW, nodes, Elements):
 
     f.write("\nPOINTS " + str(len(associated_nodes)) + " float\n")
     for nn in associated_nodes:
-        f.write(str(nodes[nn][0]) + str(nodes[nn][1]) + str(nodes[nn][2]) + "\n")
+        f.write(str(nodes[nn][0]) + " " + str(nodes[nn][1]) + " " + str(nodes[nn][2]) + "\n")
 
     # elements
     number_of_elements = len(Elements.tria3) + len(Elements.tria6) + len(Elements.quad4) + len(Elements.quad8) + \
