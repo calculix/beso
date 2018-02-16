@@ -1,7 +1,6 @@
 import numpy as np
 import operator
 
-
 # function to print ongoing messages to the log file
 def write_to_log(file_name, msg):
     f_log = open(file_name[:-4] + ".log", "a")
@@ -95,12 +94,12 @@ def import_inp(file_name, domains_from_config, domain_optimized, shells_as_compo
         # reading elements
         elif line[:8].upper() == "*ELEMENT":
             current_elset = ""
-            line_list = line[8:].upper().split(',')
+            line_list = line[8:].split(',')
             for line_part in line_list:
-                if line_part.split('=')[0].strip() == "TYPE":
-                    elm_type = line_part.split('=')[1].strip()
-                elif line_part.split('=')[0].strip() == "ELSET":
-                    current_elset = line_part.split('=')[1].strip().upper()
+                if line_part.split('=')[0].strip().upper() == "TYPE":
+                    elm_type = line_part.split('=')[1].strip().upper()
+                elif line_part.split('=')[0].strip().upper() == "ELSET":
+                    current_elset = line_part.split('=')[1].strip()
 
             if elm_type in ["S3", "CPS3", "CPE3", "CAX3", "M3D3"]:
                 elm_category = all_tria3
@@ -202,7 +201,7 @@ def import_inp(file_name, domains_from_config, domain_optimized, shells_as_compo
                 if en.isdigit():
                     domains[current_elset].append(int(en))
                 elif en.isalpha():  # else: en is name of a previous elset
-                    domains[current_elset].extend(domains[en.upper()])
+                    domains[current_elset].extend(domains[en])
         elif elset_generate is True:
             line_split_comma = line.split(",")
             try:
@@ -953,23 +952,23 @@ def switching(elm_states, domains_from_config, domain_optimized, domains, FI_ste
 
     def compute_difference(failing=False):
         if en in domain_shells[dn]:  # shells mass difference
-            mass[i] += area_elm[en] * domain_density[dn][elm_states[en]] * domain_thickness[dn][elm_states[en]]
-            if (failing is False) and (elm_states[en] != 0):  # for potential switching down
+            mass[i] += area_elm[en] * domain_density[dn][elm_states_en] * domain_thickness[dn][elm_states_en]
+            if (failing is False) and (elm_states_en != 0):  # for potential switching down
                 mass_decrease[en] = area_elm[en] * (
-                    domain_density[dn][elm_states[en]] * domain_thickness[dn][elm_states[en]] -
-                    domain_density[dn][elm_states[en] - 1] * domain_thickness[dn][elm_states[en] - 1])
-            if elm_states[en] < len(domain_density[dn]) - 1:  # for potential switching up
+                    domain_density[dn][elm_states_en] * domain_thickness[dn][elm_states_en] -
+                    domain_density[dn][elm_states_en - 1] * domain_thickness[dn][elm_states_en - 1])
+            if elm_states_en < len(domain_density[dn]) - 1:  # for potential switching up
                 mass_increase[en] = area_elm[en] * (
-                    domain_density[dn][elm_states[en] + 1] * domain_thickness[dn][elm_states[en] + 1] -
-                    domain_density[dn][elm_states[en]] * domain_thickness[dn][elm_states[en]])
+                    domain_density[dn][elm_states_en + 1] * domain_thickness[dn][elm_states_en + 1] -
+                    domain_density[dn][elm_states_en] * domain_thickness[dn][elm_states_en])
         else:  # volumes mass difference
-            mass[i] += volume_elm[en] * domain_density[dn][elm_states[en]]
-            if (failing is False) and (elm_states[en] != 0):  # for potential switching down
+            mass[i] += volume_elm[en] * domain_density[dn][elm_states_en]
+            if (failing is False) and (elm_states_en != 0):  # for potential switching down
                 mass_decrease[en] = volume_elm[en] * (
-                    domain_density[dn][elm_states[en]] - domain_density[dn][elm_states[en] - 1])
-            if elm_states[en] < len(domain_density[dn]) - 1:  # for potential switching up
+                    domain_density[dn][elm_states_en] - domain_density[dn][elm_states_en - 1])
+            if elm_states_en < len(domain_density[dn]) - 1:  # for potential switching up
                 mass_increase[en] = volume_elm[en] * (
-                    domain_density[dn][elm_states[en] + 1] - domain_density[dn][elm_states[en]])
+                    domain_density[dn][elm_states_en + 1] - domain_density[dn][elm_states_en])
 
     mass_increase = {}
     mass_decrease = {}
@@ -979,31 +978,35 @@ def switching(elm_states, domains_from_config, domain_optimized, domains, FI_ste
     # switch up overloaded elements
     for dn in domains_from_config:
         if domain_optimized[dn] is True:
+            len_domain_density_dn = len(domain_density[dn])
             if domain_same_state[dn] is True:
                 new_state = 0
                 failing = False
                 highest_state = 0
                 sensitivity_number_highest = 0
                 for en in domains[dn]:  # find highest state, sensitivity number and if failing
-                    if elm_states[en] >= highest_state:
+                    elm_states_en = elm_states[en]
+                    if elm_states_en >= highest_state:
                         sensitivity_number_highest = max(sensitivity_number_highest, sensitivity_number[en])
-                        highest_state = elm_states[en]
+                        highest_state = elm_states_en
                     if FI_step_max[en] >= 1:  # new state if failing
                         failing = True
-                        if elm_states[en] < len(domain_density[dn]) - 1:
-                            new_state = max(new_state, elm_states[en] + 1)
+                        if elm_states_en < len_domain_density_dn - 1:
+                            new_state = max(new_state, elm_states_en + 1)
                         else:
-                            new_state = max(new_state, elm_states[en])
+                            new_state = max(new_state, elm_states_en)
                     else:
-                        new_state = max(new_state, elm_states[en])
+                        new_state = max(new_state, elm_states_en)
 
                 mass_increase[dn] = 0
                 mass_decrease[dn] = 0
                 for en in domains[dn]:  # evaluate mass, prepare to sorting and switching
                     elm_states[en] = highest_state
+                    elm_states_en = elm_states[en]
                     compute_difference(failing)
                     if (failing is True) and (new_state != highest_state):
                             elm_states[en] = new_state
+                            elm_states_en = elm_states[en]
                             mass[i] += mass_increase[en]
                             mass_overloaded += mass_increase[en]
                             mass_goal_i += mass_increase[en]
@@ -1022,39 +1025,45 @@ def switching(elm_states, domains_from_config, domain_optimized, domains, FI_ste
                 for en in domains[dn]:
                     if FI_step_max[en] >= 1:  # increase state if it is not the highest
                         en_added = False
-                        if elm_states[en] < len(domain_density[dn]) - 1:
+                        if elm_states[en] < len_domain_density_dn - 1:
                             elm_states[en] += 1
                             en_added = True
+                        elm_states_en = elm_states[en]
                         if en in domain_shells[dn]:  # shells
-                            mass[i] += area_elm[en] * domain_density[dn][elm_states[en]] * domain_thickness[
-                                dn][elm_states[en]]
+                            mass[i] += area_elm[en] * domain_density[dn][elm_states_en] * domain_thickness[
+                                dn][elm_states_en]
                             if en_added is True:
                                 mass_difference = area_elm[en] * (
-                                    domain_density[dn][elm_states[en]] * domain_thickness[dn][elm_states[en]] -
-                                    domain_density[dn][elm_states[en] - 1] * domain_thickness[dn][elm_states[en] - 1])
+                                    domain_density[dn][elm_states_en] * domain_thickness[dn][elm_states_en] -
+                                    domain_density[dn][elm_states_en - 1] * domain_thickness[dn][elm_states_en - 1])
                                 mass_overloaded += mass_difference
                                 mass_goal_i += mass_difference
                         else:  # volumes
-                            mass[i] += volume_elm[en] * domain_density[dn][elm_states[en]]
+                            mass[i] += volume_elm[en] * domain_density[dn][elm_states_en]
                             if en_added is True:
                                 mass_difference = volume_elm[en] * (
-                                    domain_density[dn][elm_states[en]] - domain_density[dn][elm_states[en] - 1])
+                                    domain_density[dn][elm_states_en] - domain_density[dn][elm_states_en - 1])
                                 mass_overloaded += mass_difference
                                 mass_goal_i += mass_difference
                     else:  # rest of elements prepare to sorting and switching
+                        elm_states_en = elm_states[en]
                         compute_difference()  # mass to add or remove
                         sensitivity_number_opt[en] = sensitivity_number[en]
     # sorting
     sensitivity_number_sorted = sorted(sensitivity_number_opt.items(), key=operator.itemgetter(1))
     sensitivity_number_sorted2 = list(sensitivity_number_sorted)
     if i_violated:
-        mass_to_add = mass_addition_ratio * mass_referential * np.exp(decay_coefficient * (i - i_violated))
-        if sum(FI_violated[i - 1]):
-            mass_to_remove = mass_addition_ratio * mass_referential * np.exp(decay_coefficient * (i - i_violated)) \
-                             - mass_overloaded
-        else:
-            mass_to_remove = mass_removal_ratio * mass_referential * np.exp(decay_coefficient * (i - i_violated)) \
-                             - mass_overloaded
+        if mass_removal_ratio - mass_addition_ratio > 0:  # removing from initial mass
+            mass_to_add = mass_addition_ratio * mass_referential * np.exp(decay_coefficient * (i - i_violated))
+            if sum(FI_violated[i - 1]):
+                mass_to_remove = mass_addition_ratio * mass_referential * np.exp(decay_coefficient * (i - i_violated)) \
+                                 - mass_overloaded
+            else:
+                mass_to_remove = mass_removal_ratio * mass_referential * np.exp(decay_coefficient * (i - i_violated)) \
+                                 - mass_overloaded
+        else:  # adding to initial mass  TODO include stress limit
+            mass_to_add = mass_removal_ratio * mass_referential * np.exp(decay_coefficient * (i - i_violated))
+            mass_to_remove = mass_to_add
     else:
         mass_to_add = mass_addition_ratio * mass_referential
         mass_to_remove = mass_removal_ratio * mass_referential
@@ -1318,7 +1327,7 @@ def vtk_mesh(file_nameW, nodes, Elements):
              list(Elements.hexa20.keys())  # defines vtk element numbering from 0
 
     size_of_cells = 4 * len(Elements.tria3) + 7 * len(Elements.tria6) + 5 * len(Elements.quad4) + \
-                    9 * len(Elements.quad8) + 5 * len(Elements.tetra4) + 9 * len(Elements.tetra10) + \
+                    9 * len(Elements.quad8) + 5 * len(Elements.tetra4) + 11 * len(Elements.tetra10) + \
                     7 * len(Elements.penta6) + 7 * len(Elements.penta15) + 9 * len(Elements.hexa8) + \
                     21 * len(Elements.hexa20)  # quadratic wedge not supported
     f.write("\nCELLS " + str(number_of_elements) + " " + str(size_of_cells) + "\n")

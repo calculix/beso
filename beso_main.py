@@ -183,14 +183,21 @@ for dn in domains_from_config:
 print("initial optimization domains mass {}" .format(mass[0]))
 
 if iterations_limit == "auto":  # automatic setting
-    if ratio_type == "absolute":
-        iterations_limit = int((1 - mass_goal_ratio) / abs(mass_removal_ratio - mass_addition_ratio) + 25)
+    m = mass[0] / mass_full
+    if ratio_type == "absolute" and (mass_removal_ratio - mass_addition_ratio > 0):
+        iterations_limit = int((m - mass_goal_ratio) / (mass_removal_ratio - mass_addition_ratio) + 25)
+    elif ratio_type == "absolute" and (mass_removal_ratio - mass_addition_ratio < 0):
+        iterations_limit = int((mass_goal_ratio - m) / (mass_addition_ratio - mass_removal_ratio) + 25)
     elif ratio_type == "relative":
-        m = mass[0] / mass_full
         it = 0
-        while m > mass_goal_ratio:
-            m -= m * abs(mass_removal_ratio - mass_addition_ratio)
-            it += 1
+        if mass_removal_ratio - mass_addition_ratio > 0:
+            while m > mass_goal_ratio:
+                m -= m * (mass_removal_ratio - mass_addition_ratio)
+                it += 1
+        else:
+            while m < mass_goal_ratio:
+                m += m * (mass_addition_ratio - mass_removal_ratio)
+                it += 1
         iterations_limit = it + 25
     print("\niterations_limit set automatically to %s" % iterations_limit)
     msg = ("\niterations_limit        = %s\n" % iterations_limit)
@@ -402,9 +409,12 @@ while True:
                     FI_mean_sum_without_state0 += FI_step_max[en] * mass_elm
                     mass_without_state0 += mass_elm
     FI_mean.append(FI_mean_sum / mass[i])
-    FI_mean_without_state0.append(FI_mean_sum_without_state0 / mass_without_state0)
-    print("FI_mean                = {}" .format(FI_mean[i]))
-    print("FI_mean_without_state0 = {}".format(FI_mean_without_state0[i]))
+    print("FI_mean                = {}".format(FI_mean[i]))
+    if mass_without_state0:
+        FI_mean_without_state0.append(FI_mean_sum_without_state0 / mass_without_state0)
+        print("FI_mean_without_state0 = {}".format(FI_mean_without_state0[i]))
+    else:
+        FI_mean_without_state0.append("NaN")
 
     # writing log table row
     msg = str(i).rjust(4, " ") + " " + str(mass[i]).rjust(17, " ") + " " + str(FI_violated[i][0]).rjust(13, " ")
@@ -459,25 +469,34 @@ while True:
     print("\n----------- new iteration number %d ----------" % i)
 
     # set mass_goal for i-th iteration, check for number of violated elements
-    if sum(FI_violated[i - 1]) > sum(FI_violated[0]) + FI_violated_tolerance:
-        if mass[i - 1] >= mass_goal_ratio * mass_full:
-            mass_goal_i = mass[i - 1]  # use mass_new from previous iteration
-        else:  # not to drop below goal mass
+    if mass_removal_ratio - mass_addition_ratio > 0:  # removing from initial mass
+        if sum(FI_violated[i - 1]) > sum(FI_violated[0]) + FI_violated_tolerance:
+            if mass[i - 1] >= mass_goal_ratio * mass_full:
+                mass_goal_i = mass[i - 1]  # use mass_new from previous iteration
+            else:  # not to drop below goal mass
+                mass_goal_i = mass_goal_ratio * mass_full
+            if i_violated == 0:
+                i_violated = i
+                check_tolerance = True
+        elif mass[i - 1] <= mass_goal_ratio * mass_full:  # goal mass achieved
+            if not i_violated:
+                i_violated = i  # to start decaying
+                check_tolerance = True
+            try:
+                mass_goal_i
+            except NameError:
+                msg = "\nWARNING: mass goal is lower than initial mass. Check mass_goal_ratio."
+                beso_lib.write_to_log(file_name, msg + "\n")
+        else:
             mass_goal_i = mass_goal_ratio * mass_full
-        if i_violated == 0:
-            i_violated = i
-            check_tolerance = True
-    elif mass[i - 1] <= mass_goal_ratio * mass_full:  # goal mass achieved
-        if not i_violated:
-            i_violated = i  # to start decaying
-            check_tolerance = True
-        try:
-            mass_goal_i
-        except NameError:
-            msg = "\nWARNING: mass goal is lower than initial mass. Check mass_goal_ratio."
-            beso_lib.write_to_log(file_name, msg + "\n")
-    else:
-        mass_goal_i = mass_goal_ratio * mass_full
+    else:  # adding to initial mass  TODO include stress limit
+        if mass[i - 1] < mass_goal_ratio * mass_full:
+            mass_goal_i = mass[i - 1] + (mass_addition_ratio - mass_removal_ratio) * mass_full
+        elif mass[i - 1] >= mass_goal_ratio * mass_full:
+            if not i_violated:
+                i_violated = i  # to start decaying
+                check_tolerance = True
+            mass_goal_i = mass_goal_ratio * mass_full
 
     # switch element states
     if ratio_type == "absolute":
@@ -623,7 +642,7 @@ if len(domains_from_config) > 1:
         FI_violated_total.append(sum(FI_violated[ii]))
     plt.plot(range(i+1), FI_violated_total, label="Total")
 plt.legend(loc=2, fontsize=10)
-plt.title("Number of elements with Failure Index > 1")
+plt.title("Number of elements with Failure Index >= 1")
 plt.xlabel("Iteration")
 plt.ylabel("FI_violated")
 plt.grid()
