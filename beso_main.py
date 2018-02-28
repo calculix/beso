@@ -291,7 +291,7 @@ oscillations = False
 
 while True:
     # creating the new .inp file for CalculiX
-    file_nameW = "file" + str(i).zfill(3)
+    file_nameW = os.path.join(path, "file" + str(i).zfill(3))
     beso_lib.write_inp(file_name, file_nameW, elm_states, number_of_states, domains, domains_from_config,
                        domain_optimized, domain_thickness, domain_offset, domain_orientation, domain_material,
                        domain_volumes, domain_shells, plane_strain, plane_stress, axisymmetry, save_iteration_results,
