@@ -1,5 +1,6 @@
 import numpy as np
 import operator
+from math import *
 
 # function to print ongoing messages to the log file
 def write_to_log(file_name, msg):
@@ -412,7 +413,7 @@ def elm_volume_cg(file_name, nodes, Elements):
 def write_inp(file_name, file_nameW, elm_states, number_of_states, domains, domains_from_config, domain_optimized,
               domain_thickness, domain_offset, domain_orientation, domain_material, domain_volumes, domain_shells,
               plane_strain, plane_stress, axisymmetry, save_iteration_results, i, reference_points, shells_as_composite,
-              optimization_base):
+              optimization_base, displacement_graph):
     if reference_points == "nodes":
         fR = open(file_name[:-4] + "_separated.inp", "r")
     else:
@@ -548,6 +549,13 @@ def write_inp(file_name, file_nameW, elm_states, number_of_states, domains, doma
                 elif reference_points == "nodes":
                     fW.write("*EL FILE, GLOBAL=NO\n")
                     fW.write("S\n")
+                if displacement_graph:
+                    ns_written = []
+                    for [ns, component] in displacement_graph:
+                        if ns not in ns_written:
+                            ns_written.append(ns)
+                            fW.write("*NODE PRINT, NSET=" + ns + "\n")
+                            fW.write("U\n")
                 fW.write(" \n")
                 outputs_done += 1
             commenting = True
@@ -572,7 +580,7 @@ def write_inp(file_name, file_nameW, elm_states, number_of_states, domains, doma
 # function for importing results from .dat file
 # Failure Indices are computed at each integration point and maximum or average above each element is returned
 def import_FI_int_pt(reference_value, file_nameW, domains, criteria, domain_FI, file_name, elm_states,
-                     domains_from_config, steps_superposition):
+                     domains_from_config, steps_superposition, displacement_graph):
     try:
         f = open(file_nameW + ".dat", "r")
     except IOError:
@@ -628,6 +636,10 @@ def import_FI_int_pt(reference_value, file_nameW, domains, criteria, domain_FI, 
 
     read_stresses = 0
     read_energy_density = 0
+    read_displacement = 0
+    disp_i = [None for _ in range(len(displacement_graph))]
+    disp_condition = {}
+    disp_components = []
     for line in f:
         line_split = line.split()
         if line.replace(" ", "") == "\n":
@@ -635,8 +647,12 @@ def import_FI_int_pt(reference_value, file_nameW, domains, criteria, domain_FI, 
                 save_FI(step_number, en_last)
             if read_energy_density == 1:
                 energy_density_step[step_number][en_last] = np.average(ener_int_pt)
+            if read_displacement == 1:
+                for cn in ns_reading:
+                    disp_i[cn] = max([disp_i[cn]] + disp_condition[cn])
             read_stresses -= 1
             read_energy_density -= 1
+            read_displacement -= 1
             FI_int_pt = [[] for _ in range(len(criteria))]
             ener_int_pt = []
             en_last = None
@@ -648,6 +664,8 @@ def import_FI_int_pt(reference_value, file_nameW, domains, criteria, domain_FI, 
                     step_number += 1
                     FI_step.append({})
                     energy_density_step.append({})
+                    if steps_superposition:
+                        disp_components.append({})  # appending sn
                     last_time = line_split[-1]
         elif line[:24] == " internal energy density":
             if line.split()[-4] in map(lambda x: x.upper(), domains_from_config):  # TODO upper already on user input
@@ -656,7 +674,28 @@ def import_FI_int_pt(reference_value, file_nameW, domains, criteria, domain_FI, 
                     step_number += 1
                     FI_step.append({})
                     energy_density_step.append({})
+                    if steps_superposition:
+                        disp_components.append({})  # appending sn
                     last_time = line_split[-1]
+
+        elif line[:14] == " displacements":
+            cn = 0
+            ns_reading = []
+            for [ns, component] in displacement_graph:
+                if ns.upper() == line_split[4]:
+                    ns_reading.append(cn)
+                    disp_condition[cn] = []
+                cn += 1
+            read_displacement = 2
+            if steps_superposition:
+                if last_time != line_split[-1]:
+                    step_number += 1
+                    disp_components.append({})  # appending sn
+                    FI_step.append({})
+                    energy_density_step.append({})
+                    last_time = line_split[-1]
+                ns = line_split[4]
+                disp_components[-1][ns] = []  # appending ns
 
         elif read_stresses == 1:
             en = int(line_split[0])
@@ -697,10 +736,27 @@ def import_FI_int_pt(reference_value, file_nameW, domains, criteria, domain_FI, 
                 except KeyError:
                     step_ener[step_number][en] = []
                     step_ener[step_number][en].append(energy_density)
+
+        elif read_displacement == 1:
+            ux = float(line_split[1])
+            uy = float(line_split[2])
+            uz = float(line_split[3])
+            for cn in ns_reading:
+                component = displacement_graph[cn][1]
+                if component.upper() == "TOTAL":  # total displacement
+                    disp_condition[cn].append(sqrt(ux ** 2 + uy ** 2 + uz ** 2))
+                else:
+                    disp_condition[cn].append(eval(component))
+            if steps_superposition:  # save ux, uy, uz for steps superposition
+                disp_components[step_number][ns].append((ux, uy, uz))
+
     if read_stresses == 1:
         save_FI(step_number, en_last)
     if read_energy_density == 1:
         energy_density_step[step_number][en_last] = np.average(ener_int_pt)
+    if read_displacement == 1:
+        for cn in ns_reading:
+            disp_i[cn] = max([disp_i[cn]] + disp_condition[cn])
     f.close()
 
     # superposed steps
@@ -766,8 +822,118 @@ def import_FI_int_pt(reference_value, file_nameW, domains, criteria, domain_FI, 
             sn = -1  # last step number
             energy_density_step[sn][en] = np.average(ener_int_pt)
 
-    return FI_step, energy_density_step
+        # superposition of displacements to graph, same code block as in import_displacement function
+        cn = 0
+        for (ns, component) in displacement_graph:
+            ns = ns.upper()
+            uxe = []
+            uye = []
+            uze = []
+            for en2 in range(len(disp_components[0][ns])):
+                uxe.append(0)
+                uye.append(0)
+                uze.append(0)
+                for (scale, sn) in steps_superposition[LCn]:
+                    sn -= 1  # step numbering in CalculiX is from 1, but we have it 0 based
+                    uxe[-1] += scale * disp_components[sn][ns][en2][0]
+                    uye[-1] += scale * disp_components[sn][ns][en2][1]
+                    uze[-1] += scale * disp_components[sn][ns][en2][2]
 
+            for en2 in range(len(uxe)):  # iterate over elements in nset
+                ux = uxe.pop()
+                uy = uye.pop()
+                uz = uze.pop()
+                if component.upper() == "TOTAL":  # total displacement
+                    disp_condition[cn].append(sqrt(ux ** 2 + uy ** 2 + uz ** 2))
+                else:
+                    disp_condition[cn].append(eval(component))
+            disp_i[cn] = max([disp_i[cn]] + disp_condition[cn])
+            cn += 1
+
+    return FI_step, energy_density_step, disp_i
+
+
+# function for importing displacements if import_FI_int_pt is not called to read .dat file
+def import_displacement(file_nameW, displacement_graph, steps_superposition):
+    f = open(file_nameW + ".dat", "r")
+    read_displacement = 0
+    disp_i = [None for _ in range(len(displacement_graph))]
+    disp_condition = {}
+    disp_components = []
+    last_time = "initial"
+    step_number = -1
+    for line in f:
+        line_split = line.split()
+        if line.replace(" ", "") == "\n":
+            if read_displacement == 1:
+                for cn in ns_reading:
+                    disp_i[cn] = max([disp_i[cn]] + disp_condition[cn])
+            read_displacement -= 1
+
+        elif line[:14] == " displacements":
+            cn = 0
+            ns_reading = []
+            for [ns, component] in displacement_graph:
+                if ns.upper() == line_split[4]:
+                    ns_reading.append(cn)
+                    disp_condition[cn] = []
+                cn += 1
+            read_displacement = 2
+            if steps_superposition:
+                if last_time != line_split[-1]:
+                    step_number += 1
+                    disp_components.append({})  # appending sn
+                    last_time = line_split[-1]
+                ns = line_split[4]
+                disp_components[-1][ns] = []  # appending ns
+
+        elif read_displacement == 1:
+            ux = float(line_split[1])
+            uy = float(line_split[2])
+            uz = float(line_split[3])
+            for cn in ns_reading:
+                component = displacement_graph[cn][1]
+                if component.upper() == "TOTAL":  # total displacement
+                    disp_condition[cn].append(sqrt(ux ** 2 + uy ** 2 + uz ** 2))
+                else:
+                    disp_condition[cn].append(eval(component))
+            if steps_superposition:  # save ux, uy, uz for steps superposition
+                disp_components[step_number][ns].append((ux, uy, uz))
+
+    if read_displacement == 1:
+        for cn in ns_reading:
+            disp_i[cn] = max([disp_i[cn]] + disp_condition[cn])
+    f.close()
+
+    # superposition of displacements to graph, same code block as in import_FI_int_pt function
+    for LCn in range(len(steps_superposition)):  # steps superposition
+        cn = 0
+        for (ns, component) in displacement_graph:
+            ns = ns.upper()
+            uxe = []
+            uye = []
+            uze = []
+            for en2 in range(len(disp_components[0][ns])):
+                uxe.append(0)
+                uye.append(0)
+                uze.append(0)
+                for (scale, sn) in steps_superposition[LCn]:
+                    sn -= 1  # step numbering in CalculiX is from 1, but we have it 0 based
+                    uxe[-1] += scale * disp_components[sn][ns][en2][0]
+                    uye[-1] += scale * disp_components[sn][ns][en2][1]
+                    uze[-1] += scale * disp_components[sn][ns][en2][2]
+
+            for en2 in range(len(uxe)):  # iterate over elements in nset
+                ux = uxe.pop()
+                uy = uye.pop()
+                uz = uze.pop()
+                if component.upper() == "TOTAL":  # total displacement
+                    disp_condition[cn].append(sqrt(ux ** 2 + uy ** 2 + uz ** 2))
+                else:
+                    disp_condition[cn].append(eval(component))
+            disp_i[cn] = max([disp_i[cn]] + disp_condition[cn])
+            cn += 1
+    return disp_i
 
 # function for importing results from .frd file
 # Failure Indices are computed at each node and maximum or average above each element is returned
