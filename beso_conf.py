@@ -93,6 +93,10 @@ steps_superposition = []  # make linear superposition of stress tensors from dif
 iterations_limit = "auto"  # "auto" - automatic estimate, <integer> - the maximum allowable number of iterations
 tolerance = 1e-3  # the maximum relative difference in mean stress in optimization domains between the last 5 iterations needed to finish
 
+displacement_graph = []  # plot maximal displacement of the given node set, e.g.
+                         # [] - do not plot it
+                         # [["nset1", "ux"], ["nset2", "uy"]] - plot maximal x displacement of node set nset1 and maximal y displacement of node set nset2
+                         # [["nset1", "total"]] - plot maximal total displacement of node set nset1, same as [["nset", "sqrt(ux**2 + uy**2 + uz**2)"]]
 save_iteration_results = 1  # every i-th iteration save temporary results, 0 - save only final results
 save_solver_files = ""  # not removed outputs from the solver, e.g. "inp frd dat cvg sta" will preserve all outputs in iterations defined by save_iteration_results
 save_resulting_format = "inp vtk" # "frd" or "inp" format of resulting meshes (each state separately in own mesh file)

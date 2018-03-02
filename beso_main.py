@@ -43,7 +43,8 @@ compensate_state_filter = False
 steps_superposition = []
 iterations_limit = "auto"
 tolerance = 1e-3
-save_iteration_results = 0
+displacement_graph = []
+save_iteration_results = 1
 save_solver_files = ""
 save_resulting_format = "inp vtk"
 
@@ -119,6 +120,7 @@ msg += ("sensitivity_averaging   = %s\n" % sensitivity_averaging)
 msg += ("steps_superposition     = %s\n" % steps_superposition)
 msg += ("iterations_limit        = %s\n" % iterations_limit)
 msg += ("tolerance               = %s\n" % tolerance)
+msg += ("displacement_graph      = %s\n" % displacement_graph)
 msg += ("save_iteration_results  = %s\n" % save_iteration_results)
 msg += ("save_solver_files       = %s\n" % save_solver_files)
 msg += ("save_resulting_format   = %s\n" % save_resulting_format)
@@ -267,6 +269,12 @@ for dno in range(len(domains_from_config) - 1):
     msg += str(dno + 1).rjust(17, " ") + ")"
 if len(domains_from_config) > 1:
     msg += "all".rjust(17, " ") + ")"
+if displacement_graph:
+    for (ns, component) in displacement_graph:
+        if component == "total":  # total displacement
+            msg += (" " + ns + "(u_total)").rjust(18, " ")
+        else:
+            msg += (" " + ns + "(" + component + ")").rjust(18, " ")
 msg += "\n"
 beso_lib.write_to_log(file_name, msg)
 
@@ -281,6 +289,7 @@ FI_max = []
 FI_mean = []  # list of mean stress in every iteration
 FI_mean_without_state0 = []  # mean stress without elements in state 0
 FI_violated = []
+disp_max = []
 i = 0
 i_violated = 0
 continue_iterations = True
@@ -296,18 +305,21 @@ while True:
     beso_lib.write_inp(file_name, file_nameW, elm_states, number_of_states, domains, domains_from_config,
                        domain_optimized, domain_thickness, domain_offset, domain_orientation, domain_material,
                        domain_volumes, domain_shells, plane_strain, plane_stress, axisymmetry, save_iteration_results,
-                       i, reference_points, shells_as_composite, optimization_base)
+                       i, reference_points, shells_as_composite, optimization_base, displacement_graph)
     # running CalculiX analysis
     subprocess.call(os.path.normpath(path_calculix) + " " + os.path.join(path, file_nameW), shell=True)
 
     # reading results and computing failure indeces
     if reference_points == "integration points":  # from .dat file
-        [FI_step, energy_density_step] = beso_lib.import_FI_int_pt(reference_value, file_nameW, domains, criteria,
-                                                                   domain_FI, file_name, elm_states,
-                                                                   domains_from_config, steps_superposition)
+        [FI_step, energy_density_step, disp_i] = beso_lib.import_FI_int_pt(reference_value, file_nameW, domains,
+                                                                             criteria, domain_FI, file_name, elm_states,
+                                                                             domains_from_config, steps_superposition,
+                                                                             displacement_graph)
     elif reference_points == "nodes":  # from .frd file
         FI_step = beso_lib.import_FI_node(reference_value, file_nameW, domains, criteria, domain_FI, file_name,
                                           elm_states, steps_superposition)
+        disp_i = beso_lib.import_displacement(file_nameW, displacement_graph, steps_superposition)
+    disp_max.append(disp_i)
     if not FI_step:
         msg = "CalculiX results not found, check CalculiX for errors."
         beso_lib.write_to_log(file_name, "\nERROR: " + msg + "\n")
@@ -430,6 +442,8 @@ while True:
         FI_max_all = max(FI_max_all, FI_max[i][dn])
     if len(domains_from_config) > 1:
         msg += " " + str(FI_max_all).rjust(17, " ")
+    for cn in range(len(displacement_graph)):
+        msg += " " + str(disp_i[cn]).rjust(17, " ")
     msg += "\n"
     beso_lib.write_to_log(file_name, msg)
 
@@ -673,5 +687,19 @@ plt.xlabel("Iteration")
 plt.ylabel("FI_max")
 plt.grid()
 plt.savefig("FI_max", dpi=100)
+
+if displacement_graph:
+    plt.figure(5)
+    for cn in range(len(displacement_graph)):
+        disp_max_cn = []
+        for ii in range(i + 1):
+            disp_max_cn.append(disp_max[ii][cn])
+        plt.plot(range(i + 1), disp_max_cn, label=displacement_graph[cn][0] + "(" + displacement_graph[cn][1] + ")")
+    plt.legend(loc=2, fontsize=10)
+    plt.title("Node set maximal displacements")
+    plt.xlabel("Iteration")
+    plt.ylabel("Displacement")
+    plt.grid()
+    plt.savefig("disp_max", dpi=100)
 
 plt.show()
