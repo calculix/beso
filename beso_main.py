@@ -125,6 +125,7 @@ msg += ("save_iteration_results  = %s\n" % save_iteration_results)
 msg += ("save_solver_files       = %s\n" % save_solver_files)
 msg += ("save_resulting_format   = %s\n" % save_resulting_format)
 msg += "\n"
+file_name = os.path.join(path, file_name)
 beso_lib.write_to_log(file_name, msg)
 
 if optimization_base == "stiffness" and reference_points == "nodes":
@@ -279,7 +280,7 @@ msg += "\n"
 beso_lib.write_to_log(file_name, msg)
 
 # preparing for writing quick results
-file_name_resulting_states = "resulting_states"
+file_name_resulting_states = os.path.join(path, "resulting_states")
 en_all_vtk = beso_lib.vtk_mesh(file_name_resulting_states, nodes, Elements)
 
 # ITERATION CYCLE
@@ -307,7 +308,7 @@ while True:
                        domain_volumes, domain_shells, plane_strain, plane_stress, axisymmetry, save_iteration_results,
                        i, reference_points, shells_as_composite, optimization_base, displacement_graph)
     # running CalculiX analysis
-    subprocess.call(os.path.normpath(path_calculix) + " " + file_nameW, shell=True, cwd = path)
+    subprocess.call(os.path.normpath(path_calculix) + " " + file_nameW, shell=True, cwd=path)
 
     # reading results and computing failure indeces
     if reference_points == "integration points":  # from .dat file
@@ -561,7 +562,7 @@ while True:
     # export the present mesh
     beso_lib.append_vtk_states(file_name_resulting_states, i, en_all_vtk, elm_states)
 
-    file_nameW2 = "file" + str(i).zfill(3)
+    file_nameW2 = os.path.join(path, "file" + str(i).zfill(3))
     if save_iteration_results and np.mod(float(i), save_iteration_results) == 0:
         if "frd" in save_resulting_format:
             beso_lib.export_frd(file_nameW2, nodes, Elements, elm_states, number_of_states)
@@ -637,7 +638,7 @@ plt.title("Mass of optimization domains")
 plt.xlabel("Iteration")
 plt.ylabel("Mass")
 plt.grid()
-plt.savefig("Mass", dpi=100)
+plt.savefig(os.path.join(path, "Mass"), dpi=100)
 
 if oscillations == True:
     i -= 1  # because other values for i-th iteration are not evaluated
@@ -661,7 +662,7 @@ plt.title("Number of elements with Failure Index >= 1")
 plt.xlabel("Iteration")
 plt.ylabel("FI_violated")
 plt.grid()
-plt.savefig("FI_violated", dpi=100)
+plt.savefig(os.path.join(path, "FI_violated"), dpi=100)
 
 # plot mean failure index
 plt.figure(3)
@@ -672,7 +673,7 @@ plt.xlabel("Iteration")
 plt.ylabel("FI_mean")
 plt.legend(loc = 2, fontsize=10)
 plt.grid()
-plt.savefig("FI_mean", dpi=100)
+plt.savefig(os.path.join(path, "FI_mean"), dpi=100)
 
 # plot maximal failure indices
 plt.figure(4)
@@ -686,7 +687,7 @@ plt.title("Maximal domain Failure Index")
 plt.xlabel("Iteration")
 plt.ylabel("FI_max")
 plt.grid()
-plt.savefig("FI_max", dpi=100)
+plt.savefig(os.path.join(path, "FI_max"), dpi=100)
 
 if displacement_graph:
     plt.figure(5)
@@ -700,6 +701,6 @@ if displacement_graph:
     plt.xlabel("Iteration")
     plt.ylabel("Displacement")
     plt.grid()
-    plt.savefig("disp_max", dpi=100)
+    plt.savefig(os.path.join(path, "Displacement_max"), dpi=100)
 
 plt.show()
