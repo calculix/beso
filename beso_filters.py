@@ -18,7 +18,7 @@ def check_same_state(domain_same_state, filtered_dn, file_name):
     filtered_dn_set = set(filtered_dn)
     domains_to_check = set()
     for dn in domain_same_state:
-        if domain_same_state[dn]:
+        if domain_same_state[dn] in ["max", "average"]:
             domains_to_check.add(dn)
     if domains_to_check.intersection(filtered_dn_set):
         wrong_domains = True
