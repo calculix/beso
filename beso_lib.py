@@ -1145,15 +1145,17 @@ def switching(elm_states, domains_from_config, domain_optimized, domains, FI_ste
     for dn in domains_from_config:
         if domain_optimized[dn] is True:
             len_domain_density_dn = len(domain_density[dn])
-            if domain_same_state[dn] is True:
+            if domain_same_state[dn] in ["max", "average"]:
                 new_state = 0
                 failing = False
                 highest_state = 0
-                sensitivity_number_highest = 0
+                sensitivity_number_list = []
+                sensitivity_number_of_domain = 0
                 for en in domains[dn]:  # find highest state, sensitivity number and if failing
                     elm_states_en = elm_states[en]
                     if elm_states_en >= highest_state:
-                        sensitivity_number_highest = max(sensitivity_number_highest, sensitivity_number[en])
+                        if domain_same_state[dn] == "max":
+                            sensitivity_number_of_domain = max(sensitivity_number_of_domain, sensitivity_number[en])
                         highest_state = elm_states_en
                     if FI_step_max[en] >= 1:  # new state if failing
                         failing = True
@@ -1163,6 +1165,11 @@ def switching(elm_states, domains_from_config, domain_optimized, domains, FI_ste
                             new_state = max(new_state, elm_states_en)
                     else:
                         new_state = max(new_state, elm_states_en)
+                    if domain_same_state[dn] == "average":
+                        sensitivity_number_list.append(sensitivity_number[en])
+
+                if domain_same_state[dn] == "average":
+                    sensitivity_number_of_domain = np.average(sensitivity_number_list)
 
                 mass_increase[dn] = 0
                 mass_decrease[dn] = 0
@@ -1177,7 +1184,7 @@ def switching(elm_states, domains_from_config, domain_optimized, domains, FI_ste
                             mass_overloaded += mass_increase[en]
                             mass_goal_i += mass_increase[en]
                     elif failing is False:  # use domain name dn instead of element number for future switching
-                        sensitivity_number_opt[dn] = sensitivity_number_highest
+                        sensitivity_number_opt[dn] = sensitivity_number_of_domain
                         try:
                             mass_increase[dn] += mass_increase[en]
                         except KeyError:

@@ -28,7 +28,9 @@ domain_FI[elset_name] = [[("stress_von_Mises", 450.0e6)],  # inner tuples () for
                         # [("stress_von_Mises", 450.0)]  # for von Mises stress give only allowable stress
 domain_material[elset_name] = ["*ELASTIC \n210000e-6,  0.3",  # material definition after CalculiX *MATERIAL card, use \n for line break
                                "*ELASTIC \n210000,  0.3"]  # next string for the next state of switch_elm
-domain_same_state[elset_name] = False  # False - element states can differ, True - all domain elements have common state
+domain_same_state[elset_name] = False  # False - element states can differ,
+                                       # "max" - domain elements have common state given by maximum sensitivity
+                                       # "average" - domain elements have common state given by average sensitivity
 # copy this block for defining properties of the next domain
 
 mass_goal_ratio = 0.4  # the goal mass as a fragment of the full mass of optimized domains,
