@@ -1487,8 +1487,13 @@ def vtk_mesh(file_nameW, nodes, Elements):
         nn_vtk += 1
 
     f.write("\nPOINTS " + str(len(associated_nodes)) + " float\n")
+    line_count = 0
     for nn in associated_nodes:
-        f.write("{} {} {}\n".format(nodes[nn][0], nodes[nn][1], nodes[nn][2]))
+        f.write("{} {} {} ".format(nodes[nn][0], nodes[nn][1], nodes[nn][2]))
+        line_count += 1
+        if line_count % 2 == 0:
+            f.write("\n")
+    f.write("\n")
 
     # elements
     number_of_elements = len(Elements.tria3) + len(Elements.tria6) + len(Elements.quad4) + len(Elements.quad8) + \
@@ -1509,7 +1514,7 @@ def vtk_mesh(file_nameW, nodes, Elements):
         for en in elm_category:
             f.write(node_length)
             for nn in elm_category[en]:
-                f.write(" " + str(nodes_vtk[nn]))
+                f.write(" " + str(nodes_vtk[nn]) + " ")
             f.write("\n")
 
     write_elm(Elements.tria3, "3")
@@ -1524,21 +1529,23 @@ def vtk_mesh(file_nameW, nodes, Elements):
     write_elm(Elements.hexa20, "20")
 
     f.write("\nCELL_TYPES " + str(number_of_elements) + "\n")
-    f.write("5\n" * len(Elements.tria3))
-    f.write("22\n" * len(Elements.tria6))
-    f.write("9\n" * len(Elements.quad4))
-    f.write("23\n" * len(Elements.quad8))
-    f.write("10\n" * len(Elements.tetra4))
-    f.write("24\n" * len(Elements.tetra10))
-    f.write("13\n" * len(Elements.penta6))
-    f.write("13\n" * len(Elements.penta15))  # quadratic wedge not supported
-    f.write("12\n" * len(Elements.hexa8))
-    f.write("25\n" * len(Elements.hexa20))
+    cell_types = "5 " * len(Elements.tria3) + "22 " * len(Elements.tria6) + "9 " * len(Elements.quad4) + \
+                 "23 " * len(Elements.quad8) + "10 " * len(Elements.tetra4) + "24 " * len(Elements.tetra10) + \
+                 "13 " * len(Elements.penta6) + "13 " * len(Elements.penta15) + "12 " * len(Elements.hexa8) + \
+                 "25 " * len(Elements.hexa20)  # quadratic wedge penta15 not supported
+    line_count = 0
+    for char in cell_types:
+        f.write(char)
+        if char == " ":
+            line_count += 1
+            if line_count % 30 == 0:
+                f.write("\n")
+    f.write("\n")
 
     f.write("\nCELL_DATA " + str(number_of_elements) + "\n")
 
     f.close()
-    return en_all
+    return en_all, associated_nodes
 
 
 def append_vtk_states(file_nameW, i, en_all, elm_states):
@@ -1547,28 +1554,42 @@ def append_vtk_states(file_nameW, i, en_all, elm_states):
     # element state
     f.write("\nSCALARS element_states" + str(i).zfill(3) + " float\n")
     f.write("LOOKUP_TABLE default\n")
+    line_count = 0
     for en in en_all:
-        f.write(str(elm_states[en]) + "\n")
-
+        f.write(str(elm_states[en]) + " ")
+        line_count += 1
+        if line_count % 30 == 0:
+            f.write("\n")
+    f.write("\n")
     f.close()
 
 # function for exporting result in the legacy vtk format
 # nodes and elements are renumbered from 0 not to jump over values
 def export_vtk(file_nameW, nodes, Elements, elm_states, sensitivity_number, criteria, FI_step, FI_step_max):
-    en_all = vtk_mesh(file_nameW, nodes, Elements)
+    [en_all, associated_nodes] = vtk_mesh(file_nameW, nodes, Elements)
     f = open(file_nameW + ".vtk", "a")
 
     # element state
     f.write("\nSCALARS element_states float\n")
     f.write("LOOKUP_TABLE default\n")
+    line_count = 0
     for en in en_all:
-        f.write(str(elm_states[en]) + "\n")
+        f.write(str(elm_states[en]) + " ")
+        line_count += 1
+        if line_count % 30 == 0:
+            f.write("\n")
+    f.write("\n")
 
     # sensitivity number
     f.write("\nSCALARS sensitivity_number float\n")
     f.write("LOOKUP_TABLE default\n")
+    line_count = 0
     for en in en_all:
-        f.write(str(sensitivity_number[en]) + "\n")
+        f.write(str(sensitivity_number[en]) + " ")
+        line_count += 1
+        if line_count % 6 == 0:
+            f.write("\n")
+    f.write("\n")
 
     # FI
     FI_criteria = {}  # list of FI on each element
@@ -1588,17 +1609,68 @@ def export_vtk(file_nameW, nodes, Elements, elm_states, sensitivity_number, crit
         elif criteria[FIn][0] == "user_def":
             f.write("SCALARS FI=" + criteria[FIn][1].replace(" ", "") + " float\n")
         f.write("LOOKUP_TABLE default\n")
+        line_count = 0
         for en in en_all:
             if FI_criteria[en][FIn]:
-                f.write(str(FI_criteria[en][FIn]) + "\n")
+                f.write(str(FI_criteria[en][FIn]) + " ")
             else:
-                f.write("0\n")  # since Paraview do not recognise None value
+                f.write("0 ")  # since Paraview do not recognise None value
+            line_count += 1
+            if line_count % 6 == 0:
+                f.write("\n")
+        f.write("\n")
 
     # FI_max
     f.write("\nSCALARS FI_max float\n")
     f.write("LOOKUP_TABLE default\n")
+    line_count = 0
     for en in en_all:
-        f.write(str(FI_step_max[en]) + "\n")
+        f.write(str(FI_step_max[en]) + " ")
+        line_count += 1
+        if line_count % 6 == 0:
+            f.write("\n")
+    f.write("\n")
+
+    # element state averaged at nodes
+    def append_nodal_state(en, elm_type):
+        for nn in elm_type[en]:
+            try:
+                nodal_state[nn].append(elm_states[en])
+            except KeyError:
+                nodal_state[nn] = [elm_states[en]]
+
+    nodal_state = {}
+    for en in Elements.tria3:
+        append_nodal_state(en, Elements.tria3)
+    for en in Elements.tria6:
+        append_nodal_state(en, Elements.tria6)
+    for en in Elements.quad4:
+        append_nodal_state(en, Elements.quad4)
+    for en in Elements.quad8:
+        append_nodal_state(en, Elements.quad8)
+    for en in Elements.tetra4:
+        append_nodal_state(en, Elements.tetra4)
+    for en in Elements.tetra10:
+        append_nodal_state(en, Elements.tetra10)
+    for en in Elements.penta6:
+        append_nodal_state(en, Elements.penta6)
+    for en in Elements.penta15:
+        append_nodal_state(en, Elements.penta15)
+    for en in Elements.hexa8:
+        append_nodal_state(en, Elements.hexa8)
+    for en in Elements.hexa20:
+        append_nodal_state(en, Elements.hexa20)
+
+    f.write("\nPOINT_DATA " + str(len(associated_nodes)) + "\n")
+    f.write("FIELD field_data 1\n")
+    f.write("\nelement_states_averaged_at_nodes 1 " + str(len(associated_nodes)) + " float\n")
+    line_count = 0
+    for nn in associated_nodes:
+        f.write(str(np.average(nodal_state[nn])) + " ")
+        line_count += 1
+        if line_count % 10 == 0:
+            f.write("\n")
+    f.write("\n")
 
     f.close()
 

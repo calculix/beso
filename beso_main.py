@@ -280,7 +280,7 @@ beso_lib.write_to_log(file_name, msg)
 
 # preparing for writing quick results
 file_name_resulting_states = os.path.join(path, "resulting_states")
-en_all_vtk = beso_lib.vtk_mesh(file_name_resulting_states, nodes, Elements)
+[en_all_vtk, associated_nodes] = beso_lib.vtk_mesh(file_name_resulting_states, nodes, Elements)
 
 # ITERATION CYCLE
 sensitivity_number = {}
