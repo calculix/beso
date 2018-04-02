@@ -154,9 +154,9 @@ def import_inp(file_name, domains_from_config, domain_optimized, shells_as_compo
                 pos = 1
                 if current_elset:  # save en to the domain
                     try:
-                        domains[current_elset].append(en)
+                        domains[current_elset].add(en)
                     except KeyError:
-                        domains[current_elset] = [en]
+                        domains[current_elset] = {en}
                 if special_type == "plane strain":
                     plane_strain.add(en)
                 elif special_type == "plane stress":
@@ -170,7 +170,7 @@ def import_inp(file_name, domains_from_config, domain_optimized, shells_as_compo
                 try:
                     enode = int(line_list[nn])
                     elm_category[en].append(enode)
-                except IndexError:
+                except(IndexError, ValueError):
                     elm_2nd_line = True
                     break
 
@@ -193,16 +193,16 @@ def import_inp(file_name, domains_from_config, domain_optimized, shells_as_compo
             try:
                 domains[current_elset]
             except KeyError:
-                domains[current_elset] = []
+                domains[current_elset] = set()
             if elset_generate is False:
                 read_domain = True
         elif read_domain is True:
             for en in line.split(","):
                 en = en.strip()
                 if en.isdigit():
-                    domains[current_elset].append(int(en))
+                    domains[current_elset].add(int(en))
                 elif en.isalpha():  # else: en is name of a previous elset
-                    domains[current_elset].extend(domains[en])
+                    domains[current_elset].update(domains[en])
         elif elset_generate is True:
             line_split_comma = line.split(",")
             try:
@@ -211,12 +211,14 @@ def import_inp(file_name, domains_from_config, domain_optimized, shells_as_compo
                                               int(line_split_comma[2])))
             except IndexError:
                 en_generated = list(range(int(line_split_comma[0]), int(line_split_comma[1]) + 1))
-            domains[current_elset].extend(en_generated)
+            domains[current_elset].update(en_generated)
 
         elif line[:5].upper() == "*STEP":
             model_definition = False
     f.close()
 
+    for dn in domains:
+        domains[dn] = list(domains[dn])
     en_all = []
     opt_domains = []
     for dn in domains_from_config:
@@ -649,7 +651,10 @@ def import_FI_int_pt(reference_value, file_nameW, domains, criteria, domain_FI, 
                 energy_density_step[step_number][en_last] = np.average(ener_int_pt)
             if read_displacement == 1:
                 for cn in ns_reading:
-                    disp_i[cn] = max([disp_i[cn]] + disp_condition[cn])
+                    try:
+                        disp_i[cn] = max([disp_i[cn]] + disp_condition[cn])
+                    except TypeError:
+                        disp_i[cn] = max(disp_condition[cn])
             read_stresses -= 1
             read_energy_density -= 1
             read_displacement -= 1
@@ -756,7 +761,10 @@ def import_FI_int_pt(reference_value, file_nameW, domains, criteria, domain_FI, 
         energy_density_step[step_number][en_last] = np.average(ener_int_pt)
     if read_displacement == 1:
         for cn in ns_reading:
-            disp_i[cn] = max([disp_i[cn]] + disp_condition[cn])
+            try:
+                disp_i[cn] = max([disp_i[cn]] + disp_condition[cn])
+            except TypeError:
+                disp_i[cn] = max(disp_condition[cn])
     f.close()
 
     # superposed steps
@@ -847,7 +855,10 @@ def import_FI_int_pt(reference_value, file_nameW, domains, criteria, domain_FI, 
                     disp_condition[cn].append(sqrt(ux ** 2 + uy ** 2 + uz ** 2))
                 else:
                     disp_condition[cn].append(eval(component))
-            disp_i[cn] = max([disp_i[cn]] + disp_condition[cn])
+            try:
+                disp_i[cn] = max([disp_i[cn]] + disp_condition[cn])
+            except TypeError:
+                disp_i[cn] = max(disp_condition[cn])
             cn += 1
 
     return FI_step, energy_density_step, disp_i
@@ -867,7 +878,10 @@ def import_displacement(file_nameW, displacement_graph, steps_superposition):
         if line.replace(" ", "") == "\n":
             if read_displacement == 1:
                 for cn in ns_reading:
-                    disp_i[cn] = max([disp_i[cn]] + disp_condition[cn])
+                    try:
+                        disp_i[cn] = max([disp_i[cn]] + disp_condition[cn])
+                    except TypeError:
+                        disp_i[cn] = max(disp_condition[cn])
             read_displacement -= 1
 
         elif line[:14] == " displacements":
@@ -902,7 +916,10 @@ def import_displacement(file_nameW, displacement_graph, steps_superposition):
 
     if read_displacement == 1:
         for cn in ns_reading:
-            disp_i[cn] = max([disp_i[cn]] + disp_condition[cn])
+            try:
+                disp_i[cn] = max([disp_i[cn]] + disp_condition[cn])
+            except TypeError:
+                disp_i[cn] = max(disp_condition[cn])
     f.close()
 
     # superposition of displacements to graph, same code block as in import_FI_int_pt function
@@ -931,7 +948,10 @@ def import_displacement(file_nameW, displacement_graph, steps_superposition):
                     disp_condition[cn].append(sqrt(ux ** 2 + uy ** 2 + uz ** 2))
                 else:
                     disp_condition[cn].append(eval(component))
-            disp_i[cn] = max([disp_i[cn]] + disp_condition[cn])
+            try:
+                disp_i[cn] = max([disp_i[cn]] + disp_condition[cn])
+            except TypeError:
+                disp_i[cn] = max(disp_condition[cn])
             cn += 1
     return disp_i
 
@@ -1506,8 +1526,8 @@ def vtk_mesh(file_nameW, nodes, Elements):
 
     size_of_cells = 4 * len(Elements.tria3) + 7 * len(Elements.tria6) + 5 * len(Elements.quad4) + \
                     9 * len(Elements.quad8) + 5 * len(Elements.tetra4) + 11 * len(Elements.tetra10) + \
-                    7 * len(Elements.penta6) + 7 * len(Elements.penta15) + 9 * len(Elements.hexa8) + \
-                    21 * len(Elements.hexa20)  # quadratic wedge not supported
+                    7 * len(Elements.penta6) + 16 * len(Elements.penta15) + 9 * len(Elements.hexa8) + \
+                    21 * len(Elements.hexa20)
     f.write("\nCELLS " + str(number_of_elements) + " " + str(size_of_cells) + "\n")
 
     def write_elm(elm_category, node_length):
@@ -1524,15 +1544,15 @@ def vtk_mesh(file_nameW, nodes, Elements):
     write_elm(Elements.tetra4, "4")
     write_elm(Elements.tetra10, "10")
     write_elm(Elements.penta6, "6")
-    write_elm(Elements.penta15, "6")  # quadratic wedge not supported
+    write_elm(Elements.penta15, "15")
     write_elm(Elements.hexa8, "8")
     write_elm(Elements.hexa20, "20")
 
     f.write("\nCELL_TYPES " + str(number_of_elements) + "\n")
     cell_types = "5 " * len(Elements.tria3) + "22 " * len(Elements.tria6) + "9 " * len(Elements.quad4) + \
                  "23 " * len(Elements.quad8) + "10 " * len(Elements.tetra4) + "24 " * len(Elements.tetra10) + \
-                 "13 " * len(Elements.penta6) + "13 " * len(Elements.penta15) + "12 " * len(Elements.hexa8) + \
-                 "25 " * len(Elements.hexa20)  # quadratic wedge penta15 not supported
+                 "13 " * len(Elements.penta6) + "26 " * len(Elements.penta15) + "12 " * len(Elements.hexa8) + \
+                 "25 " * len(Elements.hexa20)
     line_count = 0
     for char in cell_types:
         f.write(char)

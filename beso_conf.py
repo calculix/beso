@@ -76,7 +76,7 @@ shells_as_composite = False  # True - use more integration points to catch bendi
 reference_points = "integration points"  # "integration points" - read int. pt values (stresses) from .dat file,
                                          # "nodes" - optimization will read nodal values (stresses) from .inp file (model MUST NOT contain shell nor beam elements)
 reference_value = "max"  # "max" - maximal value on element,
-                        # "average" - average value on element (do not use for bended shell elements)
+                        # "average" - average value on element (not convenient for bended shell elements when optimization_base = "failure_index")
 sensitivity_averaging = False  # True - averaging sensitivity numbers with previous iteration, False - do not average
 
 mass_addition_ratio = 0.015  # mass to be added in each iteration

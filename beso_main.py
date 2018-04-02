@@ -149,7 +149,7 @@ for dn in domains_from_config:  # distinguishing shell elements and volume eleme
 elm_states = {}
 if isinstance(continue_from, int):
     for dn in domains_from_config:
-        if (len(domain_density[dn]) - 1) <= continue_from:
+        if (len(domain_density[dn]) - 1) < continue_from:
             sn = len(domain_density[dn]) - 1
             msg = "\nINFO: elements from the domain " + dn + " were set to the highest state.\n"
             beso_lib.write_to_log(file_name, msg)
