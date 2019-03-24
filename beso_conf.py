@@ -58,6 +58,10 @@ filter_list = [["simple", 2]]  # [[filter type, range, domains or nothing for al
 
                             # replace "sensitivity" by "state" to use filter on element states instead of sensitivities
 
+                            # manufacturing filters:
+                            # ["casting", tolerance, vector of casting direction, domains or nothing for all domains]
+                            # e.g. filter_list = [["casting", 2., (0, 0, 1)], ["simple", 2.]]  # where simple filter is used after casting filter
+
 # ADVANCED INPUTS:
 
 optimization_base = "stiffness"  # "stiffness" - maximization of stiffness (minimization of compliance), reference_points must be set to "integration points"

@@ -710,3 +710,116 @@ def run_morphology(sensitivity_number, near_elm, opt_domains, filter_type, FI_st
         for en in opt_domains:
             sensitivity_number_filtered[en] = (sensitivity_number_1[en] + sensitivity_number_2[en]) / 2.0
     return sensitivity_number_filtered
+
+
+# function preparing values for the casting filter
+# uses sectoring to prevent computing distance of far points
+def prepare2s_casting(cg, r_min, opt_domains, above_elm, casting_vector):
+
+    # coordinate transformation
+    exg = np.array([1., 0., 0.])  # unit vectors in global coordinate system
+    eyg = np.array([0., 1., 0.])
+    ezg = np.array([0., 0., 1.])
+    casting_vector = casting_vector / np.linalg.norm(casting_vector)  # normalized vector (as z axis)
+    ex = np.array([-casting_vector[2], 0., casting_vector[0]])  # make orthogonal vector
+    ex /= np.linalg.norm(ex)  # unit vector
+    ey = np.cross(ex, casting_vector)
+    T = np.zeros((3,3))  # transformation matrix
+    T[(0, 0)] = np.dot(ex, exg)
+    T[(0, 1)] = np.dot(ex, eyg)
+    T[(0, 2)] = np.dot(ex, ezg)
+    T[(1, 0)] = np.dot(ey, exg)
+    T[(1, 1)] = np.dot(ey, eyg)
+    T[(1, 2)] = np.dot(ey, ezg)
+    T[(2, 0)] = np.dot(casting_vector, exg)
+    T[(2, 1)] = np.dot(casting_vector, eyg)
+    T[(2, 2)] = np.dot(casting_vector, ezg)
+    cg_cast = {}  # element cg position in transformed coordinate system
+    x_cg_cast = []  # for minimum and maximum cg x and y position
+    y_cg_cast = []
+    for en in opt_domains:
+        cg_cast[en] = T.dot(cg[en])
+        x_cg_cast.append(cg_cast[en][0])
+        y_cg_cast.append(cg_cast[en][1])
+    cg_cast_min = [min(x_cg_cast), min(y_cg_cast)]
+    cg_cast_max = [max(x_cg_cast), max(y_cg_cast)]
+
+    # preparing empty sectors (columns in casting direction
+    sector_elm = {}
+    x = cg_cast_min[0] + 0.5 * r_min
+    while x <= cg_cast_max[0] + 0.5 * r_min:
+        y = cg_cast_min[1] + 0.5 * r_min
+        while y <= cg_cast_max[1] + 0.5 * r_min:
+            # 6 significant digit round because of small declination (6 must be used for all sround below)
+            sector_elm[(sround(x, 6), sround(y, 6))] = []
+            y += r_min
+        x += r_min
+    # assigning elements to the sectors
+    for en in opt_domains:
+        sector_centre = []
+        for k in range(2):
+            position = cg_cast_min[k] + r_min * (0.5 + np.floor((cg_cast[en][k] - cg_cast_min[k]) / r_min))
+            sector_centre.append(sround(position, 6))
+        sector_elm[tuple(sector_centre)].append(en)
+
+    # finding elements above inside each sector
+    for sector_centre in sector_elm:
+        # sorting elements in the sectors from the highest z_casting
+        en_z = []
+        for en in sector_elm[sector_centre]:
+            en_z.append(cg_cast[en][2])
+        sector_elm[sector_centre] = [x for _,x in sorted(zip(en_z, sector_elm[sector_centre]), reverse=True)]
+        # finding the above elements
+        for en in sector_elm[sector_centre]:
+            above_elm[en] = []
+            for en2 in sector_elm[sector_centre]:
+                if en == en2:
+                    break
+                dx = cg_cast[en][0] - cg_cast[en2][0]
+                dy = cg_cast[en][1] - cg_cast[en2][1]
+                distance = (dx ** 2 + dy ** 2) ** 0.5
+                if distance <= r_min:
+                    above_elm[en].append(en2)
+
+    # finding elements above in neighbouring sectors by comparing distance with neighbouring sector elements
+    x = cg_cast_min[0] + 0.5 * r_min
+    while x <= cg_cast_max[0] + 0.5 * r_min:
+        y = cg_cast_min[1] + 0.5 * r_min
+        while y <= cg_cast_max[1] + 0.5 * r_min:
+            position = (sround(x, 6), sround(y, 6))
+            for position_neighbour in [(x - r_min, y - r_min),
+                                       (x - r_min, y),
+                                       (x - r_min, y + r_min),
+                                       (x, y - r_min),
+                                       (x, y + r_min),
+                                       (x + r_min, y - r_min),
+                                       (x + r_min, y),
+                                       (x + r_min, y + r_min)]:
+                position_neighbour = (sround(position_neighbour[0], 6), sround(position_neighbour[1], 6))
+                for en in sector_elm[position]:
+                    try:
+                        for en2 in sector_elm[position_neighbour]:
+                            if cg_cast[en][2] <= cg_cast[en2][2]:
+                                break
+                            dx = cg_cast[en][0] - cg_cast[en2][0]
+                            dy = cg_cast[en][1] - cg_cast[en2][1]
+                            distance = (dx ** 2 + dy ** 2) ** 0.5
+                            if distance <= r_min:
+                                above_elm[en].append(en2)
+                    except KeyError:
+                        pass
+            y += r_min
+        x += r_min
+    return above_elm
+
+
+# function to filter sensitivity number to suppress checkerboard
+# simplified version: makes weighted average of sensitivity numbers from near elements
+def run2_casting(sensitivity_number, above_elm, opt_domains):
+    sensitivity_number_filtered = sensitivity_number.copy()  # sensitivity number of each element after filtering
+    for en in opt_domains:
+        sensitivities_above = [sensitivity_number[en]]
+        for en2 in above_elm[en]:
+            sensitivities_above.append(sensitivity_number[en2])
+        sensitivity_number_filtered[en] = max(sensitivities_above)
+    return sensitivity_number_filtered

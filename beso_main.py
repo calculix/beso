@@ -216,16 +216,31 @@ weight_factor_node = []
 M = []
 weight_factor_distance = []
 near_nodes = []
+above_elm = {}
 for ft in filter_list:
     if ft[0] and ft[1]:
         f_range = ft[1]
+        if ft[0] == "casting":
+            if len(ft) == 3:
+                domains_to_filter = list(opt_domains)
+                beso_filters.check_same_state(domain_same_state, domains_from_config, file_name)
+            else:
+                domains_to_filter = []
+                filtered_dn = []
+                for dn in ft[3:]:
+                    domains_to_filter += domains[dn]
+                    filtered_dn.append(dn)
+                beso_filters.check_same_state(domain_same_state, filtered_dn, file_name)
+            casting_vector = ft[2]
+            above_elm = beso_filters.prepare2s_casting(cg, f_range, domains_to_filter, above_elm, casting_vector)
+            continue  # to evaluate other filters
         if len(ft) == 2:
             domains_to_filter = list(opt_domains)
             beso_filters.check_same_state(domain_same_state, domains_from_config, file_name)
         else:
             domains_to_filter = []
             filtered_dn = []
-            for dn in ft[2:]:
+            for dn in ft[3:]:
                 domains_to_filter += domains[dn]
                 filtered_dn.append(dn)
             beso_filters.check_same_state(domain_same_state, filtered_dn, file_name)
@@ -373,6 +388,15 @@ while True:
     kn = 0
     for ft in filter_list:
         if ft[0] and ft[1]:
+            if ft[0] == "casting":
+                if len(ft) == 3:
+                    domains_to_filter = list(opt_domains)
+                else:
+                    domains_to_filter = []
+                    for dn in ft[2:]:
+                        domains_to_filter += domains[dn]
+                sensitivity_number = beso_filters.run2_casting(sensitivity_number, above_elm, domains_to_filter)
+                continue  # to evaluate other filters
             if len(ft) == 2:
                 domains_to_filter = list(opt_domains)
             else:
@@ -528,6 +552,8 @@ while True:
     mass_not_filtered = mass[i]  # use variable to store the "right" mass
     for ft in filter_list:
         if ft[0] and ft[1]:
+            if ft[0] == "casting":
+                continue  # to evaluate other filters
             if len(ft) == 2:
                 domains_to_filter = list(opt_domains)
             else:
