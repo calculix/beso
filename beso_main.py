@@ -338,7 +338,7 @@ while True:
                        i, reference_points, shells_as_composite, optimization_base, displacement_graph,
                        domain_FI_filled)
     # running CalculiX analysis
-    subprocess.call(os.path.normpath(path_calculix) + " " + file_nameW, shell=True, cwd=path)
+    subprocess.call([os.path.normpath(path_calculix), file_nameW], cwd=path)
 
     # reading results and computing failure indeces
     if (reference_points == "integration points") or (optimization_base == "stiffness") or \

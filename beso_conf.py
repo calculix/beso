@@ -2,7 +2,7 @@
 
 # BASIC INPUTS:
 
-path = "."  # path to the working directory where the initial file is located
+path = "."  # path to the working directory (without whitespaces) where the initial file is located
 #path = "."  # example - in the current working directory
 #path = "~/tmp/beso/"  # Linux example
 #path = "D:\\tmp\\"  # Windows example
