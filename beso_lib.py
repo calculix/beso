@@ -2,6 +2,7 @@ import numpy as np
 import operator
 from math import *
 
+
 # function to print ongoing messages to the log file
 def write_to_log(file_name, msg):
     f_log = open(file_name[:-4] + ".log", "a")
@@ -415,7 +416,7 @@ def elm_volume_cg(file_name, nodes, Elements):
 def write_inp(file_name, file_nameW, elm_states, number_of_states, domains, domains_from_config, domain_optimized,
               domain_thickness, domain_offset, domain_orientation, domain_material, domain_volumes, domain_shells,
               plane_strain, plane_stress, axisymmetry, save_iteration_results, i, reference_points, shells_as_composite,
-              optimization_base, displacement_graph):
+              optimization_base, displacement_graph, domain_FI_filled):
     if reference_points == "nodes":
         fR = open(file_name[:-4] + "_separated.inp", "r")
     else:
@@ -540,11 +541,11 @@ def write_inp(file_name, file_nameW, elm_states, number_of_states, domains, doma
                         line[0:9].upper() == "*EL PRINT" or line[0:14].upper() == "*CONTACT PRINT":
             if outputs_done < 1:
                 fW.write(" \n")
-                if optimization_base == "stiffness":
+                if optimization_base in ["stiffness", "buckling"]:
                     for dn in domains_from_config:
                         fW.write("*EL PRINT, " + "ELSET=" + dn + "\n")
                         fW.write("ENER\n")
-                if reference_points == "integration points":
+                if (reference_points == "integration points") and (domain_FI_filled is True):
                     for dn in domains_from_config:
                         fW.write("*EL PRINT, " + "ELSET=" + dn + "\n")
                         fW.write("S\n")
@@ -594,6 +595,7 @@ def import_FI_int_pt(reference_value, file_nameW, domains, criteria, domain_FI, 
     criteria_elm = {}  # {en1: numbers of applied criteria, en2: [], ...}
     FI_step = []  # list for steps - [{en1: list for criteria FI, en2: [], ...}, {en1: [], en2: [], ...}, next step]
     energy_density_step = []  # list for steps - [{en1: energy_density, en2: ..., ...}, {en1: ..., ...}, next step]
+    energy_density_eigen = {}  # energy_density_eigen[eigen_number][en_last] = np.average(ener_int_pt)
 
     memorized_steps = set()  # steps to use in superposition
     if steps_superposition:
@@ -608,23 +610,25 @@ def import_FI_int_pt(reference_value, file_nameW, domains, criteria, domain_FI, 
 
     # prepare FI dict from failure criteria
     for dn in domain_FI:
-        for en in domains[dn]:
-            cr = []
-            for dn_crit in domain_FI[dn][elm_states[en]]:
-                cr.append(criteria.index(dn_crit))
-            criteria_elm[en] = cr
+        if domain_FI[dn]:
+            for en in domains[dn]:
+                cr = []
+                for dn_crit in domain_FI[dn][elm_states[en]]:
+                    cr.append(criteria.index(dn_crit))
+                criteria_elm[en] = cr
 
     def compute_FI():  # for the actual integration point
-        for FIn in criteria_elm[en]:
-            if criteria[FIn][0] == "stress_von_Mises":
-                s_allowable = criteria[FIn][1]
-                FI_int_pt[FIn].append(np.sqrt(0.5 * ((sxx - syy) ** 2 + (syy - szz) ** 2 + (szz - sxx) ** 2 +
-                                                     6 * (sxy ** 2 + syz ** 2 + sxz ** 2))) / s_allowable)
-            elif criteria[FIn][0] == "user_def":
-                FI_int_pt[FIn].append(eval(criteria[FIn][1]))
-            else:
-                msg = "\nError: failure criterion " + str(criteria[FIn]) + " not recognised.\n"
-                write_to_log(file_name, msg)
+        if en in criteria_elm:
+            for FIn in criteria_elm[en]:
+                if criteria[FIn][0] == "stress_von_Mises":
+                    s_allowable = criteria[FIn][1]
+                    FI_int_pt[FIn].append(np.sqrt(0.5 * ((sxx - syy) ** 2 + (syy - szz) ** 2 + (szz - sxx) ** 2 +
+                                                         6 * (sxy ** 2 + syz ** 2 + sxz ** 2))) / s_allowable)
+                elif criteria[FIn][0] == "user_def":
+                    FI_int_pt[FIn].append(eval(criteria[FIn][1]))
+                else:
+                    msg = "\nError: failure criterion " + str(criteria[FIn]) + " not recognised.\n"
+                    write_to_log(file_name, msg)
 
     def save_FI(sn, en):
         FI_step[sn][en] = []
@@ -642,13 +646,19 @@ def import_FI_int_pt(reference_value, file_nameW, domains, criteria, domain_FI, 
     disp_i = [None for _ in range(len(displacement_graph))]
     disp_condition = {}
     disp_components = []
+    read_buckling_factors = 0
+    buckling_factors = []
+    read_eigenvalues = 0
     for line in f:
         line_split = line.split()
         if line.replace(" ", "") == "\n":
             if read_stresses == 1:
                 save_FI(step_number, en_last)
             if read_energy_density == 1:
-                energy_density_step[step_number][en_last] = np.average(ener_int_pt)
+                if read_eigenvalues:
+                    energy_density_eigen[eigen_number][en_last] = np.average(ener_int_pt)
+                else:
+                    energy_density_step[step_number][en_last] = np.average(ener_int_pt)
             if read_displacement == 1:
                 for cn in ns_reading:
                     try:
@@ -658,6 +668,7 @@ def import_FI_int_pt(reference_value, file_nameW, domains, criteria, domain_FI, 
             read_stresses -= 1
             read_energy_density -= 1
             read_displacement -= 1
+            read_buckling_factors -= 1
             FI_int_pt = [[] for _ in range(len(criteria))]
             ener_int_pt = []
             en_last = None
@@ -672,6 +683,7 @@ def import_FI_int_pt(reference_value, file_nameW, domains, criteria, domain_FI, 
                     if steps_superposition:
                         disp_components.append({})  # appending sn
                     last_time = line_split[-1]
+                    read_eigenvalues = False  # TODO not for frequencies?
         elif line[:24] == " internal energy density":
             if line.split()[-4] in map(lambda x: x.upper(), domains_from_config):  # TODO upper already on user input
                 read_energy_density = 2
@@ -682,6 +694,16 @@ def import_FI_int_pt(reference_value, file_nameW, domains, criteria, domain_FI, 
                     if steps_superposition:
                         disp_components.append({})  # appending sn
                     last_time = line_split[-1]
+                    read_eigenvalues = False  # TODO not for frequencies?
+
+        elif line[:48] == "     B U C K L I N G   F A C T O R   O U T P U T":
+            read_buckling_factors = 3
+        elif read_buckling_factors == 1:
+            buckling_factors.append(float(line_split[1]))
+        elif line[:54] == "                    E I G E N V A L U E    N U M B E R":
+            eigen_number = int(line_split[-1])
+            read_eigenvalues = True
+            energy_density_eigen[eigen_number] = {}
 
         elif line[:14] == " displacements":
             cn = 0
@@ -730,7 +752,10 @@ def import_FI_int_pt(reference_value, file_nameW, domains, criteria, domain_FI, 
             en = int(line_split[0])
             if en_last != en:
                 if en_last:
-                    energy_density_step[step_number][en_last] = np.average(ener_int_pt)
+                    if read_eigenvalues:
+                        energy_density_eigen[eigen_number][en_last] = np.average(ener_int_pt)
+                    else:
+                        energy_density_step[step_number][en_last] = np.average(ener_int_pt)
                     ener_int_pt = []
                 en_last = en
             energy_density = float(line_split[2])
@@ -758,7 +783,10 @@ def import_FI_int_pt(reference_value, file_nameW, domains, criteria, domain_FI, 
     if read_stresses == 1:
         save_FI(step_number, en_last)
     if read_energy_density == 1:
-        energy_density_step[step_number][en_last] = np.average(ener_int_pt)
+        if read_eigenvalues:
+            energy_density_eigen[eigen_number][en_last] = np.average(ener_int_pt)
+        else:
+            energy_density_step[step_number][en_last] = np.average(ener_int_pt)
     if read_displacement == 1:
         for cn in ns_reading:
             try:
@@ -861,7 +889,7 @@ def import_FI_int_pt(reference_value, file_nameW, domains, criteria, domain_FI, 
                 disp_i[cn] = max(disp_condition[cn])
             cn += 1
 
-    return FI_step, energy_density_step, disp_i
+    return FI_step, energy_density_step, disp_i, buckling_factors, energy_density_eigen
 
 
 # function for importing displacements if import_FI_int_pt is not called to read .dat file
@@ -955,6 +983,7 @@ def import_displacement(file_nameW, displacement_graph, steps_superposition):
             cn += 1
     return disp_i
 
+
 # function for importing results from .frd file
 # Failure Indices are computed at each node and maximum or average above each element is returned
 def import_FI_node(reference_value, file_nameW, domains, criteria, domain_FI, file_name, elm_states,
@@ -986,16 +1015,17 @@ def import_FI_node(reference_value, file_nameW, domains, criteria, domain_FI, fi
     sorted_elements = sorted(criteria_elm.keys())  # [en_lowest, ..., en_highest]
 
     def compute_FI():  # for the actual node
-        for FIn in criteria_elm[en]:
-            if criteria[FIn][0] == "stress_von_Mises":
-                s_allowable = criteria[FIn][1]
-                FI_node[nn][FIn] = np.sqrt(0.5 * ((sxx - syy) ** 2 + (syy - szz) ** 2 + (szz - sxx) ** 2 +
-                                                  6 * (sxy ** 2 + syz ** 2 + sxz ** 2))) / s_allowable
-            elif criteria[FIn][0] == "user_def":
-                FI_node[nn][FIn] = eval(criteria[FIn][1])
-            else:
-                msg = "\nError: failure criterion " + str(criteria[FIn]) + " not recognised.\n"
-                write_to_log(file_name, msg)
+        if en in criteria_elm:
+            for FIn in criteria_elm[en]:
+                if criteria[FIn][0] == "stress_von_Mises":
+                    s_allowable = criteria[FIn][1]
+                    FI_node[nn][FIn] = np.sqrt(0.5 * ((sxx - syy) ** 2 + (syy - szz) ** 2 + (szz - sxx) ** 2 +
+                                                      6 * (sxy ** 2 + syz ** 2 + sxz ** 2))) / s_allowable
+                elif criteria[FIn][0] == "user_def":
+                    FI_node[nn][FIn] = eval(criteria[FIn][1])
+                else:
+                    msg = "\nError: failure criterion " + str(criteria[FIn]) + " not recognised.\n"
+                    write_to_log(file_name, msg)
 
     def save_FI(sn, en):
         FI_step[sn][en] = []
@@ -1043,9 +1073,10 @@ def import_FI_node(reference_value, file_nameW, domains, criteria, domain_FI, fi
                 FI_elm = {}
                 for en in elm_nodes:
                     FI_elm[en] = [[] for _ in range(len(criteria))]
-                    for FIn in criteria_elm[en]:
-                        for nn in elm_nodes[en]:
-                            FI_elm[en][FIn].append(FI_node[nn][FIn])
+                    if en in criteria_elm:
+                        for FIn in criteria_elm[en]:
+                            for nn in elm_nodes[en]:
+                                FI_elm[en][FIn].append(FI_node[nn][FIn])
                 FI_step.append({})
                 for en in FI_elm:
                     save_FI(sn, en)
@@ -1121,9 +1152,11 @@ def import_FI_node(reference_value, file_nameW, domains, criteria, domain_FI, fi
                 szy = syz
                 compute_FI()  # fill FI_node
             FI_elm[en] = [[] for _ in range(len(criteria))]
-            for FIn in criteria_elm[en]:
-                for nn in elm_nodes[en]:
-                    FI_elm[en][FIn].append(FI_node[nn][FIn])
+
+            if en in criteria_elm:
+                for FIn in criteria_elm[en]:
+                    for nn in elm_nodes[en]:
+                        FI_elm[en][FIn].append(FI_node[nn][FIn])
             sn = -1  # last step number
             save_FI(sn, en)  # save value to FI_step for given en
 

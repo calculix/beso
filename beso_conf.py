@@ -23,6 +23,7 @@ domain_FI[elset_name] = [[("stress_von_Mises", 450.0e6)],  # inner tuples () for
                          [("stress_von_Mises", 450.0)]]  # new inner list [] for the next state of switch_elm
                         # Filure Indices definition in python tuples (separeate FI for each element state if there are more lists)
                         # Failure Indice FI = element stress / allowable value
+                        # Failure Indices are not evaluated if they are not defined here, i.e. domain_FI[elset_name] = [], and then optimization_base must not be "failure_index"
                         # examples:
                         # [("user_def", "sxx / 600.0"), ("user_def", "syy / 150.0"), ("user_def", "sxy / 50.0")]  # "user_def" defines complete formula for FI
                         # [("stress_von_Mises", 450.0)]  # for von Mises stress give only allowable stress
@@ -64,8 +65,9 @@ filter_list = [["simple", 2]]  # [[filter type, range, domains or nothing for al
 
 # ADVANCED INPUTS:
 
-optimization_base = "stiffness"  # "stiffness" - maximization of stiffness (minimization of compliance), reference_points must be set to "integration points"
+optimization_base = "stiffness"  # "stiffness" - maximization of stiffness (minimization of compliance)
                                  # "failure_index" sensitivity number is given by FI/density
+                                 # "buckling" - maximization of the lowest buckling factor, more modes are taken linearly into account if factor difference is under 0.2
 
 cpu_cores = 0  # 0 - use all processor cores, N - will use N number of processor cores
 
