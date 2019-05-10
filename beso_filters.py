@@ -714,7 +714,7 @@ def run_morphology(sensitivity_number, near_elm, opt_domains, filter_type, FI_st
 
 # function preparing values for the casting filter
 # uses sectoring to prevent computing distance of far points
-def prepare2s_casting(cg, r_min, opt_domains, above_elm, casting_vector):
+def prepare2s_casting(cg, r_min, opt_domains, above_elm, below_elm, casting_vector):
 
     # coordinate transformation
     exg = np.array([1., 0., 0.])  # unit vectors in global coordinate system
@@ -772,6 +772,7 @@ def prepare2s_casting(cg, r_min, opt_domains, above_elm, casting_vector):
         # finding the above elements
         for en in sector_elm[sector_centre]:
             above_elm[en] = []
+            below_elm[en] = []
             for en2 in sector_elm[sector_centre]:
                 if en == en2:
                     break
@@ -780,6 +781,7 @@ def prepare2s_casting(cg, r_min, opt_domains, above_elm, casting_vector):
                 distance = (dx ** 2 + dy ** 2) ** 0.5
                 if distance <= r_min:
                     above_elm[en].append(en2)
+                    below_elm[en2].append(en)
 
     # finding elements above in neighbouring sectors by comparing distance with neighbouring sector elements
     x = cg_cast_min[0] + 0.5 * r_min
@@ -806,20 +808,29 @@ def prepare2s_casting(cg, r_min, opt_domains, above_elm, casting_vector):
                             distance = (dx ** 2 + dy ** 2) ** 0.5
                             if distance <= r_min:
                                 above_elm[en].append(en2)
+                                below_elm[en2].append(en)
                     except KeyError:
                         pass
             y += r_min
         x += r_min
-    return above_elm
+    return above_elm, below_elm
 
 
 # function to filter sensitivity number to suppress checkerboard
 # simplified version: makes weighted average of sensitivity numbers from near elements
-def run2_casting(sensitivity_number, above_elm, opt_domains):
+def run2_casting(sensitivity_number, above_elm, below_elm, opt_domains):
+    sensitivity_number_averaged = sensitivity_number.copy()
     sensitivity_number_filtered = sensitivity_number.copy()  # sensitivity number of each element after filtering
+    # use average of below sensitivities
     for en in opt_domains:
-        sensitivities_above = [sensitivity_number[en]]
+        sensitivities_below = [sensitivity_number[en]]
+        for en2 in below_elm[en]:
+            sensitivities_below.append(sensitivity_number[en2])
+            sensitivity_number_averaged[en] = np.average(sensitivities_below)
+    # use maximum of above (just averaged) sensitivities
+    for en in opt_domains:
+        sensitivities_above = [sensitivity_number_averaged[en]]
         for en2 in above_elm[en]:
-            sensitivities_above.append(sensitivity_number[en2])
+            sensitivities_above.append(sensitivity_number_averaged[en2])
         sensitivity_number_filtered[en] = max(sensitivities_above)
     return sensitivity_number_filtered

@@ -218,6 +218,7 @@ M = []
 weight_factor_distance = []
 near_nodes = []
 above_elm = {}
+below_elm = {}
 for ft in filter_list:
     if ft[0] and ft[1]:
         f_range = ft[1]
@@ -233,7 +234,8 @@ for ft in filter_list:
                     filtered_dn.append(dn)
                 beso_filters.check_same_state(domain_same_state, filtered_dn, file_name)
             casting_vector = ft[2]
-            above_elm = beso_filters.prepare2s_casting(cg, f_range, domains_to_filter, above_elm, casting_vector)
+            [above_elm, below_elm] = beso_filters.prepare2s_casting(cg, f_range, domains_to_filter,
+                                                                    above_elm, below_elm, casting_vector)
             continue  # to evaluate other filters
         if len(ft) == 2:
             domains_to_filter = list(opt_domains)
@@ -432,7 +434,8 @@ while True:
                     domains_to_filter = []
                     for dn in ft[2:]:
                         domains_to_filter += domains[dn]
-                sensitivity_number = beso_filters.run2_casting(sensitivity_number, above_elm, domains_to_filter)
+                sensitivity_number = beso_filters.run2_casting(sensitivity_number, above_elm, below_elm,
+                                                               domains_to_filter)
                 continue  # to evaluate other filters
             if len(ft) == 2:
                 domains_to_filter = list(opt_domains)
