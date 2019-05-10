@@ -545,6 +545,10 @@ def write_inp(file_name, file_nameW, elm_states, number_of_states, domains, doma
                     for dn in domains_from_config:
                         fW.write("*EL PRINT, " + "ELSET=" + dn + "\n")
                         fW.write("ENER\n")
+                if optimization_base == "heat":
+                    for dn in domains_from_config:
+                        fW.write("*EL PRINT, " + "ELSET=" + dn + ", FREQUENCY=1000" + "\n")
+                        fW.write("HFL\n")
                 if (reference_points == "integration points") and (domain_FI_filled is True):
                     for dn in domains_from_config:
                         fW.write("*EL PRINT, " + "ELSET=" + dn + "\n")
@@ -596,6 +600,7 @@ def import_FI_int_pt(reference_value, file_nameW, domains, criteria, domain_FI, 
     FI_step = []  # list for steps - [{en1: list for criteria FI, en2: [], ...}, {en1: [], en2: [], ...}, next step]
     energy_density_step = []  # list for steps - [{en1: energy_density, en2: ..., ...}, {en1: ..., ...}, next step]
     energy_density_eigen = {}  # energy_density_eigen[eigen_number][en_last] = np.average(ener_int_pt)
+    heat_flux = {}  # only for the last step
 
     memorized_steps = set()  # steps to use in superposition
     if steps_superposition:
@@ -642,6 +647,7 @@ def import_FI_int_pt(reference_value, file_nameW, domains, criteria, domain_FI, 
 
     read_stresses = 0
     read_energy_density = 0
+    read_heat_flux = 0
     read_displacement = 0
     disp_i = [None for _ in range(len(displacement_graph))]
     disp_condition = {}
@@ -659,6 +665,8 @@ def import_FI_int_pt(reference_value, file_nameW, domains, criteria, domain_FI, 
                     energy_density_eigen[eigen_number][en_last] = np.average(ener_int_pt)
                 else:
                     energy_density_step[step_number][en_last] = np.average(ener_int_pt)
+            if read_heat_flux == 1:
+                heat_flux[en_last] = np.average(heat_int_pt)
             if read_displacement == 1:
                 for cn in ns_reading:
                     try:
@@ -667,10 +675,12 @@ def import_FI_int_pt(reference_value, file_nameW, domains, criteria, domain_FI, 
                         disp_i[cn] = max(disp_condition[cn])
             read_stresses -= 1
             read_energy_density -= 1
+            read_heat_flux -= 1
             read_displacement -= 1
             read_buckling_factors -= 1
             FI_int_pt = [[] for _ in range(len(criteria))]
             ener_int_pt = []
+            heat_int_pt = []
             en_last = None
 
         elif line[:9] == " stresses":
@@ -695,6 +705,10 @@ def import_FI_int_pt(reference_value, file_nameW, domains, criteria, domain_FI, 
                         disp_components.append({})  # appending sn
                     last_time = line_split[-1]
                     read_eigenvalues = False  # TODO not for frequencies?
+
+        elif line[:10] == " heat flux":
+            if line.split()[-4] in map(lambda x: x.upper(), domains_from_config):  # TODO upper already on user input
+                read_heat_flux = 2
 
         elif line[:48] == "     B U C K L I N G   F A C T O R   O U T P U T":
             read_buckling_factors = 3
@@ -767,6 +781,16 @@ def import_FI_int_pt(reference_value, file_nameW, domains, criteria, domain_FI, 
                     step_ener[step_number][en] = []
                     step_ener[step_number][en].append(energy_density)
 
+        elif read_heat_flux == 1:
+            en = int(line_split[0])
+            if en_last != en:
+                if en_last:
+                    heat_flux[en_last] = np.average(heat_int_pt)
+                    heat_int_pt = []
+                en_last = en
+            heat_flux_total = np.sqrt(float(line_split[2]) ** 2 + float(line_split[3]) ** 2 + float(line_split[4]) ** 2)
+            heat_int_pt.append(heat_flux_total)
+
         elif read_displacement == 1:
             ux = float(line_split[1])
             uy = float(line_split[2])
@@ -787,6 +811,8 @@ def import_FI_int_pt(reference_value, file_nameW, domains, criteria, domain_FI, 
             energy_density_eigen[eigen_number][en_last] = np.average(ener_int_pt)
         else:
             energy_density_step[step_number][en_last] = np.average(ener_int_pt)
+    if read_heat_flux == 1:
+        heat_flux[en_last] = np.average(heat_int_pt)
     if read_displacement == 1:
         for cn in ns_reading:
             try:
@@ -889,7 +915,7 @@ def import_FI_int_pt(reference_value, file_nameW, domains, criteria, domain_FI, 
                 disp_i[cn] = max(disp_condition[cn])
             cn += 1
 
-    return FI_step, energy_density_step, disp_i, buckling_factors, energy_density_eigen
+    return FI_step, energy_density_step, disp_i, buckling_factors, energy_density_eigen, heat_flux
 
 
 # function for importing displacements if import_FI_int_pt is not called to read .dat file

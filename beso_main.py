@@ -280,6 +280,8 @@ for dn in domains_from_config:
 msg += "\n   i              mass"
 if optimization_base == "stiffness":
     msg += "    ener_dens_mean"
+if optimization_base == "heat":
+    msg += "    heat_flux_mean"
 if domain_FI_filled:
     msg += " FI_violated_0)"
     for dno in range(len(domains_from_config) - 1):
@@ -314,6 +316,7 @@ FI_max = []
 FI_mean = []  # list of mean stress in every iteration
 FI_mean_without_state0 = []  # mean stress without elements in state 0
 energy_density_mean = []  # list of mean energy density in every iteration
+heat_flux_mean = []  # list of mean heat flux in every iteration
 FI_violated = []
 disp_max = []
 buckling_factors_all = []
@@ -339,10 +342,10 @@ while True:
 
     # reading results and computing failure indeces
     if (reference_points == "integration points") or (optimization_base == "stiffness") or \
-            (optimization_base == "buckling"):  # from .dat file
-        [FI_step, energy_density_step, disp_i, buckling_factors, energy_density_eigen] = beso_lib.import_FI_int_pt(
-            reference_value, file_nameW, domains, criteria, domain_FI, file_name, elm_states, domains_from_config,
-            steps_superposition, displacement_graph)
+            (optimization_base == "buckling") or (optimization_base == "heat"):  # from .dat file
+        [FI_step, energy_density_step, disp_i, buckling_factors, energy_density_eigen, heat_flux] = \
+            beso_lib.import_FI_int_pt(reference_value, file_nameW, domains, criteria, domain_FI, file_name, elm_states,
+                                      domains_from_config, steps_superposition, displacement_graph)
     if reference_points == "nodes":  # from .frd file
         FI_step = beso_lib.import_FI_node(reference_value, file_nameW, domains, criteria, domain_FI, file_name,
                                           elm_states, steps_superposition)
@@ -392,6 +395,8 @@ while True:
                     energy_density_enlist[en].append(energy_density_step[sn][en])
             if optimization_base == "stiffness":
                 sensitivity_number[en] = max(energy_density_enlist[en])
+            elif optimization_base == "heat":
+                sensitivity_number[en] = heat_flux[en] / volume_elm[en]
             elif optimization_base == "failure_index":
                 sensitivity_number[en] = FI_step_max[en] / domain_density[dn][elm_states[en]]
             if domain_FI_filled:
@@ -474,6 +479,8 @@ while True:
         mass_without_state0 = 0
     if optimization_base == "stiffness":
         energy_density_mean_sum = 0  # mean of element maximums
+    if optimization_base == "heat":
+        heat_flux_mean_sum = 0
     for dn in domain_optimized:
         if domain_optimized[dn] is True:
             for en in domain_shells[dn]:
@@ -485,6 +492,8 @@ while True:
                         mass_without_state0 += mass_elm
                 if optimization_base == "stiffness":
                     energy_density_mean_sum += max(energy_density_enlist[en]) * mass_elm
+                if optimization_base == "heat":
+                    heat_flux_mean_sum += heat_flux[en] * mass_elm
             for en in domain_volumes[dn]:
                 mass_elm = domain_density[dn][elm_states[en]] * volume_elm[en]
                 if domain_FI_filled:
@@ -494,6 +503,8 @@ while True:
                         mass_without_state0 += mass_elm
                 if optimization_base == "stiffness":
                     energy_density_mean_sum += max(energy_density_enlist[en]) * mass_elm
+                if optimization_base == "heat":
+                    heat_flux_mean_sum += heat_flux[en] * mass_elm
     if domain_FI_filled:
         FI_mean.append(FI_mean_sum / mass[i])
         print("FI_mean                = {}".format(FI_mean[i]))
@@ -505,6 +516,10 @@ while True:
     if optimization_base == "stiffness":
         energy_density_mean.append(energy_density_mean_sum / mass[i])
         print("energy_density_mean    = {}".format(energy_density_mean[i]))
+    if optimization_base == "heat":
+        heat_flux_mean.append(heat_flux_mean_sum / mass[i])
+        print("heat_flux_mean         = {}".format(heat_flux_mean[i]))
+
     if optimization_base == "buckling":
         k = 1
         for bf in buckling_factors:
@@ -514,6 +529,8 @@ while True:
     msg = str(i).rjust(4, " ") + " " + str(mass[i]).rjust(17, " ") + " "
     if optimization_base == "stiffness":
         msg += " " + str(energy_density_mean[i]).rjust(17, " ")
+    if optimization_base == "heat":
+        msg += " " + str(heat_flux_mean[i]).rjust(17, " ")
     if domain_FI_filled:
         msg += str(FI_violated[i][0]).rjust(13, " ")
         for dno in range(len(domains_from_config) - 1):
@@ -808,6 +825,17 @@ if optimization_base == "stiffness":
     plt.ylabel("energy_density_mean")
     plt.grid()
     plt.savefig(os.path.join(path, "energy_density_mean"), dpi=100)
+
+if optimization_base == "heat":
+    # plot mean energy density
+    fn += 1
+    plt.figure(fn)
+    plt.plot(range(i+1), heat_flux_mean)
+    plt.title("Mean Energy Density weighted by element mass")
+    plt.xlabel("Iteration")
+    plt.ylabel("heat_flux_mean")
+    plt.grid()
+    plt.savefig(os.path.join(path, "heat_flux_mean"), dpi=100)
 
 if displacement_graph:
     fn += 1
