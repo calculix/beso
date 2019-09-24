@@ -352,7 +352,18 @@ while True:
                                           elm_states, steps_superposition)
         disp_i = beso_lib.import_displacement(file_nameW, displacement_graph, steps_superposition)
     disp_max.append(disp_i)
-    if (not FI_step and domain_FI_filled) and (not energy_density_step) and (not buckling_factors):
+
+    # check if results were found
+    missing_ccx_results = False
+    if (optimization_base == "stiffness") and (not energy_density_step):
+        missing_ccx_results = True
+    elif (optimization_base == "buckling") and (not buckling_factors):
+        missing_ccx_results = True
+    elif (optimization_base == "heat") and (not heat_flux):
+        missing_ccx_results = True
+    elif domain_FI_filled and (not FI_step):
+        missing_ccx_results = True
+    if missing_ccx_results:
         msg = "CalculiX results not found, check CalculiX for errors."
         beso_lib.write_to_log(file_name, "\nERROR: " + msg + "\n")
         assert False, msg
@@ -397,7 +408,10 @@ while True:
             if optimization_base == "stiffness":
                 sensitivity_number[en] = max(energy_density_enlist[en])
             elif optimization_base == "heat":
-                sensitivity_number[en] = heat_flux[en] / volume_elm[en]
+                try:
+                    sensitivity_number[en] = heat_flux[en] / volume_elm[en]
+                except KeyError:
+                    sensitivity_number[en] = heat_flux[en] / (area_elm[en] * domain_thickness[dn][elm_states[en]])
             elif optimization_base == "failure_index":
                 sensitivity_number[en] = FI_step_max[en] / domain_density[dn][elm_states[en]]
             if domain_FI_filled:
@@ -761,6 +775,7 @@ plt.title("Mass of optimization domains")
 plt.xlabel("Iteration")
 plt.ylabel("Mass")
 plt.grid()
+plt.tight_layout()
 plt.savefig(os.path.join(path, "Mass"), dpi=100)
 
 if oscillations is True:
@@ -787,6 +802,7 @@ if domain_FI_filled:  # FI contain something
     plt.xlabel("Iteration")
     plt.ylabel("FI_violated")
     plt.grid()
+    plt.tight_layout()
     plt.savefig(os.path.join(path, "FI_violated"), dpi=100)
 
     # plot mean failure index
@@ -799,6 +815,7 @@ if domain_FI_filled:  # FI contain something
     plt.ylabel("FI_mean")
     plt.legend(loc=2, fontsize=10)
     plt.grid()
+    plt.tight_layout()
     plt.savefig(os.path.join(path, "FI_mean"), dpi=100)
 
     # plot maximal failure indices
@@ -814,6 +831,7 @@ if domain_FI_filled:  # FI contain something
     plt.xlabel("Iteration")
     plt.ylabel("FI_max")
     plt.grid()
+    plt.tight_layout()
     plt.savefig(os.path.join(path, "FI_max"), dpi=100)
 
 if optimization_base == "stiffness":
@@ -825,6 +843,7 @@ if optimization_base == "stiffness":
     plt.xlabel("Iteration")
     plt.ylabel("energy_density_mean")
     plt.grid()
+    plt.tight_layout()
     plt.savefig(os.path.join(path, "energy_density_mean"), dpi=100)
 
 if optimization_base == "heat":
@@ -832,10 +851,11 @@ if optimization_base == "heat":
     fn += 1
     plt.figure(fn)
     plt.plot(range(i+1), heat_flux_mean)
-    plt.title("Mean Energy Density weighted by element mass")
+    plt.title("Mean Heat Flux weighted by element mass")
     plt.xlabel("Iteration")
     plt.ylabel("heat_flux_mean")
     plt.grid()
+    plt.tight_layout()
     plt.savefig(os.path.join(path, "heat_flux_mean"), dpi=100)
 
 if displacement_graph:
@@ -851,6 +871,7 @@ if displacement_graph:
     plt.xlabel("Iteration")
     plt.ylabel("Displacement")
     plt.grid()
+    plt.tight_layout()
     plt.savefig(os.path.join(path, "Displacement_max"), dpi=100)
 
 if optimization_base == "buckling":
@@ -866,6 +887,7 @@ if optimization_base == "buckling":
     plt.xlabel("Iteration")
     plt.ylabel("buckling_factors")
     plt.grid()
+    plt.tight_layout()
     plt.savefig(os.path.join(path, "buckling_factors"), dpi=100)
 
 plt.show()

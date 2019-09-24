@@ -223,7 +223,12 @@ def import_inp(file_name, domains_from_config, domain_optimized, shells_as_compo
     en_all = []
     opt_domains = []
     for dn in domains_from_config:
-        en_all.extend(domains[dn])
+        try:
+            en_all.extend(domains[dn])
+        except KeyError:
+            msg = "Element set '{}' not found in the inp file.".format(dn)
+            write_to_log(file_name, "\nERROR: " + msg + "\n")
+            raise Exception(msg)
         if domain_optimized[dn] is True:
             opt_domains.extend(domains[dn])
     msg = ("domains: %.f\n" % len(domains_from_config))
