@@ -1,41 +1,32 @@
 # simple GUI to be used as FreeCAD macro
 # all beso python files should be in the macro directory
 
-__title__   = "BESO Topology Optimization"
-__author__  = "František Löffelmann"
-__date__    = "22/09/2019"
+__title__ = "BESO Topology Optimization"
+__author__ = "František Löffelmann"
+__date__ = "03/10/2019"
 __Wiki__ = "https://github.com/fandaL/beso/wiki/Example-4:-GUI-in-FreeCAD"
 __Status__ = "experimental"
 __Requires__ = "FreeCAD >=0.18, Python 3"
 
 import datetime
-import matplotlib.pyplot as plt
 import os
-import sys
 import threading
-import time
 import webbrowser
-try:
-    from PyQt5.QtWidgets import (QApplication, QMainWindow, QWidget, QLabel, QFileDialog, QPushButton, QLineEdit,
-                                 QErrorMessage, QComboBox, QCheckBox, QListWidget, QSlider, QAbstractItemView)
-    # from PyQt5.QtCore import pyqtSlot, Qt
-    from PyQt5.QtCore import Qt
-except ImportError:
-    from PySide.QtGui import (QApplication, QMainWindow, QWidget, QLabel, QFileDialog, QPushButton, QLineEdit,
-                              QErrorMessage, QComboBox, QCheckBox, QListWidget, QSlider, QAbstractItemView)
-    # from PySide.QtCore import pyqtSlot, Qt
-    from PySide.QtCore import Qt
+from PySide.QtGui import (QDialog, QWidget, QLabel, QFileDialog, QPushButton, QLineEdit, QComboBox, QCheckBox,
+                          QListWidget, QSlider, QAbstractItemView)
+# from PySide.QtCore import pyqtSlot, Qt
+from PySide.QtCore import Qt
 import FreeCADGui
 from femtools import ccxtools
 
 
-class beso_gui(QMainWindow):
+class beso_gui(QDialog):
 
     def __init__(self):
         super().__init__()
         self.title = 'BESO Topology Optimization (experimental)'
         self.left = 250
-        self.top = 0
+        self.top = 30
         self.width = 550
         self.height = 730
 
@@ -152,7 +143,6 @@ class beso_gui(QMainWindow):
         # self.textbox5.setText("")
         self.textbox5.setToolTip('Thickness [mm] of shell elements in the domain.\n'
                                  'This value overwrites thickness defined in FreeCAD')
-
 
         # Check box - design or nondesign
         self.checkbox = QCheckBox('', self)
@@ -272,7 +262,6 @@ class beso_gui(QMainWindow):
         self.textbox8.setToolTip('Filter range [mm], recommended two times mesh size.')
         self.textbox8.setEnabled(False)
 
-
         # Text box - casting direction
         self.textbox9 = QLineEdit(self)
         self.textbox9.move(120, 300)
@@ -341,7 +330,7 @@ class beso_gui(QMainWindow):
         self.widget2.setSelectionMode(QAbstractItemView.MultiSelection)
         self.widget2.setEnabled(False)
 
-        # Othre settings
+        # Other settings
         label40 = QLabel('Other settings', self)
         label40.setStyleSheet("font-weight: bold")
         label40.move(10, 470)
@@ -443,7 +432,7 @@ class beso_gui(QMainWindow):
 
     # @pyqtSlot()
     def on_click(self):
-        ex = SelectFile()
+        ex2 = SelectFile()
         self.show()
         self.textbox_file_name.setText(self.inp_file)
 
@@ -734,10 +723,8 @@ class beso_gui(QMainWindow):
             range = self.textbox6.text()
             direction = self.textbox9.text()
             selection = [item.text() for item in self.widget.selectedItems()]
-            if "All defined" in selection:
-                filter_domains = [""]
-            else:
-                filter_domains = []
+            filter_domains = []
+            if "All defined" not in selection:
                 if "Domain 0" in selection:
                     filter_domains.append(elset)
                 if "Domain 1" in selection:
@@ -747,22 +734,20 @@ class beso_gui(QMainWindow):
             if filter == "simple":
                 f.write("['simple', {}".format(range))
                 for dn in filter_domains:
-                    f.write(", {}".format(dn))
+                    f.write(", '{}'".format(dn))
                 f.write("],\n")
             elif filter == "casting":
                 f.write("['casting', {}, ({})".format(range, direction))
                 for dn in filter_domains:
-                    f.write(", {}".format(dn))
+                    f.write(", '{}'".format(dn))
                 f.write("],\n")
 
             filter1 = self.combo7.currentText()
             range1 = self.textbox7.text()
             direction1 = self.textbox10.text()
             selection = [item.text() for item in self.widget1.selectedItems()]
-            if "All defined" in selection:
-                filter_domains1 = [""]
-            else:
-                filter_domains1 = []
+            filter_domains1 = []
+            if "All defined" not in selection:
                 if "Domain 0" in selection:
                     filter_domains1.append(elset)
                 if "Domain 1" in selection:
@@ -772,22 +757,20 @@ class beso_gui(QMainWindow):
             if filter1 == "simple":
                 f.write("               ['simple', {}".format(range1))
                 for dn in filter_domains1:
-                    f.write(", {}".format(dn))
+                    f.write(", '{}'".format(dn))
                 f.write("],\n")
             elif filter1 == "casting":
                 f.write("               ['casting', {}, ({})".format(range1, direction1))
                 for dn in filter_domains1:
-                    f.write(", {}".format(dn))
+                    f.write(", '{}'".format(dn))
                 f.write("],\n")
 
             filter2 = self.combo8.currentText()
             range2 = self.textbox8.text()
             direction2 = self.textbox11.text()
             selection = [item.text() for item in self.widget2.selectedItems()]
-            if "All defined" in selection:
-                filter_domains2 = [""]
-            else:
-                filter_domains2 = []
+            filter_domains2 = []
+            if "All defined" not in selection:
                 if "Domain 0" in selection:
                     filter_domains2.append(elset)
                 if "Domain 1" in selection:
@@ -797,12 +780,12 @@ class beso_gui(QMainWindow):
             if filter2 == "simple":
                 f.write("               ['simple', {}".format(range2))
                 for dn in filter_domains2:
-                    f.write(", {}".format(dn))
+                    f.write(", '{}'".format(dn))
                 f.write("],\n")
             elif filter2 == "casting":
                 f.write("               ['casting', {}, ({})".format(range2, direction2))
                 for dn in filter_domains2:
-                    f.write(", {}".format(dn))
+                    f.write(", '{}'".format(dn))
                 f.write("],\n")
             f.write("               ]\n")
             f.write("\n")
@@ -851,7 +834,7 @@ class beso_gui(QMainWindow):
 
     def on_click40(self):
         """Open log file"""
-        if self.textbox_file_name.text() == "None analysis file selected":
+        if self.textbox_file_name.text() in ["None analysis file selected", ""]:
             print("None analysis file selected")
         else:
             log_file = os.path.normpath(self.textbox_file_name.text()[:-4] + ".log")
@@ -964,10 +947,7 @@ class RunOptimization(threading.Thread):
     def run(self):
         exec(open(os.path.join(beso_gui.beso_dir, "beso_main.py")).read())
 
+
 if __name__ == '__main__':
-    try:
-        app = QApplication(sys.argv)
-    except RuntimeError:
-        print("RuntimeError in: app = QApplication(sys.argv)")
     ex = beso_gui()
-    sys.exit(app.exec_())
+    ex.exec_()

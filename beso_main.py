@@ -339,7 +339,7 @@ while True:
                        i, reference_points, shells_as_composite, optimization_base, displacement_graph,
                        domain_FI_filled)
     # running CalculiX analysis
-    subprocess.call([os.path.normpath(path_calculix), file_nameW], cwd=path)
+    subprocess.call([os.path.normpath(path_calculix), file_nameW], cwd=path, shell=True)
 
     # reading results and computing failure indeces
     if (reference_points == "integration points") or (optimization_base == "stiffness") or \
@@ -452,7 +452,7 @@ while True:
                     domains_to_filter = list(opt_domains)
                 else:
                     domains_to_filter = []
-                    for dn in ft[2:]:
+                    for dn in ft[3:]:
                         domains_to_filter += domains[dn]
                 sensitivity_number = beso_filters.run2_casting(sensitivity_number, above_elm, below_elm,
                                                                domains_to_filter)
