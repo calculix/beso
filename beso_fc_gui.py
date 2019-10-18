@@ -3,7 +3,7 @@
 
 __title__ = "BESO Topology Optimization"
 __author__ = "František Löffelmann"
-__date__ = "03/10/2019"
+__date__ = "18/10/2019"
 __Wiki__ = "https://github.com/fandaL/beso/wiki/Example-4:-GUI-in-FreeCAD"
 __Status__ = "experimental"
 __Requires__ = "FreeCAD >=0.18, Python 3"
@@ -441,7 +441,9 @@ class beso_gui(QDialog):
         self.materials = []
         self.thicknesses = []
         for obj in App.ActiveDocument.Objects:
-            if obj.Name[:23] in ["MechanicalSolidMaterial", "SolidMaterial"]:
+            if obj.Name[:23] == "MechanicalSolidMaterial":
+                self.materials.append(obj)
+            elif obj.Name[:13] == "SolidMaterial":
                 self.materials.append(obj)
             elif obj.Name[:17] == "ElementGeometry2D":
                 self.thicknesses.append(obj)
@@ -553,7 +555,7 @@ class beso_gui(QDialog):
                 von_mises = 0.
 
         elset_id1 = self.combo1.currentIndex() - 1
-        thickness_id1 = self.combo0t.currentIndex() - 1
+        thickness_id1 = self.combo1t.currentIndex() - 1
         if elset_id1 != -1:
             if thickness_id1 != -1:
                 elset1 = self.materials[elset_id1].Name + self.thicknesses[thickness_id1].Name
@@ -606,7 +608,7 @@ class beso_gui(QDialog):
                 von_mises1 = 0.
 
         elset_id2 = self.combo2.currentIndex() - 1
-        thickness_id2 = self.combo0t.currentIndex() - 1
+        thickness_id2 = self.combo2t.currentIndex() - 1
         if elset_id2 != -1:
             if thickness_id2 != -1:
                 elset2 = self.materials[elset_id2].Name + self.thicknesses[thickness_id2].Name
