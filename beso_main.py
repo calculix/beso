@@ -6,6 +6,7 @@ import matplotlib.pyplot as plt
 import multiprocessing
 import os
 import subprocess
+import sys
 import time
 import beso_lib
 import beso_filters
@@ -339,7 +340,10 @@ while True:
                        i, reference_points, shells_as_composite, optimization_base, displacement_graph,
                        domain_FI_filled)
     # running CalculiX analysis
-    subprocess.call([os.path.normpath(path_calculix), file_nameW], cwd=path, shell=True)
+    if sys.platform == 'linux':
+        subprocess.call([os.path.normpath(path_calculix), file_nameW], cwd=path)
+    else:
+        subprocess.call([os.path.normpath(path_calculix), file_nameW], cwd=path, shell=True)
 
     # reading results and computing failure indeces
     if (reference_points == "integration points") or (optimization_base == "stiffness") or \
