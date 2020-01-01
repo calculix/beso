@@ -9,6 +9,7 @@ import subprocess
 import time
 import beso_lib
 import beso_filters
+import beso_plots
 import beso_separate
 plt.close("all")
 start_time = time.time()
@@ -604,7 +605,7 @@ while True:
             continue_iterations = False
             print("energy_density_mean[i] == energy_density_mean[i-1] == energy_density_mean[i-2]")
 
-    # finish or start new iteration
+    # plot graphs and finish or start new iteration
     if continue_iterations is False or i >= iterations_limit:
         if not(save_iteration_results and np.mod(float(i), save_iteration_results) == 0):
             if "csv" in save_resulting_format:
@@ -614,6 +615,12 @@ while True:
                 beso_lib.export_vtk(file_nameW, nodes, Elements, elm_states, sensitivity_number, criteria, FI_step,
                                     FI_step_max)
         break
+
+    # plot figures
+    beso_plots.replot(path, i, oscillations, mass, domain_FI_filled, domains_from_config, FI_violated, FI_mean,
+                      FI_mean_without_state0, FI_max, optimization_base, energy_density_mean, heat_flux_mean,
+                      displacement_graph, disp_max, buckling_factors_all)
+
     i += 1  # iteration number
     print("\n----------- new iteration number %d ----------" % i)
 
@@ -754,6 +761,11 @@ if "sta" not in save_solver_files:
 if "cvg" not in save_solver_files:
     os.remove(file_nameW + ".cvg")
 
+# plot and save figures
+beso_plots.replot(path, i, oscillations, mass, domain_FI_filled, domains_from_config, FI_violated, FI_mean,
+                  FI_mean_without_state0, FI_max, optimization_base, energy_density_mean, heat_flux_mean,
+                  displacement_graph, disp_max, buckling_factors_all, savefig=True)
+
 # print total time
 total_time = time.time() - start_time
 total_time_h = int(total_time / 3600.0)
@@ -765,129 +777,3 @@ msg += ("Total time   " + str(total_time_h) + " h " + str(total_time_min) + " mi
 msg += "\n"
 beso_lib.write_to_log(file_name, msg)
 print("total time: " + str(total_time_h) + " h " + str(total_time_min) + " min " + str(total_time_s) + " s")
-
-fn = 0  # figure number
-# plot mass
-fn += 1
-plt.figure(fn)
-plt.plot(range(i+1), mass, label="mass")
-plt.title("Mass of optimization domains")
-plt.xlabel("Iteration")
-plt.ylabel("Mass")
-plt.grid()
-plt.tight_layout()
-plt.savefig(os.path.join(path, "Mass"), dpi=100)
-
-if oscillations is True:
-    i -= 1  # because other values for i-th iteration are not evaluated
-
-if domain_FI_filled:  # FI contain something
-    # plot number of elements with FI > 1
-    fn += 1
-    plt.figure(fn)
-    dno = 0
-    for dn in domains_from_config:
-        FI_violated_dn = []
-        for ii in range(i + 1):
-            FI_violated_dn.append(FI_violated[ii][dno])
-        plt.plot(range(i + 1), FI_violated_dn, label=dn)
-        dno += 1
-    if len(domains_from_config) > 1:
-        FI_violated_total = []
-        for ii in range(i + 1):
-            FI_violated_total.append(sum(FI_violated[ii]))
-        plt.plot(range(i+1), FI_violated_total, label="Total")
-    plt.legend(loc=2, fontsize=10)
-    plt.title("Number of elements with Failure Index >= 1")
-    plt.xlabel("Iteration")
-    plt.ylabel("FI_violated")
-    plt.grid()
-    plt.tight_layout()
-    plt.savefig(os.path.join(path, "FI_violated"), dpi=100)
-
-    # plot mean failure index
-    fn += 1
-    plt.figure(fn)
-    plt.plot(range(i+1), FI_mean, label="all")
-    plt.plot(range(i+1), FI_mean_without_state0, label="without state 0")
-    plt.title("Mean Failure Index weighted by element mass")
-    plt.xlabel("Iteration")
-    plt.ylabel("FI_mean")
-    plt.legend(loc=2, fontsize=10)
-    plt.grid()
-    plt.tight_layout()
-    plt.savefig(os.path.join(path, "FI_mean"), dpi=100)
-
-    # plot maximal failure indices
-    fn += 1
-    plt.figure(fn)
-    for dn in domains_from_config:
-        FI_max_dn = []
-        for ii in range(i + 1):
-            FI_max_dn.append(FI_max[ii][dn])
-        plt.plot(range(i + 1), FI_max_dn, label=dn)
-    plt.legend(loc=2, fontsize=10)
-    plt.title("Maximal domain Failure Index")
-    plt.xlabel("Iteration")
-    plt.ylabel("FI_max")
-    plt.grid()
-    plt.tight_layout()
-    plt.savefig(os.path.join(path, "FI_max"), dpi=100)
-
-if optimization_base == "stiffness":
-    # plot mean energy density
-    fn += 1
-    plt.figure(fn)
-    plt.plot(range(i+1), energy_density_mean)
-    plt.title("Mean Energy Density weighted by element mass")
-    plt.xlabel("Iteration")
-    plt.ylabel("energy_density_mean")
-    plt.grid()
-    plt.tight_layout()
-    plt.savefig(os.path.join(path, "energy_density_mean"), dpi=100)
-
-if optimization_base == "heat":
-    # plot mean energy density
-    fn += 1
-    plt.figure(fn)
-    plt.plot(range(i+1), heat_flux_mean)
-    plt.title("Mean Heat Flux weighted by element mass")
-    plt.xlabel("Iteration")
-    plt.ylabel("heat_flux_mean")
-    plt.grid()
-    plt.tight_layout()
-    plt.savefig(os.path.join(path, "heat_flux_mean"), dpi=100)
-
-if displacement_graph:
-    fn += 1
-    plt.figure(fn)
-    for cn in range(len(displacement_graph)):
-        disp_max_cn = []
-        for ii in range(i + 1):
-            disp_max_cn.append(disp_max[ii][cn])
-        plt.plot(range(i + 1), disp_max_cn, label=displacement_graph[cn][0] + "(" + displacement_graph[cn][1] + ")")
-    plt.legend(loc=2, fontsize=10)
-    plt.title("Node set maximal displacements")
-    plt.xlabel("Iteration")
-    plt.ylabel("Displacement")
-    plt.grid()
-    plt.tight_layout()
-    plt.savefig(os.path.join(path, "Displacement_max"), dpi=100)
-
-if optimization_base == "buckling":
-    fn += 1
-    plt.figure(fn)
-    for bfn in range(len(buckling_factors_all[0])):
-        buckling_factors_bfn = []
-        for ii in range(i + 1):
-            buckling_factors_bfn.append(buckling_factors_all[ii][bfn])
-        plt.plot(range(i + 1), buckling_factors_bfn, label="mode " + str(bfn + 1))
-    plt.legend(loc=2, fontsize=10)
-    plt.title("Buckling factors")
-    plt.xlabel("Iteration")
-    plt.ylabel("buckling_factors")
-    plt.grid()
-    plt.tight_layout()
-    plt.savefig(os.path.join(path, "buckling_factors"), dpi=100)
-
-plt.show()

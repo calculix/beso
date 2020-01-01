@@ -813,11 +813,11 @@ class beso_gui(QDialog):
     def on_click23(self):
         """"Run optimization"""
         # run in own thread (not freezing FreeCAD):      needs also to comment "plt.show()" on the end of beso_main.py
-        # self.optimization_thread = RunOptimization("beso_main")
-        # self.optimization_thread.start()
+        self.optimization_thread = RunOptimization("beso_main")
+        self.optimization_thread.start()
 
-        # run in foreground (freeze FreeCAD)
-        exec(open(os.path.join(beso_gui.beso_dir, "beso_main.py")).read())
+        # # run in foreground (freeze FreeCAD)
+        # exec(open(os.path.join(beso_gui.beso_dir, "beso_main.py")).read())
 
     def on_click24(self):
         self.on_click21()  # generate beso_conf.py
