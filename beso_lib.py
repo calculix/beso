@@ -269,7 +269,7 @@ def import_inp(file_name, domains_from_config, domain_optimized, shells_as_compo
 
     if not opt_domains:
         row = "None optimized domain has been found. Check your inputs."
-        msg += ("\nERROR: " + row + "\n")
+        msg = ("\nERROR: " + row + "\n")
         write_to_log(file_name, msg)
         assert False, row
 

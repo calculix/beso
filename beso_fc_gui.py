@@ -337,7 +337,7 @@ class beso_gui(QDialog):
 
         # AR, RR slider
         label41 = QLabel('Change per iteration:   low', self)
-        label41.setFixedWidth(150)
+        label41.setFixedWidth(160)
         label41.move(10, 500)
         label42 = QLabel('high', self)
         label42.move(240, 500)
@@ -442,6 +442,8 @@ class beso_gui(QDialog):
         self.thicknesses = []
         for obj in App.ActiveDocument.Objects:
             if obj.Name[:23] == "MechanicalSolidMaterial":
+                self.materials.append(obj)
+            elif obj.Name[:13] == "MaterialSolid":
                 self.materials.append(obj)
             elif obj.Name[:13] == "SolidMaterial":
                 self.materials.append(obj)
