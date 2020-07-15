@@ -440,6 +440,11 @@ class beso_gui(QDialog):
         # get material objects
         self.materials = []
         self.thicknesses = []
+        try:
+            App.ActiveDocument.Objects
+        except AttributeError:
+            App.newDocument("Unnamed")
+            print("Warning: Missing active document with FEM analysis. New document have been created.")
         for obj in App.ActiveDocument.Objects:
             if obj.Name[:23] == "MechanicalSolidMaterial":
                 self.materials.append(obj)
