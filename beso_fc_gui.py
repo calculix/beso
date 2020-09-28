@@ -3,7 +3,7 @@
 
 __title__ = "BESO Topology Optimization"
 __author__ = "František Löffelmann"
-__date__ = "18/10/2019"
+__date__ = "28/09/2020"
 __Wiki__ = "https://github.com/fandaL/beso/wiki/Example-4:-GUI-in-FreeCAD"
 __Status__ = "experimental"
 __Requires__ = "FreeCAD >=0.18, Python 3"
@@ -245,20 +245,20 @@ class beso_gui(QDialog):
         self.textbox6 = QLineEdit(self)
         self.textbox6.move(120, 270)
         self.textbox6.resize(50, 20)
-        # self.textbox6.setText("")
+        self.textbox6.setText("0.")
         self.textbox6.setToolTip('Filter range [mm], recommended two times mesh size.')
 
         self.textbox7 = QLineEdit(self)
         self.textbox7.move(260, 270)
         self.textbox7.resize(50, 20)
-        # self.textbox7.setText("")
+        self.textbox7.setText("0.")
         self.textbox7.setToolTip('Filter range [mm], recommended two times mesh size.')
         self.textbox7.setEnabled(False)
 
         self.textbox8 = QLineEdit(self)
         self.textbox8.move(400, 270)
         self.textbox8.resize(50, 20)
-        # self.textbox8.setText("")
+        self.textbox8.setText("0.")
         self.textbox8.setToolTip('Filter range [mm], recommended two times mesh size.')
         self.textbox8.setEnabled(False)
 
