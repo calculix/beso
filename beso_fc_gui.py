@@ -3,7 +3,7 @@
 
 __title__ = "BESO Topology Optimization"
 __author__ = "František Löffelmann"
-__date__ = "28/09/2020"
+__date__ = "21/07/2021"
 __Wiki__ = "https://github.com/fandaL/beso/wiki/Example-4:-GUI-in-FreeCAD"
 __Status__ = "experimental"
 __Requires__ = "FreeCAD >=0.18, Python 3"
@@ -13,7 +13,7 @@ import os
 import threading
 import webbrowser
 from PySide.QtGui import (QDialog, QWidget, QLabel, QFileDialog, QPushButton, QLineEdit, QComboBox, QCheckBox,
-                          QListWidget, QSlider, QAbstractItemView)
+                          QListWidget, QSlider, QAbstractItemView, QFont)
 # from PySide.QtCore import pyqtSlot, Qt
 from PySide.QtCore import Qt
 import FreeCADGui
@@ -44,6 +44,7 @@ class beso_gui(QDialog):
 
         # Select analysis file button
         button = QPushButton('Select analysis file', self)
+        button.setFont(QFont('Arial', 8))
         button.setToolTip('*.inp CalculiX analysis file.')
         button.move(10, 10)
         button.clicked.connect(self.on_click)
@@ -53,10 +54,12 @@ class beso_gui(QDialog):
         self.textbox_file_name.move(120, 15)
         self.textbox_file_name.resize(420, 20)
         self.textbox_file_name.setText("None analysis file selected")
+        self.textbox_file_name.setFont(QFont('Arial', 8))
         self.textbox_file_name.setToolTip('Analysis file.')
 
         # Update button
         button1 = QPushButton('Update domains', self)
+        button1.setFont(QFont('Arial', 8))
         button1.setToolTip('Update naming inputs and material data from FreeCAD.')
         button1.move(10, 50)
         button1.clicked.connect(self.on_click1)
@@ -65,43 +68,53 @@ class beso_gui(QDialog):
 
         # Label above domains definition
         label21 = QLabel('Domain 0', self)
+        label21.setFont(QFont('Arial', 10))
         label21.setStyleSheet("font-weight: bold")
         label21.move(120, 50)
 
-        label21 = QLabel('Domain 1', self)
-        label21.setStyleSheet("font-weight: bold")
-        label21.move(260, 50)
+        label22 = QLabel('Domain 1', self)
+        label22.setFont(QFont('Arial', 10))
+        label22.setStyleSheet("font-weight: bold")
+        label22.move(260, 50)
 
-        label21 = QLabel('Domain 2', self)
-        label21.setStyleSheet("font-weight: bold")
-        label21.move(400, 50)
+        label23 = QLabel('Domain 2', self)
+        label23.setFont(QFont('Arial', 10))
+        label23.setStyleSheet("font-weight: bold")
+        label23.move(400, 50)
 
         label24 = QLabel('Material object', self)
+        label24.setFont(QFont('Arial', 8))
         label24.move(20, 80)
 
         label25 = QLabel('Thickness object', self)
+        label25.setFont(QFont('Arial', 8))
         label25.move(20, 110)
 
         label26 = QLabel('As design domain', self)
+        label26.setFont(QFont('Arial', 8))
         label26.move(20, 140)
 
         label27 = QLabel('Stress limit [MPa]', self)
+        label27.setFont(QFont('Arial', 8))
         label27.move(20, 170)
 
         # Combo box - select domain by material object
         self.combo = QComboBox(self)
+        self.combo.setFont(QFont('Arial', 8))
         self.combo.setToolTip('Material object to define the domain.')
         self.combo.move(120, 80)
         self.combo.resize(140, 30)
         self.combo.currentIndexChanged.connect(self.on_change)
 
         self.combo1 = QComboBox(self)
+        self.combo1.setFont(QFont('Arial', 8))
         self.combo1.setToolTip('Material object to define the domain.')
         self.combo1.move(260, 80)
         self.combo1.resize(140, 30)
         self.combo1.currentIndexChanged.connect(self.on_change1)
 
         self.combo2 = QComboBox(self)
+        self.combo2.setFont(QFont('Arial', 8))
         self.combo2.setToolTip('Material object to define the domain.')
         self.combo2.move(400, 80)
         self.combo2.resize(140, 30)
@@ -109,21 +122,25 @@ class beso_gui(QDialog):
 
         # Combo box - select thickness object
         self.combo0t = QComboBox(self)
+        self.combo0t.setFont(QFont('Arial', 8))
         self.combo0t.setToolTip('Thickness object to specify if domain is for shells.')
         self.combo0t.move(120, 110)
         self.combo0t.resize(140, 30)
 
         self.combo1t = QComboBox(self)
+        self.combo1t.setFont(QFont('Arial', 8))
         self.combo1t.setToolTip('Thickness object to specify if domain is for shells.')
         self.combo1t.move(260, 110)
         self.combo1t.resize(140, 30)
 
         self.combo2t = QComboBox(self)
+        self.combo2t.setFont(QFont('Arial', 8))
         self.combo2t.setToolTip('Thickness object to specify if domain is for shells.')
         self.combo2t.move(400, 110)
         self.combo2t.resize(140, 30)
 
         self.textbox3 = QLineEdit(self)
+        self.textbox3.setFont(QFont('Arial', 8))
         self.textbox3.move(120, 170)
         self.textbox3.resize(40, 20)
         # self.textbox3.setText("")
@@ -131,6 +148,7 @@ class beso_gui(QDialog):
                                  'This value overwrites thickness defined in FreeCAD')
 
         self.textbox4 = QLineEdit(self)
+        self.textbox4.setFont(QFont('Arial', 8))
         self.textbox4.move(260, 170)
         self.textbox4.resize(40, 20)
         # self.textbox4.setText("")
@@ -138,6 +156,7 @@ class beso_gui(QDialog):
                                  'This value overwrites thickness defined in FreeCAD')
 
         self.textbox5 = QLineEdit(self)
+        self.textbox5.setFont(QFont('Arial', 8))
         self.textbox5.move(400, 170)
         self.textbox5.resize(40, 20)
         # self.textbox5.setText("")
@@ -162,18 +181,21 @@ class beso_gui(QDialog):
 
         # Text box - stress limit
         self.textbox = QLineEdit(self)
+        self.textbox.setFont(QFont('Arial', 8))
         self.textbox.move(120, 170)
         self.textbox.resize(40, 20)
         # self.textbox.setText("")
         self.textbox.setToolTip('Von Mises stress [MPa] limit, when reached, material removing will stop.')
 
         self.textbox1 = QLineEdit(self)
+        self.textbox1.setFont(QFont('Arial', 8))
         self.textbox1.move(260, 170)
         self.textbox1.resize(40, 20)
         # self.textbox1.setText("")
         self.textbox1.setToolTip('Von Mises stress [MPa] limit, when reached, material removing will stop.')
 
         self.textbox2 = QLineEdit(self)
+        self.textbox2.setFont(QFont('Arial', 8))
         self.textbox2.move(400, 170)
         self.textbox2.resize(40, 20)
         # self.textbox2.setText("")
@@ -183,31 +205,39 @@ class beso_gui(QDialog):
 
         # Label above filter definition
         label31 = QLabel('Filter 0', self)
+        label31.setFont(QFont('Arial', 10))
         label31.setStyleSheet("font-weight: bold")
-        label31.move(120, 210)
+        label31.move(120, 220)
 
         label32 = QLabel('Filter 1', self)
+        label32.setFont(QFont('Arial', 10))
         label32.setStyleSheet("font-weight: bold")
-        label32.move(260, 210)
+        label32.move(260, 220)
 
         label33 = QLabel('Filter 2', self)
+        label33.setFont(QFont('Arial', 10))
         label33.setStyleSheet("font-weight: bold")
-        label33.move(400, 210)
+        label33.move(400, 220)
 
         label34 = QLabel('Type', self)
+        label34.setFont(QFont('Arial', 8))
         label34.move(20, 240)
 
         label35 = QLabel('Range [mm]', self)
+        label35.setFont(QFont('Arial', 8))
         label35.move(20, 270)
 
         label36 = QLabel('Direction vector', self)
+        label36.setFont(QFont('Arial', 8))
         label36.move(20, 300)
 
         label37 = QLabel('Apply to', self)
+        label37.setFont(QFont('Arial', 8))
         label37.move(20, 330)
 
         # Combo box - select filter type
         self.combo6 = QComboBox(self)
+        self.combo6.setFont(QFont('Arial', 8))
         self.combo6.setToolTip('Filters:\n'
                                '"simple" to suppress checkerboard effect,\n'
                                '"casting" to prescribe casting direction (opposite to milling direction)\n'
@@ -220,6 +250,7 @@ class beso_gui(QDialog):
         self.combo6.currentIndexChanged.connect(self.on_change6)
 
         self.combo7 = QComboBox(self)
+        self.combo7.setFont(QFont('Arial', 8))
         self.combo7.setToolTip('Filters:\n'
                                '"simple" to suppress checkerboard effect,\n'
                                '"casting" to prescribe casting direction (opposite to milling direction)\n'
@@ -231,6 +262,7 @@ class beso_gui(QDialog):
         self.combo7.currentIndexChanged.connect(self.on_change7)
 
         self.combo8 = QComboBox(self)
+        self.combo8.setFont(QFont('Arial', 8))
         self.combo8.setToolTip('Filters:\n'
                                '"simple" to suppress checkerboard effect,\n'
                                '"casting" to prescribe casting direction (opposite to milling direction)\n'
@@ -243,12 +275,14 @@ class beso_gui(QDialog):
 
         # Text box - filter range
         self.textbox6 = QLineEdit(self)
+        self.textbox6.setFont(QFont('Arial', 8))
         self.textbox6.move(120, 270)
         self.textbox6.resize(50, 20)
         self.textbox6.setText("0.")
         self.textbox6.setToolTip('Filter range [mm], recommended two times mesh size.')
 
         self.textbox7 = QLineEdit(self)
+        self.textbox7.setFont(QFont('Arial', 8))
         self.textbox7.move(260, 270)
         self.textbox7.resize(50, 20)
         self.textbox7.setText("0.")
@@ -256,6 +290,7 @@ class beso_gui(QDialog):
         self.textbox7.setEnabled(False)
 
         self.textbox8 = QLineEdit(self)
+        self.textbox8.setFont(QFont('Arial', 8))
         self.textbox8.move(400, 270)
         self.textbox8.resize(50, 20)
         self.textbox8.setText("0.")
@@ -264,6 +299,7 @@ class beso_gui(QDialog):
 
         # Text box - casting direction
         self.textbox9 = QLineEdit(self)
+        self.textbox9.setFont(QFont('Arial', 8))
         self.textbox9.move(120, 300)
         self.textbox9.resize(80, 20)
         self.textbox9.setText("0, 0, 1")
@@ -278,6 +314,7 @@ class beso_gui(QDialog):
                                  'XXXXXXXXXXX......')
 
         self.textbox10 = QLineEdit(self)
+        self.textbox10.setFont(QFont('Arial', 8))
         self.textbox10.move(260, 300)
         self.textbox10.resize(80, 20)
         self.textbox10.resize(80, 20)
@@ -293,6 +330,7 @@ class beso_gui(QDialog):
                                  'XXXXXXXXXXX......')
 
         self.textbox11 = QLineEdit(self)
+        self.textbox11.setFont(QFont('Arial', 8))
         self.textbox11.move(400, 300)
         self.textbox11.resize(80, 20)
         self.textbox11.setText("0, 0, 1")
@@ -308,6 +346,7 @@ class beso_gui(QDialog):
 
         # list widget - select domains
         self.widget = QListWidget(self)
+        self.widget.setFont(QFont('Arial', 8))
         self.widget.setToolTip('Domains affected by the filter.\n'
                                'Select only from domains which you defined above.')
         self.widget.move(120, 330)
@@ -315,6 +354,7 @@ class beso_gui(QDialog):
         self.widget.setSelectionMode(QAbstractItemView.MultiSelection)
 
         self.widget1 = QListWidget(self)
+        self.widget1.setFont(QFont('Arial', 8))
         self.widget1.setToolTip('Domains affected by the filter.\n'
                                 'Select only from domains which you defined above.')
         self.widget1.move(260, 330)
@@ -323,6 +363,7 @@ class beso_gui(QDialog):
         self.widget1.setEnabled(False)
 
         self.widget2 = QListWidget(self)
+        self.widget2.setFont(QFont('Arial', 8))
         self.widget2.setToolTip('Domains affected by the filter.\n'
                                 'Select only from domains which you defined above.')
         self.widget2.move(400, 330)
@@ -332,14 +373,17 @@ class beso_gui(QDialog):
 
         # Other settings
         label40 = QLabel('Other settings', self)
+        label40.setFont(QFont('Arial', 10))
         label40.setStyleSheet("font-weight: bold")
         label40.move(10, 470)
 
         # AR, RR slider
         label41 = QLabel('Change per iteration:   low', self)
+        label41.setFont(QFont('Arial', 8))
         label41.setFixedWidth(160)
         label41.move(10, 500)
         label42 = QLabel('high', self)
+        label42.setFont(QFont('Arial', 8))
         label42.move(240, 500)
 
         self.slider = QSlider(Qt.Horizontal, self)
@@ -355,8 +399,10 @@ class beso_gui(QDialog):
 
         # optimization base combobox
         label51 = QLabel('Optimization base', self)
+        label51.setFont(QFont('Arial', 8))
         label51.move(10, 530)
         self.combo51 = QComboBox(self)
+        self.combo51.setFont(QFont('Arial', 8))
         self.combo51.setToolTip('Basic principle to determine if element should remain or be removed:\n'
                                 '"stiffness" to maximize stiffness (minimize compliance),\n'
                                 '"heat" to maximize heat flow.')
@@ -366,8 +412,10 @@ class beso_gui(QDialog):
 
         # mass goal ratio
         label52 = QLabel('Mass goal ratio', self)
+        label52.setFont(QFont('Arial', 8))
         label52.move(10, 560)
         self.textbox52 = QLineEdit(self)
+        self.textbox52.setFont(QFont('Arial', 8))
         self.textbox52.move(120, 560)
         self.textbox52.resize(50, 20)
         self.textbox52.setText("0.4")
@@ -376,24 +424,29 @@ class beso_gui(QDialog):
 
         # generate conf. file button
         button21 = QPushButton('Generate conf. file', self)
+        button21.setFont(QFont('Arial', 8))
         button21.setToolTip('Writes configuration file with optimization parameters.')
         button21.move(10, 600)
         button21.clicked.connect(self.on_click21)
+        button21.setFont(QFont('Arial', 8))
 
         # edit conf. file button
         button22 = QPushButton('Edit conf. file', self)
+        button22.setFont(QFont('Arial', 8))
         button22.setToolTip('Opens configuration file for hand modifications.')
         button22.move(10, 630)
         button22.clicked.connect(self.on_click22)
 
         # run optimization button
         button23 = QPushButton('Run optimization', self)
+        button23.setFont(QFont('Arial', 8))
         button23.setToolTip('Writes configuration file and runs optimization.')
         button23.move(10, 660)
         button23.clicked.connect(self.on_click23)
 
         # generate conf file and run optimization button
         button24 = QPushButton('Generate conf.\nfile and run\noptimization', self)
+        button24.setFont(QFont('Arial', 8))
         button24.setToolTip('Writes configuration file and runs optimization.')
         button24.move(120, 600)
         button24.resize(100, 90)
@@ -401,27 +454,33 @@ class beso_gui(QDialog):
 
         # help buttons
         label41 = QLabel('Help', self)
+        label41.setFont(QFont('Arial', 10))
+        label41.setStyleSheet("font-weight: bold")
         label41.move(440, 560)
 
         button31 = QPushButton('Example', self)
+        button31.setFont(QFont('Arial', 8))
         button31.setToolTip('https://github.com/fandaL/beso/wiki/Example-4:-GUI-in-FreeCAD')
         button31.move(440, 590)
         # button31.resize(80, 50)
         button31.clicked.connect(self.on_click31)
 
         button32 = QPushButton('Conf. comments', self)
+        button32.setFont(QFont('Arial', 8))
         button32.setToolTip('https://github.com/fandaL/beso/blob/master/beso_conf.py')
         button32.move(440, 620)
         # button32.resize(80, 50)
         button32.clicked.connect(self.on_click32)
 
         button33 = QPushButton('Close', self)
+        button33.setFont(QFont('Arial', 8))
         button33.move(440, 690)
         # button33.resize(80, 50)
         button33.clicked.connect(self.on_click33)
 
         # open log file
         button40 = QPushButton('Open log file', self)
+        button40.setFont(QFont('Arial', 8))
         button40.setToolTip('Opens log file in your text editor.\n'
                             '(Does not refresh automatically.)')
         button40.move(10, 690)
