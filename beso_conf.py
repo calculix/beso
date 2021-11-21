@@ -55,7 +55,7 @@ filter_list = [["simple", 2]]  # [[filter type, range, domains or nothing for al
                             # "close sensitivity" - aims to close holes smaller than filter radius (it is "dilate" and than "erode" filter)
                             # "open-close sensitivity" - (it is "open" and than "close" filter)
                             # "close-open sensitivity" - (it is "close" and than "open" filter)
-                            # "combine sensitivity" - average of erode and delate (i.e. simplified/dirty "open-close" or "close-open" filter)
+                            # "combine sensitivity" - average of erode and delete (i.e. simplified/dirty "open-close" or "close-open" filter)
 
                             # replace "sensitivity" by "state" to use filter on element states instead of sensitivities
 
