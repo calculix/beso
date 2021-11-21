@@ -350,7 +350,7 @@ while True:
     else:
         subprocess.call([os.path.normpath(path_calculix), file_nameW], cwd=path, shell=True)
 
-    # reading results and computing failure indeces
+    # reading results and computing failure indices
     if (reference_points == "integration points") or (optimization_base == "stiffness") or \
             (optimization_base == "buckling") or (optimization_base == "heat"):  # from .dat file
         [FI_step, energy_density_step, disp_i, buckling_factors, energy_density_eigen, heat_flux] = \
