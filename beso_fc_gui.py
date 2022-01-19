@@ -273,28 +273,64 @@ class beso_gui(QDialog):
         self.combo8.move(400, 240)
         self.combo8.currentIndexChanged.connect(self.on_change8)
 
+        # Combo box - select filter range
+        self.combo6r = QComboBox(self)
+        self.combo6r.setFont(QFont('Arial', 8))
+        self.combo6r.setToolTip('auto - automatically calculates element size and uses two times for the filter range'
+                               '\n')
+        self.combo6r.addItem("auto")
+        self.combo6r.addItem("manual")
+        self.combo6r.move(120, 270)
+        self.combo6r.currentIndexChanged.connect(self.on_change6r)
+
+        self.combo7r = QComboBox(self)
+        self.combo7r.setFont(QFont('Arial', 8))
+        self.combo7r.setEnabled(False)
+        self.combo7r.setToolTip('auto - automatically calculates element size and uses two times for the filter range'
+                                '\n')
+        self.combo7r.addItem("auto")
+        self.combo7r.addItem("manual")
+        self.combo7r.move(260, 270)
+        self.combo7r.currentIndexChanged.connect(self.on_change7r)
+
+        self.combo8r = QComboBox(self)
+        self.combo8r.setFont(QFont('Arial', 8))
+        self.combo8r.setEnabled(False)
+        self.combo8r.setToolTip('auto - automatically calculates element size and uses two times for the filter range'
+                                '\n')
+        self.combo8r.addItem("auto")
+        self.combo8r.addItem("manual")
+        self.combo8r.move(400, 270)
+        self.combo8r.currentIndexChanged.connect(self.on_change8r)
+
         # Text box - filter range
         self.textbox6 = QLineEdit(self)
         self.textbox6.setFont(QFont('Arial', 8))
-        self.textbox6.move(120, 270)
+        self.textbox6.move(190, 270)
         self.textbox6.resize(50, 20)
         self.textbox6.setText("0.")
-        self.textbox6.setToolTip('Filter range [mm], recommended two times mesh size.')
+        self.textbox6.setEnabled(False)
+        self.textbox6.setToolTip('Manual filter range [mm], \n'
+                                 'recommended two times mesh size.')
 
         self.textbox7 = QLineEdit(self)
         self.textbox7.setFont(QFont('Arial', 8))
-        self.textbox7.move(260, 270)
+        self.textbox7.move(330, 270)
         self.textbox7.resize(50, 20)
         self.textbox7.setText("0.")
-        self.textbox7.setToolTip('Filter range [mm], recommended two times mesh size.')
+        self.textbox7.setEnabled(False)
+        self.textbox7.setToolTip('Manual filter range [mm], \n'
+                                 'recommended two times mesh size.')
         self.textbox7.setEnabled(False)
 
         self.textbox8 = QLineEdit(self)
         self.textbox8.setFont(QFont('Arial', 8))
-        self.textbox8.move(400, 270)
+        self.textbox8.move(470, 270)
         self.textbox8.resize(50, 20)
         self.textbox8.setText("0.")
-        self.textbox8.setToolTip('Filter range [mm], recommended two times mesh size.')
+        self.textbox8.setEnabled(False)
+        self.textbox8.setToolTip('Manual filter range [mm], \n'
+                                 'recommended two times mesh size.')
         self.textbox8.setEnabled(False)
 
         # Text box - casting direction
@@ -788,7 +824,10 @@ class beso_gui(QDialog):
 
             f.write("filter_list = [")
             filter = self.combo6.currentText()
-            range = self.textbox6.text()
+            if self.combo6r.currentText() == "auto":
+                range = '"auto"'
+            elif self.combo6r.currentText() == "manual":
+                range = self.textbox6.text()
             direction = self.textbox9.text()
             selection = [item.text() for item in self.widget.selectedItems()]
             filter_domains = []
@@ -811,7 +850,10 @@ class beso_gui(QDialog):
                 f.write("],\n")
 
             filter1 = self.combo7.currentText()
-            range1 = self.textbox7.text()
+            if self.combo7r.currentText() == "auto":
+                range1 = '"auto"'
+            elif self.combo7r.currentText() == "manual":
+                range1 = self.textbox7.text()
             direction1 = self.textbox10.text()
             selection = [item.text() for item in self.widget1.selectedItems()]
             filter_domains1 = []
@@ -834,7 +876,10 @@ class beso_gui(QDialog):
                 f.write("],\n")
 
             filter2 = self.combo8.currentText()
-            range2 = self.textbox8.text()
+            if self.combo8r.currentText() == "auto":
+                range2 = '"auto"'
+            elif self.combo8r.currentText() == "manual":
+                range2 = self.textbox8.text()
             direction2 = self.textbox11.text()
             selection = [item.text() for item in self.widget2.selectedItems()]
             filter_domains2 = []
@@ -938,45 +983,78 @@ class beso_gui(QDialog):
             self.checkbox2.setEnabled(True)
             self.textbox2.setEnabled(True)
 
+    def on_change6r(self):
+        if self.combo6r.currentText() == "auto":
+            self.textbox6.setEnabled(False)
+        elif self.combo6r.currentText() == "manual":
+            self.textbox6.setEnabled(True)
+
+    def on_change7r(self):
+        if self.combo7r.currentText() == "auto":
+            self.textbox7.setEnabled(False)
+        elif self.combo7r.currentText() == "manual":
+            self.textbox7.setEnabled(True)
+
+    def on_change8r(self):
+        if self.combo8r.currentText() == "auto":
+            self.textbox8.setEnabled(False)
+        elif self.combo8r.currentText() == "manual":
+            self.textbox8.setEnabled(True)
+
     def on_change6(self):
         if self.combo6.currentText() == "None":
+            self.combo6r.setEnabled(False)
             self.textbox6.setEnabled(False)
             self.textbox9.setEnabled(False)
             self.widget.setEnabled(False)
         elif self.combo6.currentText() == "casting":
-            self.textbox6.setEnabled(True)
+            self.combo6r.setEnabled(True)
+            if self.combo6r.currentText() == "manual":
+                self.textbox6.setEnabled(True)
             self.textbox9.setEnabled(True)
             self.widget.setEnabled(True)
         else:
-            self.textbox6.setEnabled(True)
+            self.combo6r.setEnabled(True)
+            if self.combo6r.currentText() == "manual":
+                self.textbox6.setEnabled(True)
             self.textbox9.setEnabled(False)
             self.widget.setEnabled(True)
 
     def on_change7(self):
         if self.combo7.currentText() == "None":
+            self.combo7r.setEnabled(False)
             self.textbox7.setEnabled(False)
             self.textbox10.setEnabled(False)
             self.widget1.setEnabled(False)
         elif self.combo7.currentText() == "casting":
-            self.textbox7.setEnabled(True)
+            self.combo7r.setEnabled(True)
+            if self.combo7r.currentText() == "manual":
+                self.textbox7.setEnabled(True)
             self.textbox10.setEnabled(True)
             self.widget1.setEnabled(True)
         else:
-            self.textbox7.setEnabled(True)
+            self.combo7r.setEnabled(True)
+            if self.combo7r.currentText() == "manual":
+                self.textbox7.setEnabled(True)
             self.textbox10.setEnabled(False)
             self.widget1.setEnabled(True)
 
     def on_change8(self):
         if self.combo8.currentText() == "None":
+            self.combo8r.setEnabled(False)
             self.textbox8.setEnabled(False)
             self.textbox11.setEnabled(False)
             self.widget2.setEnabled(False)
         elif self.combo8.currentText() == "casting":
-            self.textbox8.setEnabled(True)
+            self.combo8r.setEnabled(True)
+            if self.combo8r.currentText() == "manual":
+                self.textbox8.setEnabled(True)
             self.textbox11.setEnabled(True)
             self.widget2.setEnabled(True)
         else:
-            self.textbox8.setEnabled(True)
+            self.combo8r.setEnabled(True)
+            if self.combo8r.currentText() == "manual":
+                self.textbox8.setEnabled(True)
             self.textbox11.setEnabled(False)
             self.widget2.setEnabled(True)
 

@@ -224,6 +224,11 @@ weight_factor_distance = []
 near_nodes = []
 above_elm = {}
 below_elm = {}
+filter_auto = False
+for ft in filter_list:  # find if automatic filter range is used
+    if ft[0] and (ft[1] == "auto") and not filter_auto:
+        size_elm = beso_filters.find_size_elm(Elements, nodes)
+        filter_auto = True
 for ft in filter_list:
     if ft[0] and ft[1]:
         f_range = ft[1]
@@ -239,12 +244,20 @@ for ft in filter_list:
                     filtered_dn.append(dn)
                 beso_filters.check_same_state(domain_same_state, filtered_dn, file_name)
             casting_vector = ft[2]
+            if f_range == "auto":
+                size_avg = beso_filters.get_filter_range(size_elm, domains, filtered_dn)
+                f_range = size_avg * 2
+                msg = "Filtered average element size is {}, filter range set automatically to {}".format(size_avg,
+                                                                                                         f_range)
+                print(msg)
+                beso_lib.write_to_log(file_name, msg)
             [above_elm, below_elm] = beso_filters.prepare2s_casting(cg, f_range, domains_to_filter,
                                                                     above_elm, below_elm, casting_vector)
             continue  # to evaluate other filters
         if len(ft) == 2:
             domains_to_filter = list(opt_domains)
-            beso_filters.check_same_state(domain_same_state, domains_from_config, file_name)
+            filtered_dn = domains_from_config
+            beso_filters.check_same_state(domain_same_state, filtered_dn, file_name)
         else:
             domains_to_filter = []
             filtered_dn = []
@@ -252,13 +265,19 @@ for ft in filter_list:
                 domains_to_filter += domains[dn]
                 filtered_dn.append(dn)
             beso_filters.check_same_state(domain_same_state, filtered_dn, file_name)
+        if f_range == "auto":
+            size_avg = beso_filters.get_filter_range(size_elm, domains, filtered_dn)
+            f_range = size_avg * 2
+            msg = "Filtered average element size is {}, filter range set automatically to {}".format(size_avg, f_range)
+            print(msg)
+            beso_lib.write_to_log(file_name, msg)
         if ft[0] == "over points":
             beso_filters.check_same_state(domain_same_state, domains_from_config, file_name)
             [w_f3, n_e3, n_p] = beso_filters.prepare3_tetra_grid(file_name, cg, f_range, domains_to_filter)
             weight_factor3.append(w_f3)
             near_elm3.append(n_e3)
             near_points.append(n_p)
-        elif  ft[0] == "over nodes":
+        elif ft[0] == "over nodes":
             beso_filters.check_same_state(domain_same_state, domains_from_config, file_name)
             [w_f_n, M_, w_f_d, n_n] = beso_filters.prepare1s(nodes, Elements, cg, f_range, domains_to_filter)
             weight_factor_node.append(w_f_n)

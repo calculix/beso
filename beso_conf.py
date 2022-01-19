@@ -21,8 +21,8 @@ domain_orientation[elset_name] = []  # orientations for each state referring to 
                                      # e.g. for 2 states ["or1", "or1"], for isotropic material use empty list []
 domain_FI[elset_name] = [[("stress_von_Mises", 450.0e6)],  # inner tuples () for separate Failure indices
                          [("stress_von_Mises", 450.0)]]  # new inner list [] for the next state of switch_elm
-                        # Filure Indices definition in python tuples (separeate FI for each element state if there are more lists)
-                        # Failure Indice FI = element stress / allowable value
+                        # Failure Indices definition in python tuples (separate FI for each element state if there are more lists)
+                        # Failure Index FI = element stress / allowable value
                         # Failure Indices are not evaluated if they are not defined here, i.e. domain_FI[elset_name] = [], and then optimization_base must not be "failure_index"
                         # examples:
                         # [("user_def", "sxx / 600.0"), ("user_def", "syy / 150.0"), ("user_def", "sxy / 50.0")]  # "user_def" defines complete formula for FI
@@ -43,7 +43,7 @@ continue_from = ""  # if not "", optimization will load element states from the 
                               # or use number N without apostrophes to start each element from state N (numbered from 0)
                               # (continuing from vtk result file is not supported)
 
-filter_list = [["simple", 2]]  # [[filter type, range, domains or nothing for all domains], [next filter type, range, "domain1", "domain2"], ...]
+filter_list = [["simple", "auto"]]  # [[filter type, range, domains or nothing for all domains], [next filter type, range, "domain1", "domain2"], ...]
                             # filter types:
                             # "over points" - filter with step over own point mesh, works on sensitivities TODO does not work correctly, need a fix
                             # "over nodes" - filter with step over nodes (suffer from boundary sticking?, 2nd order elements need more memory), works on sensitivities
@@ -55,14 +55,15 @@ filter_list = [["simple", 2]]  # [[filter type, range, domains or nothing for al
                             # "close sensitivity" - aims to close holes smaller than filter radius (it is "dilate" and than "erode" filter)
                             # "open-close sensitivity" - (it is "open" and than "close" filter)
                             # "close-open sensitivity" - (it is "close" and than "open" filter)
-                            # "combine sensitivity" - average of erode and delete (i.e. simplified/dirty "open-close" or "close-open" filter)
+                            # "combine sensitivity" - average of erode and dilate (i.e. simplified/dirty "open-close" or "close-open" filter)
 
                             # replace "sensitivity" by "state" to use filter on element states instead of sensitivities
 
                             # manufacturing filters:
                             # ["casting", tolerance, vector of casting direction, domains or nothing for all domains]
-                            # e.g. filter_list = [["casting", 2., (0, 0, 1)], ["simple", 2.]]  # where simple filter is used after casting filter
+                            # e.g. filter_list = [["casting", 2., (0, 0, 1)], ["simple", 2.]]  # where simple filter is used after casting filter, filter range is 2.
 
+                            # range can be "auto" to use average element size on the domain, or user defined distance
 # ADVANCED INPUTS:
 
 optimization_base = "stiffness"  # "stiffness" - maximization of stiffness (minimization of compliance)

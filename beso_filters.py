@@ -1,6 +1,113 @@
 import numpy as np
 import beso_lib
 
+def find_size_elm(Elements, nodes):
+    """calculate size of elements used for automatic filter range"""
+    size_elm = {}  # output of this function
+
+    def size_tria(elm_category):
+        for en in elm_category:
+            x1, y1, z1 = nodes[elm_category[en][0]]
+            x2, y2, z2 = nodes[elm_category[en][1]]
+            x3, y3, z3 = nodes[elm_category[en][2]]
+            size_elm[en] = (((x1 - x2) ** 2 + (y1 - y2) ** 2 + (z1 - z2) ** 2) ** 0.5 +
+                            ((x1 - x3) ** 2 + (y1 - y3) ** 2 + (z1 - z3) ** 2) ** 0.5 +
+                            ((x2 - x3) ** 2 + (y2 - y3) ** 2 + (z2 - z3) ** 2) ** 0.5
+                            ) / 3
+
+    def size_quad(elm_category):
+        for en in elm_category:
+            x1, y1, z1 = nodes[elm_category[en][0]]
+            x2, y2, z2 = nodes[elm_category[en][1]]
+            x3, y3, z3 = nodes[elm_category[en][2]]
+            x4, y4, z4 = nodes[elm_category[en][3]]
+            size_elm[en] = (((x1 - x2) ** 2 + (y1 - y2) ** 2 + (z1 - z2) ** 2) ** 0.5 +
+                            ((x1 - x4) ** 2 + (y1 - y4) ** 2 + (z1 - z4) ** 2) ** 0.5 +
+                            ((x2 - x3) ** 2 + (y2 - y3) ** 2 + (z2 - z3) ** 2) ** 0.5 +
+                            ((x3 - x4) ** 2 + (y3 - y4) ** 2 + (z3 - z4) ** 2) ** 0.5
+                            ) / 4
+
+    def size_tetra(elm_category):
+        for en in elm_category:
+            x1, y1, z1 = nodes[elm_category[en][0]]
+            x2, y2, z2 = nodes[elm_category[en][1]]
+            x3, y3, z3 = nodes[elm_category[en][2]]
+            x4, y4, z4 = nodes[elm_category[en][3]]
+            size_elm[en] = (((x1 - x2) ** 2 + (y1 - y2) ** 2 + (z1 - z2) ** 2) ** 0.5 +
+                            ((x1 - x3) ** 2 + (y1 - y3) ** 2 + (z1 - z3) ** 2) ** 0.5 +
+                            ((x1 - x4) ** 2 + (y1 - y4) ** 2 + (z1 - z4) ** 2) ** 0.5 +
+                            ((x2 - x3) ** 2 + (y2 - y3) ** 2 + (z2 - z3) ** 2) ** 0.5 +
+                            ((x2 - x4) ** 2 + (y2 - y4) ** 2 + (z2 - z4) ** 2) ** 0.5 +
+                            ((x3 - x4) ** 2 + (y3 - y4) ** 2 + (z3 - z4) ** 2) ** 0.5
+                            ) / 6
+
+    def size_penta(elm_category):
+        for en in elm_category:
+            x1, y1, z1 = nodes[elm_category[en][0]]
+            x2, y2, z2 = nodes[elm_category[en][1]]
+            x3, y3, z3 = nodes[elm_category[en][2]]
+            x4, y4, z4 = nodes[elm_category[en][3]]
+            x5, y5, z5 = nodes[elm_category[en][4]]
+            x6, y6, z6 = nodes[elm_category[en][5]]
+            size_elm[en] = (((x1 - x2) ** 2 + (y1 - y2) ** 2 + (z1 - z2) ** 2) ** 0.5 +
+                            ((x1 - x3) ** 2 + (y1 - y3) ** 2 + (z1 - z3) ** 2) ** 0.5 +
+                            ((x1 - x4) ** 2 + (y1 - y4) ** 2 + (z1 - z4) ** 2) ** 0.5 +
+                            ((x2 - x3) ** 2 + (y2 - y3) ** 2 + (z2 - z3) ** 2) ** 0.5 +
+                            ((x2 - x5) ** 2 + (y2 - y5) ** 2 + (z2 - z5) ** 2) ** 0.5 +
+                            ((x3 - x6) ** 2 + (y3 - y6) ** 2 + (z3 - z6) ** 2) ** 0.5 +
+                            ((x4 - x5) ** 2 + (y4 - y5) ** 2 + (z4 - z5) ** 2) ** 0.5 +
+                            ((x4 - x6) ** 2 + (y4 - y6) ** 2 + (z4 - z6) ** 2) ** 0.5 +
+                            ((x5 - x6) ** 2 + (y5 - y6) ** 2 + (z5 - z6) ** 2) ** 0.5
+                            ) / 9
+
+    def size_hexa(elm_category):
+        for en in elm_category:
+            x1, y1, z1 = nodes[elm_category[en][0]]
+            x2, y2, z2 = nodes[elm_category[en][1]]
+            x3, y3, z3 = nodes[elm_category[en][2]]
+            x4, y4, z4 = nodes[elm_category[en][3]]
+            x5, y5, z5 = nodes[elm_category[en][4]]
+            x6, y6, z6 = nodes[elm_category[en][5]]
+            x7, y7, z7 = nodes[elm_category[en][6]]
+            x8, y8, z8 = nodes[elm_category[en][7]]
+            size_elm[en] = (((x1 - x2) ** 2 + (y1 - y2) ** 2 + (z1 - z2) ** 2) ** 0.5 +
+                            ((x1 - x4) ** 2 + (y1 - y4) ** 2 + (z1 - z4) ** 2) ** 0.5 +
+                            ((x1 - x5) ** 2 + (y1 - y5) ** 2 + (z1 - z5) ** 2) ** 0.5 +
+                            ((x2 - x3) ** 2 + (y2 - y3) ** 2 + (z2 - z3) ** 2) ** 0.5 +
+                            ((x2 - x6) ** 2 + (y2 - y6) ** 2 + (z2 - z6) ** 2) ** 0.5 +
+                            ((x3 - x4) ** 2 + (y3 - y4) ** 2 + (z3 - z4) ** 2) ** 0.5 +
+                            ((x3 - x7) ** 2 + (y3 - y7) ** 2 + (z3 - z7) ** 2) ** 0.5 +
+                            ((x4 - x8) ** 2 + (y4 - y8) ** 2 + (z4 - z8) ** 2) ** 0.5 +
+                            ((x5 - x6) ** 2 + (y5 - y6) ** 2 + (z5 - z6) ** 2) ** 0.5 +
+                            ((x5 - x8) ** 2 + (y5 - y8) ** 2 + (z5 - z8) ** 2) ** 0.5 +
+                            ((x6 - x7) ** 2 + (y6 - y7) ** 2 + (z6 - z7) ** 2) ** 0.5 +
+                            ((x7 - x8) ** 2 + (y7 - y8) ** 2 + (z7 - z8) ** 2) ** 0.5
+                            ) / 12
+
+    size_tria(Elements.tria3)
+    size_tria(Elements.tria6)
+    size_quad(Elements.quad4)
+    size_quad(Elements.quad8)
+    size_tetra(Elements.tetra4)
+    size_tetra(Elements.tetra10)
+    size_penta(Elements.penta6)
+    size_penta(Elements.penta15)
+    size_hexa(Elements.hexa8)
+    size_hexa(Elements.hexa20)
+    return size_elm
+
+
+def get_filter_range(size_elm, domains, filtered_dn):
+    """calculate average element size in domains given by filtered_dn"""
+    size_sum = 0
+    len_filtered_dn = 0
+    for dn in filtered_dn:
+        len_filtered_dn += len(domains[dn])
+        for en in domains[dn]:
+            size_sum += size_elm[en]
+    return size_sum / len_filtered_dn
+
+
 def sround(x, s):
     """round float number x to s significant digits"""
     if x > 0:
