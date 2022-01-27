@@ -12,7 +12,8 @@ path_calculix = "d:\\soft\\FreeCad\\FreeCAD_0.17.10993_x64_dev_win\\bin\\ccx"  #
 
 file_name = "Plane_Mesh.inp"  # file with prepared linear static analysis
 
-elset_name = "SolidMaterialElementGeometry2D"  # string with name of the element set in .inp file (CASE sensitive!)
+elset_name = "all_available"  # string with name of the element set in .inp file (CASE sensitive!)
+                              # when "all_available" string is used, all available elsets are used automatically
 domain_optimized[elset_name] = True  # True - optimized domain, False - elements will not be removed
 domain_density[elset_name] = [1e-6, 1]  # equivalent density of the domain material for states of switch_elm
 domain_thickness[elset_name] = [1.0, 1.0]  # thickness of shell elements for states of switch_elm
@@ -32,7 +33,7 @@ domain_material[elset_name] = ["*ELASTIC \n210000e-6,  0.3",  # material definit
 domain_same_state[elset_name] = False  # False - element states can differ,
                                        # "max" - domain elements have common state given by maximum sensitivity
                                        # "average" - domain elements have common state given by average sensitivity
-# copy this block for defining properties of the next domain
+# copy this block for defining properties of the next domain (if elset_name is not 1)
 
 mass_goal_ratio = 0.4  # the goal mass as a fragment of the full mass of optimized domains,
                        # i.e. fragment of mass evaluated from effective density and volumes of optimized elements in the highest state

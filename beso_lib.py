@@ -223,6 +223,14 @@ def import_inp(file_name, domains_from_config, domain_optimized, shells_as_compo
     en_all = []
     opt_domains = []
     for dn in domains_from_config:
+        if dn == "all_available":  # use all available elsets to cluster in one domain
+            opt_domains = set()
+            for dn in domains:
+                opt_domains.update(domains[dn])
+            opt_domains = list(opt_domains)
+            domains = {"all_available": opt_domains}
+            en_all = opt_domains.copy()
+            break
         try:
             en_all.extend(domains[dn])
         except KeyError:
@@ -460,6 +468,19 @@ def write_inp(file_name, file_nameW, elm_states, number_of_states, domains, doma
                                 position = 0
                         fW.write("\n")
         fW.write(" \n")
+        # all available elsets together
+        if "all_available" in domains.keys():
+            fW.write(" \n")
+            fW.write("*ELSET,ELSET=all_available\n")
+            position = 0
+            for en in domains["all_available"]:
+                if position < 8:
+                    fW.write(str(en) + ", ")
+                    position += 1
+                else:
+                    fW.write(str(en) + ",\n")
+                    position = 0
+            fW.write("\n")
 
     # function to add orientation to solid or shell section
     def add_orientation():
