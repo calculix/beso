@@ -13,7 +13,7 @@ path_calculix = "d:\\soft\\FreeCad\\FreeCAD_0.17.10993_x64_dev_win\\bin\\ccx"  #
 file_name = "Plane_Mesh.inp"  # file with prepared linear static analysis
 
 elset_name = "all_available"  # string with name of the element set in .inp file (CASE sensitive!)
-                              # when "all_available" string is used, all available elsets are used automatically
+                              # when "all_available" string is used, all available elements are used automatically for the optimization
 domain_optimized[elset_name] = True  # True - optimized domain, False - elements will not be removed
 domain_density[elset_name] = [1e-6, 1]  # equivalent density of the domain material for states of switch_elm
 domain_thickness[elset_name] = [1.0, 1.0]  # thickness of shell elements for states of switch_elm

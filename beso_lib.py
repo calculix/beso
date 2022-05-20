@@ -222,15 +222,11 @@ def import_inp(file_name, domains_from_config, domain_optimized, shells_as_compo
         domains[dn] = list(domains[dn])
     en_all = []
     opt_domains = []
+    all_available = False
     for dn in domains_from_config:
-        if dn == "all_available":  # use all available elsets to cluster in one domain
-            opt_domains = set()
-            for dn in domains:
-                opt_domains.update(domains[dn])
-            opt_domains = list(opt_domains)
-            domains = {"all_available": opt_domains}
-            en_all = opt_domains.copy()
-            break
+        if dn.upper() == "ALL_AVAILABLE":
+            all_available = True
+            continue
         try:
             en_all.extend(domains[dn])
         except KeyError:
@@ -241,31 +237,50 @@ def import_inp(file_name, domains_from_config, domain_optimized, shells_as_compo
             opt_domains.extend(domains[dn])
     msg = ("domains: %.f\n" % len(domains_from_config))
 
-    # only elements in domains_from_config are stored, the rest is discarded
-    keys = set(en_all).intersection(set(all_tria3.keys()))
-    Elements.tria3 = {k: all_tria3[k] for k in keys}
-    keys = set(en_all).intersection(set(all_tria6.keys()))
-    Elements.tria6 = {k: all_tria6[k] for k in keys}
-    keys = set(en_all).intersection(set(all_quad4.keys()))
-    Elements.quad4 = {k: all_quad4[k] for k in keys}
-    keys = set(en_all).intersection(set(all_quad8.keys()))
-    Elements.quad8 = {k: all_quad8[k] for k in keys}
-    keys = set(en_all).intersection(set(all_tetra4.keys()))
-    Elements.tetra4 = {k: all_tetra4[k] for k in keys}
-    keys = set(en_all).intersection(set(all_tetra10.keys()))
-    Elements.tetra10 = {k: all_tetra10[k] for k in keys}
-    keys = set(en_all).intersection(set(all_hexa8.keys()))
-    Elements.hexa8 = {k: all_hexa8[k] for k in keys}
-    keys = set(en_all).intersection(set(all_hexa20.keys()))
-    Elements.hexa20 = {k: all_hexa20[k] for k in keys}
-    keys = set(en_all).intersection(set(all_penta6.keys()))
-    Elements.penta6 = {k: all_penta6[k] for k in keys}
-    keys = set(en_all).intersection(set(all_penta15.keys()))
-    Elements.penta15 = {k: all_penta15[k] for k in keys}
-    en_all = list(Elements.tria3.keys()) + list(Elements.tria6.keys()) + list(Elements.quad4.keys()) + \
-             list(Elements.quad8.keys()) + list(Elements.tetra4.keys()) + list(Elements.tetra10.keys()) + \
-             list(Elements.hexa8.keys()) + list(Elements.hexa20.keys()) + list(Elements.penta6.keys()) + \
-             list(Elements.penta15.keys())
+    if all_available:  # domain called all_available will contain rest of the elements
+        en_all2 = set()
+        en_all2 = en_all2.union(all_tria3.keys(), all_tria6.keys(), all_quad4.keys(), all_quad8.keys(),
+                                all_tetra4.keys(), all_tetra10.keys(), all_hexa8.keys(), all_hexa20.keys(),
+                                all_penta6.keys(), all_penta15.keys())
+        Elements.tria3 = all_tria3
+        Elements.tria6 = all_tria6
+        Elements.quad4 = all_quad4
+        Elements.quad8 = all_quad8
+        Elements.tetra4 = all_tetra4
+        Elements.tetra10 = all_tetra10
+        Elements.hexa8 = all_hexa8
+        Elements.hexa20 = all_hexa20
+        Elements.penta6 = all_penta6
+        Elements.penta15 = all_penta15
+        domains["all_available"] = en_all2 - set(en_all)
+        opt_domains.extend(domains["all_available"])
+        en_all = list(en_all2)
+    else:
+        # only elements in domains_from_config are stored, the rest is discarded
+        keys = set(en_all).intersection(set(all_tria3.keys()))
+        Elements.tria3 = {k: all_tria3[k] for k in keys}
+        keys = set(en_all).intersection(set(all_tria6.keys()))
+        Elements.tria6 = {k: all_tria6[k] for k in keys}
+        keys = set(en_all).intersection(set(all_quad4.keys()))
+        Elements.quad4 = {k: all_quad4[k] for k in keys}
+        keys = set(en_all).intersection(set(all_quad8.keys()))
+        Elements.quad8 = {k: all_quad8[k] for k in keys}
+        keys = set(en_all).intersection(set(all_tetra4.keys()))
+        Elements.tetra4 = {k: all_tetra4[k] for k in keys}
+        keys = set(en_all).intersection(set(all_tetra10.keys()))
+        Elements.tetra10 = {k: all_tetra10[k] for k in keys}
+        keys = set(en_all).intersection(set(all_hexa8.keys()))
+        Elements.hexa8 = {k: all_hexa8[k] for k in keys}
+        keys = set(en_all).intersection(set(all_hexa20.keys()))
+        Elements.hexa20 = {k: all_hexa20[k] for k in keys}
+        keys = set(en_all).intersection(set(all_penta6.keys()))
+        Elements.penta6 = {k: all_penta6[k] for k in keys}
+        keys = set(en_all).intersection(set(all_penta15.keys()))
+        Elements.penta15 = {k: all_penta15[k] for k in keys}
+        en_all = list(Elements.tria3.keys()) + list(Elements.tria6.keys()) + list(Elements.quad4.keys()) + \
+                 list(Elements.quad8.keys()) + list(Elements.tetra4.keys()) + list(Elements.tetra10.keys()) + \
+                 list(Elements.hexa8.keys()) + list(Elements.hexa20.keys()) + list(Elements.penta6.keys()) + \
+                 list(Elements.penta15.keys())
 
     msg += ("nodes  : %.f\nTRIA3  : %.f\nTRIA6  : %.f\nQUAD4  : %.f\nQUAD8  : %.f\nTETRA4 : %.f\nTETRA10: %.f\n"
            "HEXA8  : %.f\nHEXA20 : %.f\nPENTA6 : %.f\nPENTA15: %.f\n"
