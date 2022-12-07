@@ -1,3 +1,4 @@
+#!/usr/bin/env python3
 # optimization program using CalculiX solver
 # BESO (Bi-directional Evolutionary Structural Optimization Method)
 
@@ -52,9 +53,24 @@ save_iteration_results = 1
 save_solver_files = ""
 save_resulting_format = "inp vtk"
 
+# Get the real beso_main.py to derive our filepath from
+try:
+    resolved_besofile = os.readlink(__file__)
+except OSError:
+    resolved_besofile = __file__
+
+beso_dir = os.path.dirname(resolved_besofile)
+
 # read configuration file to fill variables listed above
-beso_dir = os.path.dirname(__file__)
 exec(open(os.path.join(beso_dir, "beso_conf.py")).read())
+
+# if available, set the input file according to the first
+# cmdline argument given to the script.
+try:
+    file_name = sys.argv[1]
+except IndexError:
+    pass
+
 domains_from_config = domain_optimized.keys()
 criteria = []
 domain_FI_filled = False
