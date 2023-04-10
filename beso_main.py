@@ -20,6 +20,7 @@ start_time = time.time()
 
 # initialization of variables - default values
 domain_optimized = {}
+domain_initial_state = {}
 domain_density = {}
 domain_thickness = {}
 domain_offset = {}
@@ -168,28 +169,55 @@ for dn in domains_from_config:  # distinguishing shell elements and volume eleme
                                                        list(Elements.penta6.keys()) + list(Elements.penta15.keys()))
 
 # initialize element states
+for dn in domains_from_config:
+    try:
+        domain_initial_state[dn]
+    except KeyError:
+        domain_initial_state[dn] = None
 elm_states = {}
-if isinstance(continue_from, int):
+if isinstance(continue_from, int):  # state defined by number
     for dn in domains_from_config:
-        if (len(domain_density[dn]) - 1) < continue_from:
-            sn = len(domain_density[dn]) - 1
-            msg = "\nINFO: elements from the domain " + dn + " were set to the highest state.\n"
-            beso_lib.write_to_log(file_name, msg)
-            print(msg)
+        if domain_initial_state[dn] is not None:
+            for en in domains[dn]:
+                elm_states[en] = domain_initial_state[dn]
         else:
-            sn = continue_from
-        for en in domains[dn]:
-            elm_states[en] = sn
-elif continue_from[-4:] == ".frd":
-    elm_states = beso_lib.import_frd_state(continue_from, elm_states, number_of_states, file_name)
-elif continue_from[-4:] == ".inp":
-    elm_states = beso_lib.import_inp_state(continue_from, elm_states, number_of_states, file_name)
-elif continue_from[-4:] == ".csv":
-    elm_states = beso_lib.import_csv_state(continue_from, elm_states, file_name)
-else:
+            if (len(domain_density[dn]) - 1) < continue_from:
+                sn = len(domain_density[dn]) - 1  # set to the highest state
+                msg = "\nINFO: elements from the domain " + dn + " were set to the highest state.\n"
+                beso_lib.write_to_log(file_name, msg)
+                print(msg)
+            else:
+                sn = continue_from
+            for en in domains[dn]:
+                elm_states[en] = sn
+elif isinstance(continue_from, str):  # state defined by a file
+    if continue_from[-4:] == ".frd":
+        elm_states = beso_lib.import_frd_state(continue_from, elm_states, number_of_states, file_name)
+    elif continue_from[-4:] == ".inp":
+        elm_states = beso_lib.import_inp_state(continue_from, elm_states, number_of_states, file_name)
+    elif continue_from[-4:] == ".csv":
+        elm_states = beso_lib.import_csv_state(continue_from, elm_states, file_name)
+    elif continue_from:
+        msg = "Unknown input in continue_from parameter."
+        beso_lib.write_to_log(file_name, "\nERROR: " + msg + "\n")
+        raise Exception(msg)
+    else:
+        for dn in domains_from_config:
+            if domain_initial_state[dn] is None:
+                for en in domains[dn]:
+                    elm_states[en] = len(domain_density[dn]) - 1  # set to the highest state
+    for dn in domains_from_config:  # overwrite with domain_initial_state[dn]
+        if domain_initial_state[dn] is not None:
+            for en in domains[dn]:
+                elm_states[en] = domain_initial_state[dn]
+else:  # state not defined by continue_from
     for dn in domains_from_config:
-        for en in domains[dn]:
-            elm_states[en] = len(domain_density[dn]) - 1  # set to highest state
+        if domain_initial_state[dn] is not None:
+            for en in domains[dn]:
+                elm_states[en] = domain_initial_state[dn]
+        else:
+            for en in domains[dn]:
+                elm_states[en] = len(domain_density[dn]) - 1  # set to the highest state
 
 # computing volume or area, and centre of gravity of each element
 [cg, cg_min, cg_max, volume_elm, area_elm] = beso_lib.elm_volume_cg(file_name, nodes, Elements)

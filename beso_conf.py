@@ -15,6 +15,8 @@ file_name = "Plane_Mesh.inp"  # file with prepared linear static analysis
 elset_name = "all_available"  # string with name of the element set in .inp file (CASE sensitive!)
                               # when "all_available" string is used, all available elements are used automatically for the optimization
 domain_optimized[elset_name] = True  # True - optimized domain, False - elements will not be removed
+domain_initial_state[elset_name] = None  # None - use default, e.g. highest state
+                                         # N - number defining initial state. It has precedence over continue_from
 domain_density[elset_name] = [1e-6, 1]  # equivalent density of the domain material for states of switch_elm
 domain_thickness[elset_name] = [1.0, 1.0]  # thickness of shell elements for states of switch_elm
 domain_offset[elset_name] = 0.0  # offset of shell elements
@@ -43,6 +45,7 @@ continue_from = ""  # if not "", optimization will load element states from the 
                               # for inp or frd meshes use 0th file name e.g. "file051_res_mesh0.inp" or "file051_res_mesh0.frd"
                               # or use number N without apostrophes to start each element from state N (numbered from 0)
                               # (continuing from vtk result file is not supported)
+                              # domain_initial_state[elset_name] has precedence over continue_from
 
 filter_list = [["simple", "auto"]]  # [[filter type, range, domains or nothing for all domains], [next filter type, range, "domain1", "domain2"], ...]
                             # filter types:
