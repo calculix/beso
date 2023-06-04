@@ -380,7 +380,7 @@ while True:
                        i, reference_points, shells_as_composite, optimization_base, displacement_graph,
                        domain_FI_filled)
     # running CalculiX analysis
-    if sys.platform.startswith('linux'):
+    if sys.platform.startswith('linux') or sys.platform.startswith('darwin'):
         subprocess.call([os.path.normpath(path_calculix), file_nameW], cwd=path)
     else:
         subprocess.call([os.path.normpath(path_calculix), file_nameW], cwd=path, shell=True)
