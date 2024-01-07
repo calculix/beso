@@ -774,12 +774,15 @@ while True:
             os.remove(file_nameW + ".sta")
         if "cvg" not in save_solver_files:
             os.remove(file_nameW + ".cvg")
+        if "12d" not in save_solver_files:
+            os.remove(file_nameW + ".12d")
     else:
         os.remove(file_nameW + ".inp")
         os.remove(file_nameW + ".dat")
         os.remove(file_nameW + ".frd")
         os.remove(file_nameW + ".sta")
         os.remove(file_nameW + ".cvg")
+        os.remove(file_nameW + ".12d")
 
 # export the resulting mesh
 if not (save_iteration_results and np.mod(float(i), save_iteration_results) == 0):
@@ -801,6 +804,8 @@ if "sta" not in save_solver_files:
     os.remove(file_nameW + ".sta")
 if "cvg" not in save_solver_files:
     os.remove(file_nameW + ".cvg")
+if "12d" not in save_solver_files:
+    os.remove(file_nameW + ".12d")
 
 # plot and save figures
 beso_plots.replot(path, i, oscillations, mass, domain_FI_filled, domains_from_config, FI_violated, FI_mean,
