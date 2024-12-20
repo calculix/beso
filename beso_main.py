@@ -67,7 +67,8 @@ exec(open(os.path.join(beso_dir, "beso_conf.py")).read())
 # if available, set the input file according to the first
 # cmdline argument given to the script.
 try:
-    file_name = sys.argv[1]
+    if sys.argv[1] != "-":
+        file_name = sys.argv[1]
 except IndexError:
     pass
 
