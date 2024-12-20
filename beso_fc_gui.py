@@ -595,11 +595,11 @@ class beso_gui(QDialog):
         """Overwrite beso_conf.py file in the macro directory"""
 
         file_name = os.path.split(self.textbox_file_name.text())[1]
-        path = os.path.split(self.textbox_file_name.text())[0]
+        path = os.path.split(self.textbox_file_name.text())[0].replace("\\", "\\\\")
 
         fea = ccxtools.FemToolsCcx()
         fea.setup_ccx()
-        path_calculix = fea.ccx_binary
+        path_calculix = os.path.normpath(fea.ccx_binary).replace("\\", "\\\\")
 
         optimization_base = self.combo51.currentText()
 
