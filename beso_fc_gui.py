@@ -614,18 +614,27 @@ class beso_gui(QDialog):
                 modulus = float(self.materials[elset_id].Material["YoungsModulus"].split()[0])  # MPa
             elif self.materials[elset_id].Material["YoungsModulus"].split()[1] == "GPa":
                 modulus = float(self.materials[elset_id].Material["YoungsModulus"].split()[0]) * 1000  # GPa -> MPa
+            elif self.materials[elset_id].Material["YoungsModulus"].split()[1] == "kg/(mm*s^2)":
+                modulus = float(self.materials[elset_id].Material["YoungsModulus"].split()[0]) / 1000  # kPa -> MPa
             else:
                 raise Exception(" units not recognised in " + self.materials[elset_id].Name)
             poisson = float(self.materials[elset_id].Material["PoissonRatio"].split()[0])
             try:
-                density = float(self.materials[elset_id].Material["Density"].split()[0]) * 1e-12  # kg/m3 -> t/mm3
                 if self.materials[elset_id].Material["Density"].split()[1] not in ["kg/m^3", "kg/m3"]:
+                    density = float(self.materials[elset_id].Material["Density"].split()[0]) * 1e-12  # kg/m3 -> t/mm3
+                elif self.materials[elset_id].Material["Density"].split()[1] == "kg/mm^3":
+                    density = float(self.materials[elset_id].Material["Density"].split()[0]) / 1000 # kg/mm3 -> t/mm3
+                else:
                     raise Exception(" units not recognised in " + self.materials[elset_id].Name)
             except KeyError:
                 density = 0.
             try:
-                conductivity = float(self.materials[elset_id].Material["ThermalConductivity"].split()[0])  # W/m/K
-                if self.materials[elset_id].Material["ThermalConductivity"].split()[1] != "W/m/K":
+                if self.materials[elset_id].Material["ThermalConductivity"].split()[1] == "W/m/K":
+                    conductivity = float(self.materials[elset_id].Material["ThermalConductivity"].split()[0])  # W/m/K
+                elif self.materials[elset_id].Material["ThermalConductivity"].split()[1] == "mm*kg/(s^3*K)":
+                    conductivity = float(self.materials[elset_id].Material["ThermalConductivity"].split()[
+                                             0]) / 1000  # mm*kg/(s^3*K) -> W/m/K
+                else:
                     raise Exception(" units not recognised in " + self.materials[elset_id].Name)
             except KeyError:
                 conductivity = 0.
@@ -647,6 +656,8 @@ class beso_gui(QDialog):
                 elif self.materials[elset_id].Material["SpecificHeat"].split()[1] == "kJ/kg/K":
                     specific_heat = float(self.materials[elset_id].Material["SpecificHeat"].split()[
                                           0]) * 1e9  # kJ/kg/K -> mm^2/s^2/K
+                elif self.materials[elset_id].Material["SpecificHeat"].split()[1] in ["mm^2/s^2/K", "mm^2/(s^2*K)"]:
+                    specific_heat = float(self.materials[elset_id].Material["SpecificHeat"].split()[0])
                 else:
                     raise Exception(" units not recognised in " + self.materials[elset_id].Name)
             except KeyError:
@@ -670,19 +681,31 @@ class beso_gui(QDialog):
                 elset1 = self.materials[elset_id1].Name + self.thicknesses[thickness_id1].Name
             else:  # 0 means None thickness selected
                 elset1 = self.materials[elset_id1].Name + "Solid"
-            modulus1 = float(self.materials[elset_id1].Material["YoungsModulus"].split()[0])  # MPa
-            if self.materials[elset_id1].Material["YoungsModulus"].split()[1] != "MPa":
+            if self.materials[elset_id1].Material["YoungsModulus"].split()[1] == "MPa":
+                modulus1 = float(self.materials[elset_id1].Material["YoungsModulus"].split()[0])  # MPa
+            elif self.materials[elset_id1].Material["YoungsModulus"].split()[1] == "GPa":
+                modulus1 = float(self.materials[elset_id1].Material["YoungsModulus"].split()[0]) * 1000  # GPa -> MPa
+            elif self.materials[elset_id1].Material["YoungsModulus"].split()[1] == "kg/(mm*s^2)":
+                modulus1 = float(self.materials[elset_id1].Material["YoungsModulus"].split()[0]) / 1000  # kPa -> MPa
+            else:
                 raise Exception(" units not recognised in " + self.materials[elset_id1].Name)
             poisson1 = float(self.materials[elset_id1].Material["PoissonRatio"].split()[0])
             try:
-                density1 = float(self.materials[elset_id1].Material["Density"].split()[0]) * 1e-12  # kg/m3 -> t/mm3
                 if self.materials[elset_id1].Material["Density"].split()[1] not in ["kg/m^3", "kg/m3"]:
+                    density1 = float(self.materials[elset_id1].Material["Density"].split()[0]) * 1e-12  # kg/m3 -> t/mm3
+                elif self.materials[elset_id1].Material["Density"].split()[1] == "kg/mm^3":
+                    density1 = float(self.materials[elset_id1].Material["Density"].split()[0]) / 1000 # kg/mm3 -> t/mm3
+                else:
                     raise Exception(" units not recognised in " + self.materials[elset_id1].Name)
             except KeyError:
                 density1 = 0.
             try:
-                conductivity1 = float(self.materials[elset_id1].Material["ThermalConductivity"].split()[0])  # W/m/K
-                if self.materials[elset_id1].Material["ThermalConductivity"].split()[1] != "W/m/K":
+                if self.materials[elset_id1].Material["ThermalConductivity"].split()[1] == "W/m/K":
+                    conductivity1 = float(self.materials[elset_id1].Material["ThermalConductivity"].split()[0])  # W/m/K
+                elif self.materials[elset_id1].Material["ThermalConductivity"].split()[1] == "mm*kg/(s^3*K)":
+                    conductivity1 = float(self.materials[elset_id1].Material["ThermalConductivity"].split()[
+                                             0]) / 1000  # mm*kg/(s^3*K) -> W/m/K
+                else:
                     raise Exception(" units not recognised in " + self.materials[elset_id1].Name)
             except KeyError:
                 conductivity1 = 0.
@@ -690,7 +713,7 @@ class beso_gui(QDialog):
                 if self.materials[elset_id1].Material["ThermalExpansionCoefficient"].split()[1] == "um/m/K":
                     expansion1 = float(self.materials[elset_id1].Material["ThermalExpansionCoefficient"].split()[
                                        0]) * 1e-6  # um/m/K -> mm/mm/K
-                elif self.materials[elset_id1].Material["ThermalExpansionCoefficient"].split()[1] == "m/m/K":
+                elif self.materials[elset_id1].Material["ThermalExpansionCoefficient"].split()[1] in ["m/m/K", "1/K"]:
                     expansion1 = float(self.materials[elset_id1].Material["ThermalExpansionCoefficient"].split()[
                                        0])  # m/m/K -> mm/mm/K
                 else:
@@ -698,9 +721,15 @@ class beso_gui(QDialog):
             except KeyError:
                 expansion1 = 0.
             try:
-                specific_heat1 = float(self.materials[elset_id1].Material["SpecificHeat"].split()[
-                                       0]) * 1e6  #  J/kg/K -> mm^2/s^2/K
-                if self.materials[elset_id1].Material["SpecificHeat"].split()[1] != "J/kg/K":
+                if self.materials[elset_id1].Material["SpecificHeat"].split()[1] == "J/kg/K":
+                    specific_heat1 = float(self.materials[elset_id1].Material["SpecificHeat"].split()[
+                                          0]) * 1e6  # J/kg/K -> mm^2/s^2/K
+                elif self.materials[elset_id1].Material["SpecificHeat"].split()[1] == "kJ/kg/K":
+                    specific_heat1 = float(self.materials[elset_id1].Material["SpecificHeat"].split()[
+                                          0]) * 1e9  # kJ/kg/K -> mm^2/s^2/K
+                elif self.materials[elset_id1].Material["SpecificHeat"].split()[1] in ["mm^2/s^2/K", "mm^2/(s^2*K)"]:
+                    specific_heat1 = float(self.materials[elset_id1].Material["SpecificHeat"].split()[0])
+                else:
                     raise Exception(" units not recognised in " + self.materials[elset_id1].Name)
             except KeyError:
                 specific_heat1 = 0.
@@ -722,20 +751,32 @@ class beso_gui(QDialog):
             if thickness_id2 != -1:
                 elset2 = self.materials[elset_id2].Name + self.thicknesses[thickness_id2].Name
             else:  # 0 means None thickness selected
-                else2t = self.materials[elset_id2].Name + "Solid"
-            modulus2 = float(self.materials[elset_id2].Material["YoungsModulus"].split()[0])  # MPa
-            if self.materials[elset_id2].Material["YoungsModulus"].split()[1] != "MPa":
+                elset2 = self.materials[elset_id2].Name + "Solid"
+            if self.materials[elset_id2].Material["YoungsModulus"].split()[1] == "MPa":
+                modulus2 = float(self.materials[elset_id2].Material["YoungsModulus"].split()[0])  # MPa
+            elif self.materials[elset_id2].Material["YoungsModulus"].split()[1] == "GPa":
+                modulus2 = float(self.materials[elset_id2].Material["YoungsModulus"].split()[0]) * 1000  # GPa -> MPa
+            elif self.materials[elset_id2].Material["YoungsModulus"].split()[1] == "kg/(mm*s^2)":
+                modulus2 = float(self.materials[elset_id2].Material["YoungsModulus"].split()[0]) / 1000  # kPa -> MPa
+            else:
                 raise Exception(" units not recognised in " + self.materials[elset_id2].Name)
             poisson2 = float(self.materials[elset_id2].Material["PoissonRatio"].split()[0])
             try:
-                density2 = float(self.materials[elset_id2].Material["Density"].split()[0]) * 1e-12  # kg/m3 -> t/mm3
                 if self.materials[elset_id2].Material["Density"].split()[1] not in ["kg/m^3", "kg/m3"]:
+                    density2 = float(self.materials[elset_id2].Material["Density"].split()[0]) * 1e-12  # kg/m3 -> t/mm3
+                elif self.materials[elset_id2].Material["Density"].split()[1] == "kg/mm^3":
+                    density2 = float(self.materials[elset_id2].Material["Density"].split()[0]) / 1000 # kg/mm3 -> t/mm3
+                else:
                     raise Exception(" units not recognised in " + self.materials[elset_id2].Name)
             except KeyError:
                 density2 = 0.
             try:
-                conductivity2 = float(self.materials[elset_id2].Material["ThermalConductivity"].split()[0])  # W/m/K
-                if self.materials[elset_id2].Material["ThermalConductivity"].split()[1] != "W/m/K":
+                if self.materials[elset_id2].Material["ThermalConductivity"].split()[1] == "W/m/K":
+                    conductivity2 = float(self.materials[elset_id2].Material["ThermalConductivity"].split()[0])  # W/m/K
+                elif self.materials[elset_id2].Material["ThermalConductivity"].split()[1] == "mm*kg/(s^3*K)":
+                    conductivity2 = float(self.materials[elset_id2].Material["ThermalConductivity"].split()[
+                                             0]) / 1000  # mm*kg/(s^3*K) -> W/m/K
+                else:
                     raise Exception(" units not recognised in " + self.materials[elset_id2].Name)
             except KeyError:
                 conductivity2 = 0.
@@ -743,7 +784,7 @@ class beso_gui(QDialog):
                 if self.materials[elset_id2].Material["ThermalExpansionCoefficient"].split()[1] == "um/m/K":
                     expansion2 = float(self.materials[elset_id2].Material["ThermalExpansionCoefficient"].split()[
                                        0]) * 1e-6  # um/m/K -> mm/mm/K
-                elif self.materials[elset_id2].Material["ThermalExpansionCoefficient"].split()[1] == "m/m/K":
+                elif self.materials[elset_id2].Material["ThermalExpansionCoefficient"].split()[1] in ["m/m/K", "1/K"]:
                     expansion2 = float(self.materials[elset_id2].Material["ThermalExpansionCoefficient"].split()[
                                        0])  # m/m/K -> mm/mm/K
                 else:
@@ -751,9 +792,15 @@ class beso_gui(QDialog):
             except KeyError:
                 expansion2 = 0.
             try:
-                specific_heat2 = float(self.materials[elset_id2].Material["SpecificHeat"].split()[
-                                       0]) * 1e6  #  J/kg/K -> mm^2/s^2/K
-                if self.materials[elset_id2].Material["SpecificHeat"].split()[1] != "J/kg/K":
+                if self.materials[elset_id2].Material["SpecificHeat"].split()[1] == "J/kg/K":
+                    specific_heat2 = float(self.materials[elset_id2].Material["SpecificHeat"].split()[
+                                          0]) * 1e6  # J/kg/K -> mm^2/s^2/K
+                elif self.materials[elset_id2].Material["SpecificHeat"].split()[1] == "kJ/kg/K":
+                    specific_heat2 = float(self.materials[elset_id2].Material["SpecificHeat"].split()[
+                                          0]) * 1e9  # kJ/kg/K -> mm^2/s^2/K
+                elif self.materials[elset_id2].Material["SpecificHeat"].split()[1] in ["mm^2/s^2/K", "mm^2/(s^2*K)"]:
+                    specific_heat2 = float(self.materials[elset_id2].Material["SpecificHeat"].split()[0])
+                else:
                     raise Exception(" units not recognised in " + self.materials[elset_id2].Name)
             except KeyError:
                 specific_heat2 = 0.
@@ -931,7 +978,7 @@ class beso_gui(QDialog):
         FreeCADGui.insert(os.path.join(self.beso_dir, "beso_conf.py"))
 
     def on_click23(self):
-        """"Run optimization"""
+        """Run optimization"""
         # run in own thread (not freezing FreeCAD):      needs also to comment "plt.show()" on the end of beso_main.py
         # self.optimization_thread = RunOptimization("beso_main")
         # self.optimization_thread.start()
