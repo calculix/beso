@@ -32,6 +32,8 @@ class beso_gui(QDialog):
 
         beso_gui.inp_file = ""
         beso_gui.beso_dir = os.path.dirname(__file__)
+        if beso_gui.beso_dir not in sys.path:
+            sys.path.append(beso_gui.beso_dir)
 
         self.initUI()
 
