@@ -382,9 +382,22 @@ while True:
                        domain_FI_filled)
     # running CalculiX analysis
     if sys.platform.startswith('linux') or sys.platform.startswith('darwin'):
-        subprocess.call([os.path.normpath(path_calculix), file_nameW], cwd=path)
+        exit_status = subprocess.call([os.path.normpath(path_calculix), file_nameW], cwd=path)
     else:
-        subprocess.call([os.path.normpath(path_calculix), file_nameW], cwd=path, shell=True)
+        exit_status = subprocess.call([os.path.normpath(path_calculix), file_nameW], cwd=path, shell=True)
+    # check CalculiX exit status
+    if exit_status == 201:
+        msg = "ERROR: CalculiX exit status 201. It cannot open inp file.\n"
+        print(msg)
+        beso_lib.write_to_log(file_name, msg)
+    elif exit_status == 1:
+        msg = "ERROR: CalculiX exit status 1. There might be invalid path_calculix.\n"
+        print(msg)
+        beso_lib.write_to_log(file_name, msg)
+    elif exit_status != 0:
+        msg = "ERROR: CalculiX exit status {}.\n".format(exit_status)
+        print(msg)
+        beso_lib.write_to_log(file_name, msg)
 
     # reading results and computing failure indices
     if (reference_points == "integration points") or (optimization_base == "stiffness") or \
