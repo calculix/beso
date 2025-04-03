@@ -622,10 +622,10 @@ class beso_gui(QDialog):
                 raise Exception(" units not recognised in " + self.materials[elset_id].Name)
             poisson = float(self.materials[elset_id].Material["PoissonRatio"].split()[0])
             try:
-                if self.materials[elset_id].Material["Density"].split()[1] not in ["kg/m^3", "kg/m3"]:
+                if self.materials[elset_id].Material["Density"].split()[1] in ["kg/m^3", "kg/m3"]:
                     density = float(self.materials[elset_id].Material["Density"].split()[0]) * 1e-12  # kg/m3 -> t/mm3
                 elif self.materials[elset_id].Material["Density"].split()[1] == "kg/mm^3":
-                    density = float(self.materials[elset_id].Material["Density"].split()[0]) / 1000 # kg/mm3 -> t/mm3
+                    density = float(self.materials[elset_id].Material["Density"].split()[0]) / 1000  # kg/mm3 -> t/mm3
                 else:
                     raise Exception(" units not recognised in " + self.materials[elset_id].Name)
             except KeyError:
@@ -693,10 +693,10 @@ class beso_gui(QDialog):
                 raise Exception(" units not recognised in " + self.materials[elset_id1].Name)
             poisson1 = float(self.materials[elset_id1].Material["PoissonRatio"].split()[0])
             try:
-                if self.materials[elset_id1].Material["Density"].split()[1] not in ["kg/m^3", "kg/m3"]:
+                if self.materials[elset_id1].Material["Density"].split()[1] in ["kg/m^3", "kg/m3"]:
                     density1 = float(self.materials[elset_id1].Material["Density"].split()[0]) * 1e-12  # kg/m3 -> t/mm3
                 elif self.materials[elset_id1].Material["Density"].split()[1] == "kg/mm^3":
-                    density1 = float(self.materials[elset_id1].Material["Density"].split()[0]) / 1000 # kg/mm3 -> t/mm3
+                    density1 = float(self.materials[elset_id1].Material["Density"].split()[0]) / 1000  # kg/mm3 -> t/mm3
                 else:
                     raise Exception(" units not recognised in " + self.materials[elset_id1].Name)
             except KeyError:
@@ -764,10 +764,10 @@ class beso_gui(QDialog):
                 raise Exception(" units not recognised in " + self.materials[elset_id2].Name)
             poisson2 = float(self.materials[elset_id2].Material["PoissonRatio"].split()[0])
             try:
-                if self.materials[elset_id2].Material["Density"].split()[1] not in ["kg/m^3", "kg/m3"]:
+                if self.materials[elset_id2].Material["Density"].split()[1] in ["kg/m^3", "kg/m3"]:
                     density2 = float(self.materials[elset_id2].Material["Density"].split()[0]) * 1e-12  # kg/m3 -> t/mm3
                 elif self.materials[elset_id2].Material["Density"].split()[1] == "kg/mm^3":
-                    density2 = float(self.materials[elset_id2].Material["Density"].split()[0]) / 1000 # kg/mm3 -> t/mm3
+                    density2 = float(self.materials[elset_id2].Material["Density"].split()[0]) / 1000  # kg/mm3 -> t/mm3
                 else:
                     raise Exception(" units not recognised in " + self.materials[elset_id2].Name)
             except KeyError:
