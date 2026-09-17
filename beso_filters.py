@@ -434,57 +434,45 @@ def prepare2s(cg, cg_min, cg_max, r_min, opt_domains, weight_factor2, near_elm):
                         near_elm[en].append(en2)
                         near_elm[en2].append(en)
     # finding near elements in neighbouring sectors by comparing distance with neighbouring sector elements
-    x = cg_min[0] + 0.5 * r_min
-    while x <= cg_max[0] + 0.5 * r_min:
-        y = cg_min[1] + 0.5 * r_min
-        while y <= cg_max[1] + 0.5 * r_min:
-            z = cg_min[2] + 0.5 * r_min
-            while z <= cg_max[2] + 0.5 * r_min:
-                position = (sround(x, 6), sround(y, 6), sround(z, 6))
-                # down level neighbouring sectors:
-                # o  o  -
-                # o  -  -
-                # o  -  -
-                # middle level neighbouring sectors:
-                # o  o  -
-                # o self -
-                # o  -  -
-                # upper level neighbouring sectors:
-                # o  o  -
-                # o  o  -
-                # o  -  -
-                for position_neighbour in [(x + r_min, y - r_min, z - r_min),
-                                           (x + r_min, y, z - r_min),
-                                           (x + r_min, y + r_min, z - r_min),
-                                           (x, y + r_min, z - r_min),
-                                           (x + r_min, y - r_min, z),
-                                           (x + r_min, y, z),
-                                           (x + r_min, y + r_min, z),
-                                           (x, y + r_min, z),
-                                           (x + r_min, y - r_min, z + r_min),
-                                           (x + r_min, y, z + r_min),
-                                           (x + r_min, y + r_min, z + r_min),
-                                           (x, y + r_min, z + r_min),
-                                           (x, y, z + r_min)]:
-                    position_neighbour = (sround(position_neighbour[0], 6), sround(position_neighbour[1], 6),
-                                          sround(position_neighbour[2], 6))
-                    for en in sector_elm[position]:
-                        try:
-                            for en2 in sector_elm[position_neighbour]:
-                                dx = cg[en][0] - cg[en2][0]
-                                dy = cg[en][1] - cg[en2][1]
-                                dz = cg[en][2] - cg[en2][2]
-                                distance = (dx ** 2 + dy ** 2 + dz ** 2) ** 0.5
-                                if distance < r_min:
-                                    ee = (min(en, en2), max(en, en2))
-                                    weight_factor2[ee] = r_min - distance
-                                    near_elm[en].append(en2)
-                                    near_elm[en2].append(en)
-                        except KeyError:
-                            pass
-                z += r_min
-            y += r_min
-        x += r_min
+    # the neighbouring sectors are addressed by the offsets of the cell indices (+-1 cell in each direction)
+    for position in list(sector_elm):
+        kx, ky, kz = position
+        # down level neighbouring sectors:
+        # o  o  -
+        # o  -  -
+        # o  -  -
+        # middle level neighbouring sectors:
+        # o  o  -
+        # o self -
+        # o  -  -
+        # upper level neighbouring sectors:
+        # o  o  -
+        # o  o  -
+        # o  -  -
+        for position_neighbour in [(kx + 1, ky - 1, kz - 1),
+                                   (kx + 1, ky, kz - 1),
+                                   (kx + 1, ky + 1, kz - 1),
+                                   (kx, ky + 1, kz - 1),
+                                   (kx + 1, ky - 1, kz),
+                                   (kx + 1, ky, kz),
+                                   (kx + 1, ky + 1, kz),
+                                   (kx, ky + 1, kz),
+                                   (kx + 1, ky - 1, kz + 1),
+                                   (kx + 1, ky, kz + 1),
+                                   (kx + 1, ky + 1, kz + 1),
+                                   (kx, ky + 1, kz + 1),
+                                   (kx, ky, kz + 1)]:
+            for en in sector_elm[position]:
+                for en2 in sector_elm.get(position_neighbour, []):
+                    dx = cg[en][0] - cg[en2][0]
+                    dy = cg[en][1] - cg[en2][1]
+                    dz = cg[en][2] - cg[en2][2]
+                    distance = (dx ** 2 + dy ** 2 + dz ** 2) ** 0.5
+                    if distance < r_min:
+                        ee = (min(en, en2), max(en, en2))
+                        weight_factor2[ee] = r_min - distance
+                        near_elm[en].append(en2)
+                        near_elm[en2].append(en)
     # print ("near elements have been associated, weight factors computed")
     return weight_factor2, near_elm
 
