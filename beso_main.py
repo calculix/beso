@@ -168,6 +168,18 @@ for dn in domains_from_config:  # distinguishing shell elements and volume eleme
                                                        list(Elements.hexa8.keys()) + list(Elements.hexa20.keys()) +
                                                        list(Elements.penta6.keys()) + list(Elements.penta15.keys()))
 
+# a thickness must be defined for shell (2D) elements - without it the mass of such elements
+# cannot be computed and the evaluation below would stop with an unclear IndexError
+for dn in domains_from_config:
+    if domain_shells[dn] and len(domain_thickness.get(dn, [])) < len(domain_density[dn]):
+        msg = ("\nERROR: domain_thickness is missing or too short for the domain '" + dn + "'. "
+               "This domain contains shell (2D) elements - their thickness is needed to compute "
+               "the mass. Set it in beso_conf.py, for example domain_thickness['" + dn + "'] = "
+               "[1.0, 1.0] (one value for each state of switch_elm).\n")
+        print(msg)
+        beso_lib.write_to_log(file_name, msg)
+        sys.exit(1)
+
 # initialize element states
 elm_states = {}
 if isinstance(continue_from, int):
