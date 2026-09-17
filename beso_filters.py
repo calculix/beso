@@ -1,3 +1,5 @@
+import sys
+
 import numpy as np
 import beso_lib
 
@@ -381,38 +383,34 @@ def run1(file_name, sensitivity_number, weight_factor_node, M, weight_factor_dis
         if denominator != 0:
             sensitivity_number_filtered[en] = numerator / denominator
         else:
-            msg = "\nERROR: filter over nodes failed due to division by 0." \
-                  "Some element CG has not a node in distance <= r_min.\n"
+            msg = ("\nERROR: filter over nodes failed due to division by 0. Some element centre of "
+                   "gravity has not a node in distance <= r_min. The filter range (filter_list in "
+                   "beso_conf.py) is too small for this mesh - increase the range (or use 'auto') and "
+                   "run again. Continuing without filtering would hide the checkerboard effect.\n")
             print(msg)
             beso_lib.write_to_log(file_name, msg)
-            filter_on_sensitivity = 0
-            return sensitivity_number
+            sys.exit(1)
     return sensitivity_number_filtered
 
 
 # function preparing values for filtering element rho to suppress checkerboard
 # uses sectoring to prevent computing distance of far points
 def prepare2s(cg, cg_min, cg_max, r_min, opt_domains, weight_factor2, near_elm):
+    # preparing the sectors - the key of a sector is the index of the grid cell
+    # (integers), not a rounded coordinate: rounding to 6 significant digits gave
+    # different keys for the same cell depending on how the value was computed, and
+    # a cell that the loop over coordinates missed was not found at all (KeyError).
+    # Only the occupied cells are stored, so no cell can be missing.
     sector_elm = {}
-    # preparing empty sectors
-    x = cg_min[0] + 0.5 * r_min
-    while x <= cg_max[0] + 0.5 * r_min:
-        y = cg_min[1] + 0.5 * r_min
-        while y <= cg_max[1] + 0.5 * r_min:
-            z = cg_min[2] + 0.5 * r_min
-            while z <= cg_max[2] + 0.5 * r_min:
-                # 6 significant digit round because of small declination (6 must be used for all sround below)
-                sector_elm[(sround(x, 6), sround(y, 6), sround(z, 6))] = []
-                z += r_min
-            y += r_min
-        x += r_min
     # assigning elements to the sectors
     for en in opt_domains:
         sector_centre = []
         for k in range(3):
-            position = cg_min[k] + r_min * (0.5 + np.floor((cg[en][k] - cg_min[k]) / r_min))
-            sector_centre.append(sround(position, 6))
-        sector_elm[tuple(sector_centre)].append(en)
+            sector_centre.append(int(np.floor((cg[en][k] - cg_min[k]) / r_min)))
+        sector_centre = tuple(sector_centre)
+        if sector_centre not in sector_elm:
+            sector_elm[sector_centre] = []
+        sector_elm[sector_centre].append(en)
     # finding near elements inside each sector
     for sector_centre in sector_elm:
         for en in sector_elm[sector_centre]:
@@ -503,12 +501,15 @@ def run2(file_name, sensitivity_number, weight_factor2, near_elm, opt_domains):
         if denominator != 0:
             sensitivity_number_filtered[en] = numerator / denominator
         else:
-            msg = "\nERROR: simple filter failed due to division by 0." \
-                  "Some element has not a near element in distance <= r_min.\n"
+            msg = ("\nERROR: simple filter failed due to division by 0. Some element has not a near "
+                   "element in distance <= r_min. The filter range (filter_list in beso_conf.py) is "
+                   "too small for this mesh: it has to be larger than the distance from the centre of "
+                   "gravity of an element to the centre of its nearest neighbour. Increase the range "
+                   "(or use 'auto') and run again - continuing without filtering would hide the "
+                   "checkerboard effect and the run would not converge.\n")
             print(msg)
             beso_lib.write_to_log(file_name, msg)
-            filter_on_sensitivity = 0
-            return sensitivity_number
+            sys.exit(1)
     return sensitivity_number_filtered
 
 
