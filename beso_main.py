@@ -252,6 +252,7 @@ for ft in filter_list:
         if ft[0] == "casting":
             if len(ft) == 3:
                 domains_to_filter = list(opt_domains)
+                filtered_dn = domains_from_config
                 beso_filters.check_same_state(domain_same_state, domains_from_config, file_name)
             else:
                 domains_to_filter = []
