@@ -311,7 +311,7 @@ def elm_volume_cg(file_name, nodes, Elements):
         for i in [0, 1, 2]:  # denote x, y, z directions
             u[i] = nodes[nod[2]][i] - nodes[nod[1]][i]
             v[i] = nodes[nod[0]][i] - nodes[nod[1]][i]
-        area_tria = np.linalg.linalg.norm(np.cross(u, v)) / 2.0
+        area_tria = np.linalg.norm(np.cross(u, v)) / 2.0
         # compute centre of gravity
         x_cg = (nodes[nod[0]][0] + nodes[nod[1]][0] + nodes[nod[2]][0]) / 3.0
         y_cg = (nodes[nod[0]][1] + nodes[nod[1]][1] + nodes[nod[2]][1]) / 3.0
