@@ -898,8 +898,7 @@ def import_FI_int_pt(reference_value, file_nameW, domains, criteria, domain_FI, 
                         superposition_energy_density[en][ip]
                     except IndexError:
                         superposition_energy_density[en].append(0)  # components of stress
-                    for component in range(6):
-                        superposition_energy_density[en][ip] += scale * step_ener[sn][en][ip]
+                    superposition_energy_density[en][ip] += scale * step_ener[sn][en][ip]
 
         # compute FI in each element at superposed step
         for en in superposition_stress:
